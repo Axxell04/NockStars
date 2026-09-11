@@ -51,6 +51,8 @@
         <button class="border py-2 px-3 rounded-md hover:text-red-400 focus:text-red-400 focus:bg-stone-800" 
         onclick={() => toggleFormSendMailIsVisible()}
         onfocus={(e) => cancelFocus(e)}
+        aria-expanded={formSendMailIsVisible}
+        aria-haspopup="true"
         >
             Enviar correo
         </button>
@@ -72,16 +74,16 @@
     >
     
         <div class="flex flex-col gap-2">
-            <span>
+            <label for="from">
                 Remitente
-            </span>
+            </label>
             <input type="text" id="from" name="from" autocomplete="off"
             class="p-2 border bg-transparent outline-none rounded" style="text-align: left;" required/>
         </div>
         <div class="flex flex-col gap-2">
-            <span>
+            <label for="message">
                 Mensaje
-            </span>
+            </label>
             <textarea name="message" id="message"
             class="p-2 border bg-transparent outline-none rounded" style="text-align: left; font-family: Nunito" required
             ></textarea>

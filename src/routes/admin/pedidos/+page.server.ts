@@ -30,7 +30,10 @@ export const actions: Actions = {
         if (!viewState) { return fail(400, { message: 'Error en los parámetros de la petición' }) }
 
         event.cookies.set('order_view_state', viewState, {
-            path: '/'
+            path: '/',
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: event.url.protocol === 'https:'
         })
 
         

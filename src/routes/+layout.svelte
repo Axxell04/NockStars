@@ -9,6 +9,15 @@
 	import { scale } from 'svelte/transition';
 	let { data, children }: LayoutProps = $props();
 
+	// SEO: pages override via `seo` in their +page.server.ts load return
+	let pageData = $derived(page.data as Record<string, unknown>);
+	let seo = $derived((pageData?.seo as Record<string, string>) ?? {});
+	let seoTitle = $derived(seo.title ?? 'NockStars — Tienda de Camisetas');
+	let seoDescription = $derived(seo.description ?? 'NockStars es tu tienda online de camisetas personalizadas. Catálogo exclusivo, pedidos por encargo y envíos a todo el país.');
+	let seoImage = $derived(seo.image ?? '/nock-logo.png');
+	let seoUrl = $derived(page.url.href);
+	let seoType = $derived(seo.type ?? 'website');
+
 	let actualRoute = $derived(page.route.id);
 
 	let btnCardSelectNav: HTMLButtonElement | undefined = $state();
@@ -43,10 +52,8 @@
 	}
 
 	$effect(() => {
-		// btnCardSelectNav;
 		if (typeof btnCardSelectNav !== 'undefined') {
 			btnCardSelectNavHeight = btnCardSelectNav.offsetHeight;
-			console.log(btnCardSelectNavHeight);
 		}
 	});
 
@@ -54,6 +61,7 @@
 </script>
 
 <svelte:head>
+	<!-- Favicon -->
 	<link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
 	<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 	<link rel="shortcut icon" href="/favicon.ico" />
@@ -61,7 +69,46 @@
 	<meta name="apple-mobile-web-app-title" content="NockStars" />
 	<link rel="manifest" href="/site.webmanifest" />
 
-	<title>NockStars</title>
+	<!-- LCP preload -->
+	<link rel="preload" as="image" href="/nock-logo.png" />
+
+	<!-- Fonts: preconnect + link (non-render-blocking) -->
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+	<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400..900&display=swap" rel="stylesheet" />
+	<link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet" />
+
+	<!-- SEO: Title & Description -->
+	<title>{seoTitle}</title>
+	<meta name="description" content={seoDescription} />
+
+	<!-- SEO: Canonical -->
+	<link rel="canonical" href={seoUrl} />
+
+	<!-- Open Graph -->
+	<meta property="og:type" content={seoType} />
+	<meta property="og:title" content={seoTitle} />
+	<meta property="og:description" content={seoDescription} />
+	<meta property="og:image" content={seoImage} />
+	<meta property="og:url" content={seoUrl} />
+	<meta property="og:site_name" content="NockStars" />
+	<meta property="og:locale" content="es_AR" />
+
+	<!-- Twitter Card -->
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content={seoTitle} />
+	<meta name="twitter:description" content={seoDescription} />
+	<meta name="twitter:image" content={seoImage} />
+
+	<!-- Schema.org structured data -->
+	{@html `<script type="application/ld+json">${JSON.stringify({
+		"@context": "https://schema.org",
+		"@type": "Organization",
+		"name": "NockStars",
+		"url": seoUrl,
+		"logo": seoImage,
+		"description": seoDescription
+	})}</script>`}
 </svelte:head>
 
 <nav class="flex flex-grow flex-col place-items-center gap-6">
@@ -75,8 +122,9 @@
 			class="absolute -bottom-7 transition-transform duration-200 hover:text-red-500 focus:text-red-500 active:scale-90"
 			onclick={() => goto('/admin')}
 			onfocus={(e) => cancelFocus(e)}
+			aria-label="Ir al panel de administración"
 		>
-			<img src="/nock-logo.png" alt="logo" class="h-14" />
+			<img src="/nock-logo.png" alt="logo de NockStars" class="h-14" />
 		</button>
 	</section>
 	{#if data.user}
@@ -94,6 +142,7 @@
 						href="/admin/cuentas"
 						class="px-1 transition-transform duration-200 mousedown:scale-90 hover:text-red-400 focus:text-red-400"
 							onfocus={(e) => cancelFocus(e)}
+							aria-label="Cuentas de administrador"
 						>
 							<Icon icon="mdi:badge-account" class="text-3xl" />
 						</a>
@@ -118,6 +167,9 @@
 						style="height: 41px;"
 						onclick={() => toggleCardSelectNavMenuIsVisible()}
 						onfocus={(e) => cancelFocus(e)}
+						aria-label="Menú de administración financiera"
+						aria-haspopup="true"
+						aria-expanded={cardSelectNavMenuIsVisible}
 					>
 						<Icon icon="bxs:credit-card" class="text-3xl" />
 					</button>
@@ -126,6 +178,7 @@
 							transition:scale
 							class="absolute z-30 flex flex-col place-self-center rounded-b-md border bg-stone-900/95"
 							style="top: {btnCardSelectNavHeight}px;"
+							role="menu"
 						>
 							<a
 								href="/admin/balance"
@@ -134,6 +187,7 @@
 									toggleCardSelectNavMenuIsVisible(false);
 								}}
 								onfocus={(e) => cancelFocus(e)}
+								role="menuitem"
 							>
 								Balance
 							</a>
@@ -144,6 +198,7 @@
 									toggleCardSelectNavMenuIsVisible(false);
 								}}
 								onfocus={(e) => cancelFocus(e)}
+								role="menuitem"
 							>
 								Pedidos
 							</a>
@@ -152,7 +207,7 @@
 				</li>
 				<li>
 					<form method="post" action="/admin?/logout">
-						<button class="cursor-pointer rounded-md p-1 transition-transform duration-200 active:scale-90 hover:text-red-400">
+						<button class="cursor-pointer rounded-md p-1 transition-transform duration-200 active:scale-90 hover:text-red-400" aria-label="Cerrar sesión">
 							<Icon icon="ci:log-out" class="text-3xl" />
 						</button>
 					</form>

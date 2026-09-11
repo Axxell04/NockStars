@@ -200,12 +200,15 @@
                     <button bind:this={selectCatalogElement} type="button" class="text-center text-2xl bg-transparent outline-none hover:text-red-500 focus:text-red-500" 
                     onclick={()=>toggleCatalogListIsVisible()}
                     onfocus={(e) => cancelFocus(e)}
+                    aria-haspopup="listbox"
+                    aria-expanded={catalogListIsVisible}
                     >
                         {catalogId ? catalogs.find((cat) => cat.id === catalogId)?.name : 'Todo'}
                     </button>
                     {#if catalogListIsVisible}                        
                     <div transition:scale class="absolute flex flex-col text-2xl rounded-b-md border bg-stone-900/95 max-h-60 overflow-y-auto place-self-center z-10"
                     style="top: {selectCatalogElementHeight}px;"
+                    role="listbox"
                     >
                         <ul>
                             <li>
@@ -239,11 +242,11 @@
                     <input type="number" hidden name="total_pages" value={productPagination.totalPages}>
                     <input type="text" hidden name="search-value" value={searchValue}>
                     {#if productPagination.currentPage > 1}
-                    <button class="hover:text-red-500 focus:text-red-500" onfocus={(e) => cancelFocus(e)}>
+                    <button class="hover:text-red-500 focus:text-red-500" onfocus={(e) => cancelFocus(e)} aria-label="Página anterior">
                         <Icon icon="icon-park-outline:left-c" class="text-3xl" />
                     </button>
                     {:else}
-                    <button class="opacity-50" disabled>
+                    <button class="opacity-50" disabled aria-label="Página anterior">
                         <Icon icon="icon-park-outline:left-c" class="text-3xl" />
                     </button>
                     {/if}
@@ -266,11 +269,14 @@
                     <button type="button" class="w-10 text-center text-3xl bg-transparent h-9 outline-none hover:text-red-500 focus:text-red-500" 
                     onclick={()=>toggleGotoPageListIsVisible()}
                     onfocus={(e) => cancelFocus(e)}
+                    aria-label="Ir a página"
+                    aria-haspopup="listbox"
+                    aria-expanded={gotoPageListIsVisible}
                     >
                         {productPagination.currentPage}
                     </button>
                     {#if gotoPageListIsVisible}                        
-                    <div transition:scale class="absolute top-9 flex flex-col text-3xl rounded-b-md border bg-stone-900/95 max-h-65 overflow-y-auto place-self-center">
+                    <div transition:scale class="absolute top-9 flex flex-col text-3xl rounded-b-md border bg-stone-900/95 max-h-65 overflow-y-auto place-self-center" role="listbox">
                         <ul>
                             {#each createListPages(productPagination.totalPages) as page}
                             <li>
@@ -304,11 +310,11 @@
                     <input type="number" hidden name="total_pages" value={productPagination.totalPages}>
                     <input type="text" hidden name="search-value" value={searchValue}>
                     {#if productPagination.currentPage < productPagination.totalPages}
-                    <button class="hover:text-red-500 focus-within:text-red-500" onfocus={(e) => cancelFocus(e)}>
+                    <button class="hover:text-red-500 focus-within:text-red-500" onfocus={(e) => cancelFocus(e)} aria-label="Página siguiente">
                         <Icon icon="icon-park-outline:right-c" class="text-3xl" />
                     </button>
                     {:else}    
-                    <button class="opacity-50" disabled>
+                    <button class="opacity-50" disabled aria-label="Página siguiente">
                         <Icon icon="icon-park-outline:right-c" class="text-3xl" />
                     </button>
                     {/if}
@@ -332,11 +338,12 @@
                 {#if inputSearchIsVisible}
                 <input bind:this={inputSearch} transition:slide={{axis: "x"}} type="text" placeholder="Search..." class="outline-none border rounded-md px-1"
                     oninput={(e) => updateSearchValue(e)}
+                    aria-label="Buscar productos"
                 >                    
                 {/if}
 
                 {#if inputSearchIsVisible}
-                <button in:scale onclick={() => {clearSearchValue(); toggleInputSearchIsVisible(false)}}>
+                <button in:scale onclick={() => {clearSearchValue(); toggleInputSearchIsVisible(false)}} aria-label="Limpiar búsqueda">
                     <Icon icon="lucide:search-x" class="text-4xl"/>
                 </button>
                 {:else}
@@ -344,7 +351,7 @@
                     setTimeout(() => {
                         inputSearch?.focus();
                     }, 100);
-                }}>
+                }} aria-label="Abrir búsqueda">
                     <Icon icon="lucide:search" class="text-4xl" />                    
                 </button>
                 {/if}
@@ -352,6 +359,7 @@
             <div class="flex flex-row ml-auto">
                 <a href="/carrito" class="flex flex-row gap-1 justify-end self-end place-items-center hover:text-red-500 focus:text-red-500"
                 onfocus={(e) => cancelFocus(e)}
+                aria-label="Ir al carrito{cart.length ? `, ${cart.length} productos` : ''}"
                 >
                     <div class="relative flex flex-col place-items-center">
                         <Icon icon="bi:cart-fill" class="text-4xl" />

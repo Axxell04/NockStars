@@ -5,7 +5,12 @@ export const load: PageServerLoad = async () => {
     const catalogs = await getCatalogs();
 
     return {
-        catalogs: catalogs
+        catalogs: catalogs,
+        seo: {
+            title: 'Catálogo — NockStars',
+            description: 'Explorá el catálogo completo de camisetas NockStars. Encontrá tu estilo, elegí tu talla y hacé tu pedido.',
+            type: 'website'
+        }
     }
 }
 
@@ -16,11 +21,17 @@ export const actions: Actions = {
 
         if (catalogId) {
             event.cookies.set('catalog-id', catalogId, {
-                path: '/'
+                path: '/',
+                httpOnly: true,
+                sameSite: 'lax',
+                secure: event.url.protocol === 'https:'
             })
         } else {
             event.cookies.delete('catalog-id', {
-                path: '/'
+                path: '/',
+                httpOnly: true,
+                sameSite: 'lax',
+                secure: event.url.protocol === 'https:'
             })
         }
     }

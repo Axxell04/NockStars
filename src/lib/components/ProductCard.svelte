@@ -42,10 +42,19 @@
         }
     }
 
+    function handleKeydown(e: KeyboardEvent) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            selectThisProduct?.(product);
+        }
+    }
+
     // Auto-carousel
     let imgContainer: HTMLDivElement | undefined = $state();
+    let cardElement: HTMLDivElement | undefined = $state();
     let imgIndex = $state(0);
     let isHovered = $state(false);
+    let isVisible = $state(false);
     let intervalId: ReturnType<typeof setInterval> | undefined;
 
     const CARD_WIDTH = 288; // w-72 = 18rem = 288px
@@ -57,7 +66,7 @@
     }
 
     function nextImage() {
-        if (isHovered) return;
+        if (isHovered || !isVisible) return;
         const total = product.imgs.length;
         if (total <= 1) return;
         imgIndex = (imgIndex + 1) % total;
@@ -79,7 +88,26 @@
     }
 
     onMount(() => {
+        // IntersectionObserver: pause carousel when card is off-screen
+        const observer = new IntersectionObserver(
+            (entries) => {
+                for (const entry of entries) {
+                    isVisible = entry.isIntersecting;
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (cardElement) {
+            observer.observe(cardElement);
+        }
+
         startCarousel();
+
+        return () => {
+            observer.disconnect();
+            stopCarousel();
+        };
     });
 
     onDestroy(() => {
@@ -88,18 +116,19 @@
 
 </script>
 
-<div class="group/card relative w-72 h-80 flex flex-col rounded-xl overflow-hidden cursor-pointer card outline-none"
+<div bind:this={cardElement} class="group/card relative w-72 h-80 flex flex-col rounded-xl overflow-hidden cursor-pointer card outline-none"
     onclick={()=>selectThisProduct(product)}
     onmouseenter={()=>{ isHovered = true; }}
     onmouseleave={()=>{ isHovered = false; }}
     role="button"
     tabindex="0"
-    onkeydown={()=>{}}
+    onkeydown={handleKeydown}
+    aria-label="Ver detalle de {product.product.name ?? 'camisa'}"
 >
     <!-- Imagen: ocupa toda la card -->
     <div bind:this={imgContainer} class="img-container absolute inset-0 flex flex-row overflow-y-hidden overflow-x-hidden snap-x snap-mandatory scroll-smooth">
         {#each product.imgs as imgProduct }
-        <img src={imgProduct.url} alt={imgProduct.id} class="object-cover flex-shrink-0 snap-center w-72 h-full" loading="lazy">            
+        <img src={imgProduct.url} alt={imgProduct.id} class="object-cover flex-shrink-0 snap-center w-72 h-full" loading="lazy" width="288" height="320">            
         {/each}
     </div>
 
@@ -128,12 +157,14 @@
         <button class="cursor-pointer hover:text-red-500 focus:text-red-500" 
         onclick={(e)=>{e.stopPropagation(); toggleDeleteProductModalIsVisible(true)}}
         onfocus={(e) => cancelFocus(e)}
+        aria-label="Eliminar producto"
         >
             <Icon icon="famicons:trash" />
         </button>
         <button class="cursor-pointer hover:text-red-500 focus:text-red-500" 
         onclick={(e)=>{e.stopPropagation(); toggleEditProductModalIsVisible(true)}}
         onfocus={(e) => cancelFocus(e)}
+        aria-label="Editar producto"
         >
             <Icon icon="mdi:edit-outline" />
         </button>

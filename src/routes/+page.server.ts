@@ -15,7 +15,12 @@ export const load: PageServerLoad = async (event) => {
         pagination: pagination,
         catalogId: catalogId,
         catalogs: catalogs,
-        cart: cart
+        cart: cart,
+        seo: {
+            title: 'NockStars — Tienda de Camisetas',
+            description: 'NockStars es tu tienda online de camisetas personalizadas. Catálogo exclusivo, pedidos por encargo y envíos a todo el país.',
+            type: 'website'
+        }
     }
 };
 
@@ -115,11 +120,17 @@ export const actions: Actions = {
 
         if (catalogId) {
             event.cookies.set('catalog-id', catalogId, {
-                path: '/'
+                path: '/',
+                httpOnly: true,
+                sameSite: 'lax',
+                secure: event.url.protocol === 'https:'
             })
         } else {
             event.cookies.delete('catalog-id', {
-                path: '/'
+                path: '/',
+                httpOnly: true,
+                sameSite: 'lax',
+                secure: event.url.protocol === 'https:'
             })
         }
         const pagination = await getProducts({catalogId});
@@ -132,6 +143,11 @@ export const actions: Actions = {
         const formData = await event.request.formData();
         const cart = formData.get('cart') as string;
 
-        event.cookies.set('cart', cart, { path: '/' })
+        event.cookies.set('cart', cart, { 
+            path: '/',
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: event.url.protocol === 'https:'
+        })
     }
 }

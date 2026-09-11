@@ -23,7 +23,12 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		if (valid) {
 			event.locals.catalogId = catalogId;
 		} else {
-			event.cookies.delete('catalog-id', { path: '/' });
+			event.cookies.delete('catalog-id', { 
+				path: '/',
+				httpOnly: true,
+				sameSite: 'lax',
+				secure: event.url.protocol === 'https:'
+			});
 			event.locals.catalogId = '';
 		}
 	} else {
@@ -36,7 +41,12 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			event.locals.cart = JSON.parse(cart);
 		} catch {
 			event.locals.cart = [];
-			event.cookies.delete('cart', { path: '/' });
+			event.cookies.delete('cart', { 
+				path: '/',
+				httpOnly: true,
+				sameSite: 'lax',
+				secure: event.url.protocol === 'https:'
+			});
 		}
 	} else {
 		event.locals.cart = [];

@@ -101,7 +101,6 @@
                         if (result.type === "success") {
                             formElement.reset();
                             if (result.data?.pagination) {
-                                console.log(result.data.pagination)
                                 setProductPagination(result.data.pagination as ProductPagination);
                                 toggleAddProductToCatalogModalIsVisible(false);
                                 productsToAddList = [];

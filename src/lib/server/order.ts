@@ -12,7 +12,6 @@ type GetOrderOptions = {
 
 export async function checkOrderExists (cod: string) {
     const [order] = await getDb().select().from(table.order).where(eq(table.order.id, cod)).execute();
-    console.log(order);
     if (order) return true;
     return false;
 }

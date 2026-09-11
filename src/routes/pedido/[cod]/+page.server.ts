@@ -15,7 +15,6 @@ export const load: PageServerLoad = async (event) => {
     }
 
     if (event.locals.user) {
-        console.log(1243)
         return redirect(307, `/admin/pedidos?cod=${cod}`);
     } else {
         return {

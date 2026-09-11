@@ -34,7 +34,6 @@
         <ContainerModal toggleModal={toggleEditCatalogModalIsVisible} visible={editCatalogModalIsVisible} cancelClick={true}>
                 <form id="edit-catalog" action="?/edit_catalog" method="post" use:enhance={({formElement, formData, action, cancel}) => {
                     return async ({ result }) => {
-                        console.log(result)
                         if (result.type === "failure") {
                             if (result.data?.message) {
                                 formMessage = result.data.message as string;

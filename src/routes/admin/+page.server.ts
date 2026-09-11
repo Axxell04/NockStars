@@ -140,11 +140,17 @@ export const actions: Actions = {
 
         if (catalogId) {
             event.cookies.set('catalog-id', catalogId, {
-                path: '/'
+                path: '/',
+                httpOnly: true,
+                sameSite: 'lax',
+                secure: event.url.protocol === 'https:'
             })
         } else {
             event.cookies.delete('catalog-id', {
-                path: '/'
+                path: '/',
+                httpOnly: true,
+                sameSite: 'lax',
+                secure: event.url.protocol === 'https:'
             })
         }
         const pagination = await getProducts({catalogId});

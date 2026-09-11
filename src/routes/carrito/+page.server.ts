@@ -16,7 +16,12 @@ export const actions: Actions = {
         const formData = await event.request.formData();
         const cart = formData.get('cart') as string;
 
-        event.cookies.set('cart', cart, { path: '/' })
+        event.cookies.set('cart', cart, { 
+            path: '/',
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: event.url.protocol === 'https:'
+        })
     },
     clear_cart: async (event) => {
         event.cookies.delete('cart', { path: '/' });

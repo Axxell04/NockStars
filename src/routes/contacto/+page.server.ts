@@ -8,7 +8,12 @@ export const load: PageServerLoad = async () => {
     const contacts = await getContacts();
 
     return {
-        contacts: contacts
+        contacts: contacts,
+        seo: {
+            title: 'Contacto — NockStars',
+            description: '¿Tenés una consulta o querés hacer un pedido especial? Contactanos por WhatsApp, Instagram o email.',
+            type: 'website'
+        }
     }
 }
 

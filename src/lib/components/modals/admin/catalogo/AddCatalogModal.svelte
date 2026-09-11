@@ -50,7 +50,6 @@
                         if (result.type === "success") {
                             formElement.reset();
                             if (result.data?.catalogs) {
-                                console.log(result.data.catalogs)
                                 setCatalogs(result.data.catalogs as Catalog[]);
                                 toggleAddCatalogModalIsVisible(false);
                             }
