@@ -99,50 +99,62 @@
 {#if imgsProductModalIsVisible }
     <div transition:fade={{duration: 200}}>
         <ContainerModal toggleModal={toggleImgsProductModalIsVisible} visible={imgsProductModalIsVisible} cancelClick={true}>
-            <div class="flex flex-col max-h-full gap-9 box-border relative">
-                <div class="flex flex-col relative box-border grow" style="height: 80%;">
+            <div class="flex flex-col gap-6 max-h-full relative">
+                <!-- Image area -->
+                <div class="relative flex items-center justify-center" style="height: 80%;">
                     {#if !imgSalt}
-                    <div in:scale class="flex flex-col  max-h-full relative place-items-center box-border">
-                        <div class="relative max-h-full box-border">
-                            <img class=" object-contain relative box-border max-h-[26rem]" src={productSelected?.imgs[imgIndex].url} alt={productSelected?.product.name}
+                    <div in:scale={{ duration: 300, start: 0.95 }} class="relative max-h-full">
+                        <img 
+                            class="object-contain max-h-[26rem] rounded-2xl" 
+                            src={productSelected?.imgs[imgIndex].url} 
+                            alt={productSelected?.product.name}
                             draggable="false"
-                            
-                            >
-                        </div>
-                        <span class="absolute bottom-1 bg-stone-900/80 backdrop-blur-md rounded-full py-1 px-3">
+                        >
+                        <span class="absolute bottom-3 left-1/2 -translate-x-1/2 glass px-3 py-1 rounded-full text-xs font-medium text-text-secondary">
                             {imgIndex + 1} / {productSelected?.imgs.length ?? imgIndex + 1}
                         </span>
                     </div>
                     {/if}
                 </div>
-                <div class="flex flex-row gap-5 grow rounded-full bg-stone-900 p-3 place-items-center">
+
+                <!-- Controls bar -->
+                <div class="flex items-center gap-4 p-3 rounded-2xl bg-surface-1 border border-white/5">
                     {#if typeof children !== 'undefined'}
-                    <div class="flex flex-row grow gap-2 place-items-center">
+                    <div class="flex flex-1 items-center gap-2">
                         {@render children()}
                     </div>
                     {/if}
-                    <div class="flex flex-row gap-3 text-3xl">
-                        <button class="border rounded-full p-1 cursor-pointer {prevImgIsValid() ? 'hover:text-red-500 hover:border-red-500 focus:text-red-500 focus:bg-stone-800': 'opacity-50'}"
-                        onclick={prevImg}
-                        onfocus={(e) => cancelFocus(e)}
+
+                    <!-- Navigation arrows -->
+                    <div class="flex items-center gap-2">
+                        <button 
+                            class="flex items-center justify-center w-10 h-10 rounded-full border border-white/10 transition-all duration-200
+                            {prevImgIsValid() ? 'text-text-secondary hover:text-brand-400 hover:border-brand-400/30 hover:bg-brand-400/10' : 'text-text-muted/30 cursor-not-allowed'}"
+                            onclick={prevImg}
+                            onfocus={(e) => cancelFocus(e)}
+                            disabled={!prevImgIsValid()}
                         >
-                            <Icon icon="mingcute:left-fill" />
+                            <Icon icon="mingcute:left-fill" class="text-xl" />
                         </button>
-                        <button class="border rounded-full p-1 cursor-pointer {nextImgIsValid() ? 'hover:text-red-500 hover:border-red-500 focus:text-red-500 focus:bg-stone-800': 'opacity-50'}"
-                        onclick={nextImg}
-                        onfocus={(e) => cancelFocus(e)}
+                        <button 
+                            class="flex items-center justify-center w-10 h-10 rounded-full border border-white/10 transition-all duration-200
+                            {nextImgIsValid() ? 'text-text-secondary hover:text-brand-400 hover:border-brand-400/30 hover:bg-brand-400/10' : 'text-text-muted/30 cursor-not-allowed'}"
+                            onclick={nextImg}
+                            onfocus={(e) => cancelFocus(e)}
+                            disabled={!nextImgIsValid()}
                         >
-                            <Icon icon="mingcute:right-fill" />
+                            <Icon icon="mingcute:right-fill" class="text-xl" />
                         </button>
                     </div>
-                    <div class="flex flex-row place-items-center ml-auto">
-                        <button class="border rounded-full cursor-pointer p-1 hover:text-red-500 hover:border-red-500 focus:text-red-500 focus:bg-stone-800"
+
+                    <!-- Close button -->
+                    <button 
+                        class="flex items-center justify-center w-10 h-10 rounded-full border border-white/10 text-text-secondary transition-all duration-200 hover:text-brand-400 hover:border-brand-400/30 hover:bg-brand-400/10"
                         onclick={closeModal}
                         onfocus={(e) => cancelFocus(e)}
-                        >
-                            <Icon icon="material-symbols:close-rounded" class="text-3xl" />
-                        </button>
-                    </div>
+                    >
+                        <Icon icon="material-symbols:close-rounded" class="text-xl" />
+                    </button>
                 </div>
             </div>
         </ContainerModal>

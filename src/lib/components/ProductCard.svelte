@@ -116,7 +116,8 @@
 
 </script>
 
-<div bind:this={cardElement} class="group/card relative w-72 h-80 flex flex-col rounded-xl overflow-hidden cursor-pointer card outline-none"
+<div bind:this={cardElement} class="group/card relative w-72 h-80 flex flex-col rounded-2xl overflow-hidden cursor-pointer outline-none transition-all duration-500 ease-out"
+    style="box-shadow: var(--shadow-card);"
     onclick={()=>selectThisProduct(product)}
     onmouseenter={()=>{ isHovered = true; }}
     onmouseleave={()=>{ isHovered = false; }}
@@ -128,61 +129,54 @@
     <!-- Imagen: ocupa toda la card -->
     <div bind:this={imgContainer} class="img-container absolute inset-0 flex flex-row overflow-y-hidden overflow-x-hidden snap-x snap-mandatory scroll-smooth">
         {#each product.imgs as imgProduct }
-        <img src={imgProduct.url} alt={imgProduct.id} class="object-cover flex-shrink-0 snap-center w-72 h-full" loading="lazy" width="288" height="320">            
+        <img src={imgProduct.url} alt={imgProduct.id} class="object-cover flex-shrink-0 snap-center w-72 h-full transition-transform duration-700 ease-out group-hover/card:scale-105" loading="lazy" width="288" height="320">            
         {/each}
     </div>
 
     <!-- Indicadores de imagen -->
     {#if product.imgs.length > 1}
-    <div class="absolute top-2 left-0 right-0 flex flex-row justify-center gap-1.5 z-10 pointer-events-none">
+    <div class="absolute top-3 left-0 right-0 flex flex-row justify-center gap-1.5 z-10 pointer-events-none">
         {#each product.imgs as _, i}
-        <span class="w-1.5 h-1.5 rounded-full transition-all duration-300 {i === imgIndex ? 'bg-red-400 scale-125' : 'bg-stone-400/60'}"></span>
+        <span class="rounded-full transition-all duration-300 {i === imgIndex ? 'bg-brand-400 w-4 h-1.5' : 'bg-white/40 w-1.5 h-1.5'}"></span>
         {/each}
     </div>
     {/if}
 
     <!-- Degradado inferior con nombre y precio -->
-    <div class="absolute bottom-0 inset-x-0 flex flex-row place-content-between px-3 pb-1 pt-10 bg-gradient-to-t from-stone-900/95 via-stone-900/70 to-transparent pointer-events-none">
-        <p class="text-red-400 font-extrabold text-lg text-shadow-2xs leading-tight drop-shadow-lg">
+    <div class="absolute bottom-0 inset-x-0 flex flex-row items-end justify-between px-4 pb-3 pt-16 bg-gradient-to-t from-surface-0/95 via-surface-0/60 to-transparent pointer-events-none">
+        <p class="text-text-primary font-bold text-base leading-tight drop-shadow-lg">
             {product.product.name ?? 'Camisa'}
         </p>
-        <p class="font-light text-red-300 text-lg drop-shadow-lg">
+        <p class="font-semibold text-brand-400 text-lg tabular-nums drop-shadow-lg">
             {`${product.product.price.toFixed(2)} $`}
         </p>
     </div>
 
+    <!-- Hover overlay -->
+    <div class="absolute inset-0 bg-gradient-to-t from-brand-500/20 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover/card:opacity-100 pointer-events-none"></div>
+
     <!-- Admin overlay -->
     {#if isSelected && actualRoute?.includes('/admin')}        
-    <div transition:scale class="absolute top-2 right-2 flex flex-col place-items-center gap-2 p-2 text-4xl bg-stone-900/90 backdrop-blur-xl rounded-md z-10">
-        <button class="cursor-pointer hover:text-red-500 focus:text-red-500" 
+    <div transition:scale={{ duration: 150, start: 0.9 }} class="absolute top-3 right-3 flex flex-col items-center gap-2 p-2 text-2xl glass rounded-xl z-10 border border-white/10">
+        <button class="p-1.5 rounded-lg text-text-muted transition-colors hover:text-brand-400 hover:bg-surface-2" 
         onclick={(e)=>{e.stopPropagation(); toggleDeleteProductModalIsVisible(true)}}
         onfocus={(e) => cancelFocus(e)}
         aria-label="Eliminar producto"
         >
-            <Icon icon="famicons:trash" />
+            <Icon icon="mdi:delete-outline" />
         </button>
-        <button class="cursor-pointer hover:text-red-500 focus:text-red-500" 
+        <button class="p-1.5 rounded-lg text-text-muted transition-colors hover:text-brand-400 hover:bg-surface-2" 
         onclick={(e)=>{e.stopPropagation(); toggleEditProductModalIsVisible(true)}}
         onfocus={(e) => cancelFocus(e)}
         aria-label="Editar producto"
         >
-            <Icon icon="mdi:edit-outline" />
+            <Icon icon="mdi:pencil-outline" />
         </button>
     </div>
     {/if}
 </div>
 
 <style>
-    .card {
-        background: #1c1917;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(248, 113, 113, 0.05);
-        transition: box-shadow 0.3s ease, transform 0.3s ease;
-    }
-
-    .card:hover {
-        box-shadow: 0 8px 30px rgba(248, 113, 113, 0.15), 0 0 0 1px rgba(248, 113, 113, 0.2);
-    }
-
     .img-container {
         -ms-overflow-style: none;
         scrollbar-width: none;

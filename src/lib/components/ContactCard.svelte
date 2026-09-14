@@ -42,26 +42,33 @@
 
 </script>
 
-<a href={contact.url} target="_blank" class="flex flex-row gap-2 place-items-center py-2 px-2 border rounded-xl w-fit" 
-onclick={actualRoute?.includes('/admin') ? (e) => e.preventDefault() : () => {}}
+<a href={contact.url} target="_blank" class="group flex items-center gap-3 py-3 px-4 rounded-xl transition-all duration-300
+    bg-surface-1 border border-white/5 hover:border-white/10 hover:bg-surface-2
+    {actualRoute?.includes('/admin') ? 'pointer-events-none' : ''}
+    " 
+    onclick={actualRoute?.includes('/admin') ? (e) => e.preventDefault() : () => {}}
 >
-    <Icon {icon} class="text-2xl"/>
-    <span class="text-xl" style="font-family: Nunito;">
+    <span class="flex items-center justify-center w-10 h-10 rounded-full bg-surface-2 text-brand-400 transition-colors group-hover:bg-brand-500/10">
+        <Icon {icon} class="text-xl"/>
+    </span>
+    <span class="text-base font-medium text-text-secondary transition-colors group-hover:text-text-primary font-[var(--font-body)]">
         {contact.text}
     </span>
     {#if actualRoute?.includes('/admin')}        
-    <div transition:scale class="flex flex-row place-items-center gap-2 border-l pl-2 text-2xl bg-stone-900/90 backdrop-blur-xl">
-        <button class="cursor-pointer hover:text-red-500 focus:text-red-500" 
-        onclick={()=>{selectThisContact(contact); toggleDeleteContactModalIsVisible(true)}}
+    <div transition:scale={{ duration: 150, start: 0.9 }} class="flex items-center gap-1 ml-auto text-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <button class="p-1.5 rounded-lg text-text-muted transition-colors hover:text-brand-400 hover:bg-surface-3" 
+        onclick={(e)=>{ e.stopPropagation(); selectThisContact(contact); toggleDeleteContactModalIsVisible(true) }}
         onfocus={(e) => cancelFocus(e)}
+        aria-label="Eliminar contacto"
         >
-            <Icon icon="famicons:trash" />
+            <Icon icon="mdi:delete-outline" />
         </button>
-        <button class="cursor-pointer hover:text-red-500 focus:text-red-500" 
-        onclick={()=>{selectThisContact(contact); toggleEditContactModalIsVisible(true)}}
+        <button class="p-1.5 rounded-lg text-text-muted transition-colors hover:text-brand-400 hover:bg-surface-3" 
+        onclick={(e)=>{ e.stopPropagation(); selectThisContact(contact); toggleEditContactModalIsVisible(true) }}
         onfocus={(e) => cancelFocus(e)}
+        aria-label="Editar contacto"
         >
-            <Icon icon="mdi:edit-outline" />
+            <Icon icon="mdi:pencil-outline" />
         </button>
     </div>
     {/if}

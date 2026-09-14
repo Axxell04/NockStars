@@ -6,7 +6,7 @@
 	import NavItem from '$lib/components/NavItem.svelte';
 	import { goto } from '$app/navigation';
 	import type { LayoutProps } from './$types';
-	import { scale } from 'svelte/transition';
+	import { scale, slide } from 'svelte/transition';
 	let { data, children }: LayoutProps = $props();
 
 	// SEO: pages override via `seo` in their +page.server.ts load return
@@ -111,129 +111,171 @@
 	})}</script>`}
 </svelte:head>
 
-<nav class="flex flex-grow flex-col place-items-center gap-6">
-	<section class="relative flex place-content-center">
-		<h1 class="p-3 text-4xl font-black text-red-500">
-			<a class="hover:text-red-400 focus:text-red-400" href="/" onfocus={(e) => cancelFocus(e)}>
-				nockstars
-			</a>
-		</h1>
-		<button
-			class="absolute -bottom-7 transition-transform duration-200 hover:text-red-500 focus:text-red-500 active:scale-90"
-			onclick={() => goto('/admin')}
-			onfocus={(e) => cancelFocus(e)}
-			aria-label="Ir al panel de administración"
-		>
-			<img src="/nock-logo.png" alt="logo de NockStars" class="h-14" />
-		</button>
-	</section>
-	{#if data.user}
-		<section class="flex flex-row gap-4 px-2">
-			<ul class="relative flex flex-row place-items-center gap-6 font-semibold text-red-500">
-				<li class="flex flex-row gap-2">
-					<Icon icon="mdi:account" class="text-2xl" />
-					<span class="text-red-400">
-						{data.user?.username}
-					</span>
-				</li>
+<!-- Header principal -->
+<header class="sticky top-0 z-50 w-full border-b border-white/5">
+	<div class="glass">
+		<!-- Barra superior: usuario + admin -->
+		{#if data.user}
+			<div class="flex items-center justify-end gap-4 px-6 py-1.5 text-sm border-b border-white/5">
+				<span class="flex items-center gap-1.5 text-text-muted">
+					<Icon icon="mdi:account-circle-outline" class="text-base" />
+					{data.user?.username}
+				</span>
 				{#if data.user.admin}
-					<li class="flex flex-row gap-2">
-						<a
+					<a
 						href="/admin/cuentas"
-						class="px-1 transition-transform duration-200 mousedown:scale-90 hover:text-red-400 focus:text-red-400"
-							onfocus={(e) => cancelFocus(e)}
-							aria-label="Cuentas de administrador"
-						>
-							<Icon icon="mdi:badge-account" class="text-3xl" />
-						</a>
-					</li>
-					<!-- Backup oculto: pendiente de rediseno para PostgreSQL + Cloudinary -->
-					<!--
-					<li class="flex flex-row gap-2">
-						<a
-						href="/admin/backup"
-						class="px-1 transition-transform duration-200 mousedown:scale-90 hover:text-red-400 focus:text-red-400"
-							onfocus={(e) => cancelFocus(e)}
-						>
-							<Icon icon="material-symbols:backup-outline-rounded" class="text-4xl" />
-						</a>
-					</li>
-					-->
-				{/if}
-				<li class="relative flex h-full flex-row gap-2">
-					<button
-						bind:this={btnCardSelectNav}
-						class="h-full w-full px-1 transition-transform duration-200 active:scale-90 hover:text-red-400 focus:text-red-400"
-						style="height: 41px;"
-						onclick={() => toggleCardSelectNavMenuIsVisible()}
+						class="flex items-center gap-1 text-text-muted transition-colors duration-200 hover:text-brand-400 focus:text-brand-400"
 						onfocus={(e) => cancelFocus(e)}
-						aria-label="Menú de administración financiera"
-						aria-haspopup="true"
-						aria-expanded={cardSelectNavMenuIsVisible}
+						aria-label="Cuentas de administrador"
 					>
-						<Icon icon="bxs:credit-card" class="text-3xl" />
-					</button>
-					{#if cardSelectNavMenuIsVisible}
-						<div
-							transition:scale
-							class="absolute z-30 flex flex-col place-self-center rounded-b-md border bg-stone-900/95"
-							style="top: {btnCardSelectNavHeight}px;"
-							role="menu"
+						<Icon icon="mdi:shield-account-outline" class="text-base" />
+						<span class="hidden sm:inline">Admin</span>
+					</a>
+					<div class="relative" role="menu" aria-label="Menú de administración financiera">
+						<button
+							bind:this={btnCardSelectNav}
+							class="flex items-center gap-1 text-text-muted transition-colors duration-200 hover:text-brand-400 focus:text-brand-400"
+							onclick={() => toggleCardSelectNavMenuIsVisible()}
+							onfocus={(e) => cancelFocus(e)}
+							aria-haspopup="true"
+							aria-expanded={cardSelectNavMenuIsVisible}
 						>
-							<a
-								href="/admin/balance"
-								class="w-full px-2 py-1 hover:bg-stone-800 focus:bg-stone-800"
-								onclick={() => {
-									toggleCardSelectNavMenuIsVisible(false);
-								}}
-								onfocus={(e) => cancelFocus(e)}
-								role="menuitem"
-							>
-								Balance
-							</a>
-							<a
-								href="/admin/pedidos"
-								class="w-full rounded-b-md px-2 py-1 hover:bg-stone-800 focus:bg-stone-800"
-								onclick={() => {
-									toggleCardSelectNavMenuIsVisible(false);
-								}}
-								onfocus={(e) => cancelFocus(e)}
-								role="menuitem"
-							>
-								Pedidos
-							</a>
-						</div>
-					{/if}
-				</li>
-				<li>
-					<form method="post" action="/admin?/logout">
-						<button class="cursor-pointer rounded-md p-1 transition-transform duration-200 active:scale-90 hover:text-red-400" aria-label="Cerrar sesión">
-							<Icon icon="ci:log-out" class="text-3xl" />
+							<Icon icon="mdi:credit-card-outline" class="text-base" />
+							<span class="hidden sm:inline">Finanzas</span>
 						</button>
-					</form>
-				</li>
-			</ul>
-		</section>
-	{/if}
-	<section class="flex flex-row gap-4 px-2 py-1">
-		<ul class="flex flex-row gap-2 font-semibold text-red-500">
-			<NavItem name="Catálogo" endPoint={validityAnchor('/catalogo')} {actualRoute} />
-			<NavItem name="Tienda" endPoint={validityAnchor('/')} {actualRoute} />
-			<NavItem name="Contacto" endPoint={validityAnchor('/contacto')} {actualRoute} />
-		</ul>
-	</section>
-</nav>
+						{#if cardSelectNavMenuIsVisible}
+							<div
+								transition:scale={{ duration: 150, start: 0.95 }}
+								class="absolute right-0 z-50 mt-1 w-40 overflow-hidden rounded-lg border border-white/10 bg-surface-1 shadow-depth"
+								role="menu"
+							>
+								<a
+									href="/admin/balance"
+									class="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-2 hover:text-brand-400"
+									onclick={() => toggleCardSelectNavMenuIsVisible(false)}
+									onfocus={(e) => cancelFocus(e)}
+									role="menuitem"
+								>
+									<Icon icon="mdi:chart-line" class="text-base" />
+									Balance
+								</a>
+								<a
+									href="/admin/pedidos"
+									class="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-surface-2 hover:text-brand-400"
+									onclick={() => toggleCardSelectNavMenuIsVisible(false)}
+									onfocus={(e) => cancelFocus(e)}
+									role="menuitem"
+								>
+									<Icon icon="mdi:package-variant-closed" class="text-base" />
+									Pedidos
+								</a>
+							</div>
+						{/if}
+					</div>
+				{/if}
+				<form method="post" action="/admin?/logout">
+					<button
+						class="flex items-center gap-1 text-text-muted transition-colors duration-200 hover:text-brand-400"
+						aria-label="Cerrar sesión"
+					>
+						<Icon icon="mdi:logout" class="text-base" />
+					</button>
+				</form>
+			</div>
+		{/if}
 
-<div class="my-2 max-w-full flex-grow px-2">
+		<!-- Barra principal: logo + nav + acciones -->
+		<div class="flex items-center justify-between gap-4 px-6 py-3">
+			<!-- Logo -->
+			<div class="flex items-center gap-3">
+				<button
+					class="transition-transform duration-300 hover:scale-105 active:scale-95"
+					onclick={() => goto('/admin')}
+					onfocus={(e) => cancelFocus(e)}
+					aria-label="Ir al panel de administración"
+				>
+					<img src="/nock-logo.png" alt="logo de NockStars" class="h-10 w-auto" />
+				</button>
+				<h1 class="text-xl font-bold tracking-wider text-text-accent sm:text-2xl">
+					<a class="transition-colors duration-200 hover:text-brand-300" href="/" onfocus={(e) => cancelFocus(e)}>
+						nockstars
+					</a>
+				</h1>
+			</div>
+
+			<!-- Navegación -->
+			<nav class="hidden items-center gap-1 md:flex" aria-label="Navegación principal">
+				<NavItem name="Tienda" endPoint={validityAnchor('/')} {actualRoute} />
+				<NavItem name="Catálogo" endPoint={validityAnchor('/catalogo')} {actualRoute} />
+				<NavItem name="Contacto" endPoint={validityAnchor('/contacto')} {actualRoute} />
+			</nav>
+
+			<!-- Acciones -->
+			<div class="flex items-center gap-3">
+				<!-- Mobile menu button -->
+				<button
+					class="flex items-center justify-center p-2 text-text-muted transition-colors hover:text-brand-400 md:hidden"
+					onclick={() => toggleCardSelectNavMenuIsVisible()}
+					aria-label="Menú de navegación"
+				>
+					<Icon icon="mdi:menu" class="text-2xl" />
+				</button>
+
+			<!-- Cart -->
+			<a
+				href="/carrito"
+				class="group relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-text-muted transition-all duration-200 hover:bg-surface-2 hover:text-brand-400"
+				onfocus={(e) => cancelFocus(e)}
+				aria-label="Ir al carrito"
+			>
+				<Icon icon="bi:cart-fill" class="text-lg" />
+				<span class="hidden sm:inline">Carrito</span>
+			</a>
+			</div>
+		</div>
+
+		<!-- Mobile nav drawer -->
+		{#if cardSelectNavMenuIsVisible}
+			<nav
+				transition:slide={{ duration: 200 }}
+				class="flex flex-col gap-1 border-t border-white/5 px-6 py-3 md:hidden"
+				aria-label="Navegación móvil"
+			>
+				<a
+					href={validityAnchor('/')}
+					class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-2 hover:text-brand-400"
+					onclick={() => toggleCardSelectNavMenuIsVisible(false)}
+				>
+					Tienda
+				</a>
+				<a
+					href={validityAnchor('/catalogo')}
+					class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-2 hover:text-brand-400"
+					onclick={() => toggleCardSelectNavMenuIsVisible(false)}
+				>
+					Catálogo
+				</a>
+				<a
+					href={validityAnchor('/contacto')}
+					class="rounded-lg px-3 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-2 hover:text-brand-400"
+					onclick={() => toggleCardSelectNavMenuIsVisible(false)}
+				>
+					Contacto
+				</a>
+			</nav>
+		{/if}
+	</div>
+</header>
+
+<!-- Contenido principal -->
+<main class="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
 	{@render children()}
-</div>
+</main>
 
 <style>
 	:global(body) {
-		/* @apply  bg-stone-900 scroll-smooth ; */
-		/* bg-gradient-to-t from-stone-900 via-red-900 to-stone-900 */
-		color: #f87171; /* Este es el valor hexadecimal para red-400 */
-		background-color: #1c1917;
+		background-color: var(--color-surface-0);
+		color: var(--color-text-accent);
 		max-width: 100dvw;
 	}
 </style>

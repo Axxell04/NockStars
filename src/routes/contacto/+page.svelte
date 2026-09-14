@@ -3,6 +3,7 @@
 	import ContactCard from "$lib/components/ContactCard.svelte";
 	import { fade, scale, slide } from "svelte/transition";
 	import type { PageProps } from "./$types";
+	import Icon from "@iconify/svelte";
 
     let { data }: PageProps = $props();
 
@@ -41,67 +42,94 @@
 
 </script>
 
-<div in:fade class="flex flex-col gap-2 px-5 py-5 place-items-center">
-    <div class="flex flex-wrap gap-2 justify-center">
+<div in:fade class="flex flex-col items-center gap-8 py-8">
+    <!-- Contacts grid -->
+    <div class="flex flex-wrap gap-3 justify-center max-w-2xl">
         {#each contacts as contact}
         <ContactCard {contact} />
         {/each}
     </div>
-    <div class="pt-3 mt-5 border-t w-full text-center text-red-300">
-        <button class="border py-2 px-3 rounded-md hover:text-red-400 focus:text-red-400 focus:bg-stone-800" 
+
+    <!-- Divider -->
+    <div class="w-full max-w-md flex items-center gap-4">
+        <div class="flex-1 h-px bg-white/10"></div>
+        <span class="text-xs text-text-muted uppercase tracking-widest">o</span>
+        <div class="flex-1 h-px bg-white/10"></div>
+    </div>
+
+    <!-- Contact form toggle -->
+    <button 
+        class="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/10 text-sm font-medium text-text-secondary transition-all duration-200 hover:border-brand-400/30 hover:text-brand-400 hover:bg-brand-400/10"
         onclick={() => toggleFormSendMailIsVisible()}
         onfocus={(e) => cancelFocus(e)}
         aria-expanded={formSendMailIsVisible}
         aria-haspopup="true"
-        >
-            Enviar correo
-        </button>
-    </div>
-    {#if formSendMailIsVisible}
-    <form transition:slide={{axis: 'y'}} action="?/send_message" method="post" use:enhance={({ formElement }) => {
-        return async ({ result }) => {
-            if (result.type === "failure") {
-                if (result.data?.message) {
-                    formMessage = result.data.message as string;
-                }
-            } else if (result.type === "success") {
-                formElement.reset();
-                formMessage = "¡Mensaje enviado con éxito!";
-            }
-        }
-    }}
-    class="flex flex-col gap-3 py-3 px-4"
     >
-    
+        <Icon icon="mdi:email-outline" class="text-lg" />
+        Enviar correo
+    </button>
+
+    <!-- Contact form -->
+    {#if formSendMailIsVisible}
+    <form 
+        transition:slide={{ duration: 300, easing: (t) => 1 - Math.pow(1 - t, 3) }}
+        action="?/send_message" 
+        method="post" 
+        use:enhance={({ formElement }) => {
+            return async ({ result }) => {
+                if (result.type === "failure") {
+                    if (result.data?.message) {
+                        formMessage = result.data.message as string;
+                    }
+                } else if (result.type === "success") {
+                    formElement.reset();
+                    formMessage = "¡Mensaje enviado con éxito!";
+                }
+            }
+        }}
+        class="w-full max-w-md flex flex-col gap-4 p-6 rounded-2xl bg-surface-1 border border-white/5"
+    >
         <div class="flex flex-col gap-2">
-            <label for="from">
+            <label for="from" class="text-sm font-medium text-text-secondary">
                 Remitente
             </label>
-            <input type="text" id="from" name="from" autocomplete="off"
-            class="p-2 border bg-transparent outline-none rounded" style="text-align: left;" required/>
+            <input 
+                type="text" 
+                id="from" 
+                name="from" 
+                autocomplete="off"
+                class="px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-text-primary placeholder:text-text-muted/50 outline-none transition-all duration-200 focus:border-brand-400/30 focus:ring-2 focus:ring-brand-400/10"
+                placeholder="tu@email.com"
+                required
+            />
         </div>
         <div class="flex flex-col gap-2">
-            <label for="message">
+            <label for="message" class="text-sm font-medium text-text-secondary">
                 Mensaje
             </label>
-            <textarea name="message" id="message"
-            class="p-2 border bg-transparent outline-none rounded" style="text-align: left; font-family: Nunito" required
+            <textarea 
+                name="message" 
+                id="message"
+                rows="4"
+                class="px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-text-primary placeholder:text-text-muted/50 outline-none transition-all duration-200 focus:border-brand-400/30 focus:ring-2 focus:ring-brand-400/10 resize-none"
+                placeholder="Escribí tu mensaje..."
+                required
             ></textarea>
         </div>
-        <div>
-            <button class="border py-1 px-2 font-semibold rounded-md w-full bg-red-400 text-stone-900 hover:bg-red-500 focus:bg-red-500"
+        <button 
+            class="w-full py-3 rounded-xl bg-brand-500 text-surface-0 font-semibold text-sm transition-all duration-200 hover:bg-brand-600 shadow-lg shadow-brand-500/20 active:scale-[0.98]"
             onfocus={(e) => cancelFocus(e)}
-            >
-                Enviar
-            </button>
-        </div>
+        >
+            Enviar mensaje
+        </button>
     </form>
     {/if}
+
+    <!-- Form feedback -->
     {#if formMessage}
-    <div transition:scale class="flex flex-col place-items-center place-content-center py-2 px-3">
-        <span>
-            {formMessage}
-        </span>
+    <div transition:scale={{ duration: 200, start: 0.9 }} class="flex items-center gap-2 px-4 py-2.5 rounded-full bg-brand-500/10 text-brand-400 text-sm font-medium">
+        <Icon icon="mdi:check-circle" class="text-lg" />
+        {formMessage}
     </div>
     {/if}
 </div>

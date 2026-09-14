@@ -7,19 +7,23 @@
 
 	let { name, endPoint, actualRoute }: Props = $props();
 
-	function isSelected () {
-		if (actualRoute && endPoint) {
-			return actualRoute === endPoint || endPoint.replace('/admin', '') === actualRoute || endPoint.replace('admin', '') === actualRoute;
-		} else {
-			return false;
-		}
-
-	}
+	let active = $derived(
+		actualRoute && endPoint
+			? actualRoute === endPoint || endPoint.replace('/admin', '') === actualRoute || endPoint.replace('admin', '') === actualRoute
+			: false
+	);
 
 </script>
 
-<li class="{isSelected() ? 'border-b-red-400' : ''} border border-transparent hover:border-b-red-500">
-	<a href={endPoint} class="px-2 py-1 w-full transition-transform duration-200 active:scale-90 focus:text-red-400"> 
-        {name} 
-    </a>
+<li class="relative list-none">
+	<a
+		href={endPoint}
+		class="block px-3 py-1.5 text-sm font-medium transition-colors duration-200
+			{active ? 'text-brand-400' : 'text-text-muted hover:text-text-primary'}"
+	>
+		{name}
+	</a>
+	{#if active}
+		<span class="absolute bottom-0 left-1/2 h-[2px] w-6 -translate-x-1/2 rounded-full bg-brand-400"></span>
+	{/if}
 </li>

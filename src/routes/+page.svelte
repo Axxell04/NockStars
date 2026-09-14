@@ -179,54 +179,68 @@
 
 </script>
 
-<div in:fade class="flex flex-col gap-2 max-w-full max-h-full">
-    <section class="px-10 w-full sticky -top-1 z-40 bg-stone-900/95 backdrop-blur-lg">
-        <div class="flex flex-wrap gap-3 place-items-center text-center text-red-400 font-normal p-4 border border-transparent border-b-red-400">
-            <div class="flex flex-row gap-2 place-items-center">
-                <form action="?/set_catalog" method="post" use:enhance={() => {
-                    return async ({ result }) => {
-                        if (result.type === "success") {
-                            if (result.data?.pagination) {
-                                setProductPagination(result.data.pagination as ProductPagination);
-                                toggleInputSearchIsVisible(false);                                
-                            }
+<div in:fade class="flex flex-col gap-6 max-w-full max-h-full">
+    <!-- Toolbar -->
+    <section class="sticky top-[var(--header-height,0px)] z-30 glass rounded-2xl p-4">
+        <div class="flex flex-wrap items-center gap-3">
+            <!-- Catalog selector -->
+            <form action="?/set_catalog" method="post" use:enhance={() => {
+                return async ({ result }) => {
+                    if (result.type === "success") {
+                        if (result.data?.pagination) {
+                            setProductPagination(result.data.pagination as ProductPagination);
+                            toggleInputSearchIsVisible(false);                                
                         }
                     }
-                }}
-                class="flex flex-col place-content-center relative"
-                >
-                    <input type="text" hidden name="catalog_id" value={catalogId} >
-                    <!-- <input type="text" class="w-10 text-center text-3xl bg-transparent outline-none" value={productPagination.currentPage} oninput={(e)=>updatePagination(e)} /> -->
-                    <button bind:this={selectCatalogElement} type="button" class="text-center text-2xl bg-transparent outline-none hover:text-red-500 focus:text-red-500" 
+                }
+            }}
+            class="relative"
+            >
+                <input type="text" hidden name="catalog_id" value={catalogId} >
+                <button 
+                    bind:this={selectCatalogElement} 
+                    type="button" 
+                    class="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-2 border border-white/5 text-sm font-medium text-text-primary transition-all duration-200 hover:border-white/10"
                     onclick={()=>toggleCatalogListIsVisible()}
                     onfocus={(e) => cancelFocus(e)}
                     aria-haspopup="listbox"
                     aria-expanded={catalogListIsVisible}
-                    >
-                        {catalogId ? catalogs.find((cat) => cat.id === catalogId)?.name : 'Todo'}
-                    </button>
-                    {#if catalogListIsVisible}                        
-                    <div transition:scale class="absolute flex flex-col text-2xl rounded-b-md border bg-stone-900/95 max-h-60 overflow-y-auto place-self-center z-10"
-                    style="top: {selectCatalogElementHeight}px;"
+                >
+                    {catalogId ? catalogs.find((cat) => cat.id === catalogId)?.name : 'Todos'}
+                    <Icon icon="mdi:chevron-down" class="text-base text-text-muted transition-transform {catalogListIsVisible ? 'rotate-180' : ''}" />
+                </button>
+                {#if catalogListIsVisible}                        
+                <div 
+                    transition:scale={{ duration: 150, start: 0.95 }}
+                    class="absolute top-full left-0 mt-1 w-48 overflow-hidden rounded-xl border border-white/10 bg-surface-1 shadow-depth z-50"
                     role="listbox"
-                    >
-                        <ul>
-                            <li>
-                                <button class="hover:bg-stone-800 focus:bg-stone-800 px-2 py-1 w-full {catalogId ? '' : 'text-red-500'}" onclick={()=>{catalogId = ''; toggleCatalogListIsVisible(false)}}>
-                                    Todo
-                                </button>
-                            </li>
-                            {#each catalogs as catalog}
-                            <li>
-                                <button class="hover:bg-stone-800 focus:bg-stone-800 px-2 py-1 w-full {catalogId === catalog.id ? 'text-red-500' : ''}" onclick={()=>{catalogId = catalog.id; toggleCatalogListIsVisible(false)}}>
-                                    {catalog.name}
-                                </button>
-                            </li>
-                            {/each}
-                        </ul>
-                    </div>
-                    {/if}
-                </form>
+                >
+                    <ul class="py-1">
+                        <li>
+                            <button 
+                                class="w-full px-3 py-2 text-left text-sm transition-colors {catalogId ? 'text-text-secondary hover:bg-surface-2 hover:text-text-primary' : 'text-brand-400 bg-brand-400/10'}" 
+                                onclick={()=>{catalogId = ''; toggleCatalogListIsVisible(false)}}
+                            >
+                                Todos
+                            </button>
+                        </li>
+                        {#each catalogs as catalog}
+                        <li>
+                            <button 
+                                class="w-full px-3 py-2 text-left text-sm transition-colors {catalogId === catalog.id ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'}" 
+                                onclick={()=>{catalogId = catalog.id; toggleCatalogListIsVisible(false)}}
+                            >
+                                {catalog.name}
+                            </button>
+                        </li>
+                        {/each}
+                    </ul>
+                </div>
+                {/if}
+            </form>
+
+            <!-- Pagination -->
+            <div class="flex items-center gap-1">
                 <form action="?/prev_page" method="post" use:enhance={() => {
                     return async ({ result }) => {
                         if (result.type === "success") {
@@ -235,22 +249,23 @@
                             }
                         }
                     }
-                }}
-                class="flex flex-col place-content-center"
-                >
+                }}>
                     <input type="number" hidden name="current_page" value={productPagination.currentPage}>
                     <input type="number" hidden name="total_pages" value={productPagination.totalPages}>
                     <input type="text" hidden name="search-value" value={searchValue}>
-                    {#if productPagination.currentPage > 1}
-                    <button class="hover:text-red-500 focus:text-red-500" onfocus={(e) => cancelFocus(e)} aria-label="Página anterior">
-                        <Icon icon="icon-park-outline:left-c" class="text-3xl" />
+                    <button 
+                        class="flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200
+                        {productPagination.currentPage > 1 
+                            ? 'text-text-secondary hover:text-brand-400 hover:bg-surface-2' 
+                            : 'text-text-muted/30 cursor-not-allowed'}"
+                        disabled={productPagination.currentPage <= 1}
+                        onfocus={(e) => cancelFocus(e)}
+                        aria-label="Página anterior"
+                    >
+                        <Icon icon="mdi:chevron-left" class="text-lg" />
                     </button>
-                    {:else}
-                    <button class="opacity-50" disabled aria-label="Página anterior">
-                        <Icon icon="icon-park-outline:left-c" class="text-3xl" />
-                    </button>
-                    {/if}
                 </form>
+
                 <form action="?/goto_page" method="post" use:enhance={() => {
                     return async ({ result }) => {
                         if (result.type === "success") {
@@ -261,28 +276,30 @@
                         }
                     }
                 }}
-                class="flex flex-col place-content-center relative"
+                class="relative"
                 >
                     <input type="number" hidden name="goto_page" value={gotoPage} >
                     <input type="text" hidden name="search-value" value={searchValue}>                    
-                    <!-- <input type="text" class="w-10 text-center text-3xl bg-transparent outline-none" value={productPagination.currentPage} oninput={(e)=>updatePagination(e)} /> -->
-                    <button type="button" class="w-10 text-center text-3xl bg-transparent h-9 outline-none hover:text-red-500 focus:text-red-500" 
-                    onclick={()=>toggleGotoPageListIsVisible()}
-                    onfocus={(e) => cancelFocus(e)}
-                    aria-label="Ir a página"
-                    aria-haspopup="listbox"
-                    aria-expanded={gotoPageListIsVisible}
+                    <button 
+                        type="button" 
+                        class="w-10 h-8 rounded-lg bg-surface-2 text-sm font-semibold text-text-primary transition-all duration-200 hover:bg-surface-3"
+                        onclick={()=>toggleGotoPageListIsVisible()}
+                        onfocus={(e) => cancelFocus(e)}
+                        aria-label="Ir a página"
+                        aria-haspopup="listbox"
+                        aria-expanded={gotoPageListIsVisible}
                     >
-                        {productPagination.currentPage}
+                        {productPagination.currentPage} / {productPagination.totalPages}
                     </button>
                     {#if gotoPageListIsVisible}                        
-                    <div transition:scale class="absolute top-9 flex flex-col text-3xl rounded-b-md border bg-stone-900/95 max-h-65 overflow-y-auto place-self-center" role="listbox">
-                        <ul>
+                    <div transition:scale={{ duration: 150, start: 0.95 }} class="absolute top-full left-0 mt-1 w-16 max-h-48 overflow-y-auto rounded-xl border border-white/10 bg-surface-1 shadow-depth z-50" role="listbox">
+                        <ul class="py-1">
                             {#each createListPages(productPagination.totalPages) as page}
                             <li>
-                                <button class="hover:bg-stone-800 focus:bg-stone-800 focus:text-red-500 px-2 py-1 w-full" 
-                                onclick={()=>{gotoPage = page; toggleGotoPageListIsVisible(false)}}
-                                onfocus={(e) => cancelFocus(e)}
+                                <button 
+                                    class="w-full px-3 py-1.5 text-center text-sm transition-colors {page === productPagination.currentPage ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'}" 
+                                    onclick={()=>{gotoPage = page; toggleGotoPageListIsVisible(false)}}
+                                    onfocus={(e) => cancelFocus(e)}
                                 >
                                     {page}
                                 </button>
@@ -292,9 +309,7 @@
                     </div>
                     {/if}
                 </form>
-                <!-- <span class="block text-3xl">
-                    1
-                </span> -->
+
                 <form action="?/next_page" method="post" use:enhance={() => {
                     return async ({ result }) => {
                         if (result.type === "success") {
@@ -303,24 +318,26 @@
                             }
                         }
                     }
-                }}
-                class="flex flex-col place-content-center"
-                >
+                }}>
                     <input type="number" hidden name="current_page" value={productPagination.currentPage}>
                     <input type="number" hidden name="total_pages" value={productPagination.totalPages}>
                     <input type="text" hidden name="search-value" value={searchValue}>
-                    {#if productPagination.currentPage < productPagination.totalPages}
-                    <button class="hover:text-red-500 focus-within:text-red-500" onfocus={(e) => cancelFocus(e)} aria-label="Página siguiente">
-                        <Icon icon="icon-park-outline:right-c" class="text-3xl" />
+                    <button 
+                        class="flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200
+                        {productPagination.currentPage < productPagination.totalPages 
+                            ? 'text-text-secondary hover:text-brand-400 hover:bg-surface-2' 
+                            : 'text-text-muted/30 cursor-not-allowed'}"
+                        disabled={productPagination.currentPage >= productPagination.totalPages}
+                        onfocus={(e) => cancelFocus(e)}
+                        aria-label="Página siguiente"
+                    >
+                        <Icon icon="mdi:chevron-right" class="text-lg" />
                     </button>
-                    {:else}    
-                    <button class="opacity-50" disabled aria-label="Página siguiente">
-                        <Icon icon="icon-park-outline:right-c" class="text-3xl" />
-                    </button>
-                    {/if}
                 </form>
             </div>
-            <div class="flex flex-row gap-2">
+
+            <!-- Search -->
+            <div class="flex items-center gap-2 ml-auto">
                 <form action="?/search" method="post" use:enhance={() => {
                     return async ({result}) => {
                         if (result.type === "success") {
@@ -331,51 +348,50 @@
                     }
                 }}>
                     <input type="hidden" name="value" value={searchValue}>
-                    <button bind:this={btnInputSearch} class="hidden">
-                        Search
-                    </button>
+                    <button bind:this={btnInputSearch} class="hidden">Search</button>
                 </form>
+
                 {#if inputSearchIsVisible}
-                <input bind:this={inputSearch} transition:slide={{axis: "x"}} type="text" placeholder="Search..." class="outline-none border rounded-md px-1"
+                <input 
+                    bind:this={inputSearch} 
+                    transition:slide={{ axis: "x", duration: 200 }} 
+                    type="text" 
+                    placeholder="Buscar..." 
+                    class="w-40 px-3 py-1.5 rounded-xl bg-surface-2 border border-white/5 text-sm text-text-primary placeholder:text-text-muted/50 outline-none transition-all duration-200 focus:border-brand-400/30 focus:w-56"
                     oninput={(e) => updateSearchValue(e)}
                     aria-label="Buscar productos"
-                >                    
+                >
                 {/if}
 
                 {#if inputSearchIsVisible}
-                <button in:scale onclick={() => {clearSearchValue(); toggleInputSearchIsVisible(false)}} aria-label="Limpiar búsqueda">
-                    <Icon icon="lucide:search-x" class="text-4xl"/>
+                <button 
+                    in:scale={{ duration: 150, start: 0.8 }}
+                    class="flex items-center justify-center w-8 h-8 rounded-lg text-text-muted transition-colors hover:text-brand-400 hover:bg-surface-2" 
+                    onclick={() => {clearSearchValue(); toggleInputSearchIsVisible(false)}} 
+                    aria-label="Limpiar búsqueda"
+                >
+                    <Icon icon="mdi:close" class="text-lg"/>
                 </button>
                 {:else}
-                <button in:scale onclick={() => {toggleInputSearchIsVisible(true);
-                    setTimeout(() => {
-                        inputSearch?.focus();
-                    }, 100);
-                }} aria-label="Abrir búsqueda">
-                    <Icon icon="lucide:search" class="text-4xl" />                    
+                <button 
+                    in:scale={{ duration: 150, start: 0.8 }}
+                    class="flex items-center justify-center w-8 h-8 rounded-lg text-text-muted transition-colors hover:text-brand-400 hover:bg-surface-2" 
+                    onclick={() => {toggleInputSearchIsVisible(true);
+                        setTimeout(() => { inputSearch?.focus(); }, 100);
+                    }} 
+                    aria-label="Abrir búsqueda"
+                >
+                    <Icon icon="mdi:magnify" class="text-lg" />                    
                 </button>
                 {/if}
             </div>
-            <div class="flex flex-row ml-auto">
-                <a href="/carrito" class="flex flex-row gap-1 justify-end self-end place-items-center hover:text-red-500 focus:text-red-500"
-                onfocus={(e) => cancelFocus(e)}
-                aria-label="Ir al carrito{cart.length ? `, ${cart.length} productos` : ''}"
-                >
-                    <div class="relative flex flex-col place-items-center">
-                        <Icon icon="bi:cart-fill" class="text-4xl" />
-                        {#if cart.length}
-                        <span class="block absolute -top-2 -right-2 rounded-full font-bold text-lg bg-stone-900 text-red-400 border border-red-400 px-2 ">
-                            {cart.length}
-                        </span>                            
-                        {/if}
-                    </div>
-                </a>
-            </div>
-		</div>
-	</section>
-    <section class="flex flex-wrap justify-center p-2 gap-5">
+        </div>
+    </section>
+
+    <!-- Products grid -->
+    <section class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 justify-items-center">
         {#each products as product (product.product.id)}
-            <div in:scale={{delay: 100 * products.indexOf(product)}}>
+            <div class="animate-fade-up" style="animation-delay: {50 * products.indexOf(product)}ms">
                 <ProductCard {product} {toggleProductModalIsVisible} {productSelected} {selectThisProduct} />                
             </div>
         {/each}

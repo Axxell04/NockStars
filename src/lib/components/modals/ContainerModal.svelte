@@ -32,14 +32,19 @@
 </script>
 
 <div role="button" tabindex="0" onkeydown={()=>{}}
-    class="fixed top-0 left-0 z-50 p-4 w-full min-h-dvh max-h-dvh box-border bg-stone-900/60 backdrop-blur-md overflow-hidden flex flex-col place-items-center place-content-center" 
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-hidden"
     onclick={()=>{toggleModal(false)}}    
 >
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-surface-0/80 backdrop-blur-sm"></div>
+    
     {#if !cancelClick}
-    {@render children()}
+    <div class="relative z-10">
+        {@render children()}
+    </div>
     {:else}
     <div onclick={(e) => e.stopPropagation()} role="button" tabindex="0" onkeypress={()=>{}} 
-    class="flex flex-col place-items-center w-fit max-w-full place-content-center outline-none h-full relative"
+    class="relative z-10 flex items-center justify-center w-fit max-w-full h-full outline-none"
     >
         {@render children()}
     </div>

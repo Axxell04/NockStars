@@ -40,33 +40,37 @@
 
 </script>
 
-<div class="flex flex-row gap-2 relative border border-red-400 rounded hover:border-red-500 focus:border-red-500 focus:bg-stone-800 cursor-pointer"
+<div class="group flex flex-row gap-3 relative rounded-xl cursor-pointer transition-all duration-300 ease-out
+    {isSelected ? 'bg-surface-2 border border-brand-400/30' : 'bg-surface-1 border border-white/5 hover:border-white/10 hover:bg-surface-2/50'}
+    "
     onclick={()=>selectThisCatalog(catalog)}
     role="button"
     tabindex="0"
     onkeydown={()=>{}}
 >
-    <div class="flex flex-col gap-1 p-2 grow">
-        <span class="font-semibold">
+    <div class="flex flex-col gap-1 p-4 grow min-w-0">
+        <span class="font-semibold text-text-primary truncate">
             {catalog.name}
         </span>
-        <p class="text-red-300 font-light">
+        <p class="text-text-muted text-sm font-light line-clamp-2">
             {catalog.description}
         </p>
     </div>
     {#if actualRoute?.includes('/admin')}        
-    <div transition:scale class="flex flex-row place-items-center gap-2 p-2 text-4xl bg-stone-900/90 backdrop-blur-xl rounded-md">
-        <button class="cursor-pointer hover:text-red-500 focus:text-red-500" 
-        onclick={()=>toggleDeleteCatalogModalIsVisible(true)}
+    <div transition:scale={{ duration: 150, start: 0.9 }} class="flex items-center gap-1 p-2 text-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <button class="p-1.5 rounded-lg text-text-muted transition-colors hover:text-brand-400 hover:bg-surface-3" 
+        onclick={(e)=>{ e.stopPropagation(); toggleDeleteCatalogModalIsVisible(true) }}
         onfocus={(e) => cancelFocus(e)}
+        aria-label="Eliminar catálogo"
         >
-            <Icon icon="famicons:trash" />
+            <Icon icon="mdi:delete-outline" />
         </button>
-        <button class="cursor-pointer hover:text-red-500 focus:text-red-500" 
-        onclick={()=>toggleEditCatalogModalIsVisible(true)}
+        <button class="p-1.5 rounded-lg text-text-muted transition-colors hover:text-brand-400 hover:bg-surface-3" 
+        onclick={(e)=>{ e.stopPropagation(); toggleEditCatalogModalIsVisible(true) }}
         onfocus={(e) => cancelFocus(e)}
+        aria-label="Editar catálogo"
         >
-            <Icon icon="mdi:edit-outline" />
+            <Icon icon="mdi:pencil-outline" />
         </button>
     </div>
     {/if}
