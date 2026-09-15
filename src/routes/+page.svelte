@@ -10,6 +10,7 @@
 	import Icon from "@iconify/svelte";
 	import ImgsProductModal from "$lib/components/modals/ImgsProductModal.svelte";
 	import { enhance } from "$app/forms";
+	import { invalidateAll } from "$app/navigation";
 	import Toast from "$lib/components/Toast.svelte";
 
     let { data }: PageProps = $props();
@@ -95,7 +96,6 @@
         const indexDetail = cart.findIndex((des) => des.product.product.id === productSelected?.product.id);
 
         if (indexDetail !== -1) {
-            // cart = [...cart, {product: cart[indexDetail].product, amount: cart[indexDetail].amount + 1}];
             cart = cart.map((pd, index) => {
                 if (index === indexDetail) {
                     return {
@@ -180,10 +180,13 @@
 </script>
 
 <div in:fade class="flex flex-col gap-6 max-w-full max-h-full">
-    <!-- Toolbar -->
-    <section class="sticky top-[var(--header-height,0px)] z-30 glass rounded-2xl p-4">
+    <!-- Toolbar — Thread-wrapped glass panel, sticky below header -->
+    <section class="sticky top-2 z-30 glass rounded-2xl p-4 border border-white/4">
+        <!-- Thread accent line at top -->
+        <div class="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-brand-400/20 to-transparent"></div>
+        
         <div class="flex flex-wrap items-center gap-3">
-            <!-- Catalog selector -->
+            <!-- Catalog selector — Thread-wrapped dropdown -->
             <form action="?/set_catalog" method="post" use:enhance={() => {
                 return async ({ result }) => {
                     if (result.type === "success") {
@@ -200,25 +203,25 @@
                 <button 
                     bind:this={selectCatalogElement} 
                     type="button" 
-                    class="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-2 border border-white/5 text-sm font-medium text-text-primary transition-all duration-200 hover:border-white/10"
+                    class="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-2/80 border border-white/6 text-sm font-medium text-text-primary transition-all duration-300 hover:border-brand-400/20 hover:bg-surface-2"
                     onclick={()=>toggleCatalogListIsVisible()}
                     onfocus={(e) => cancelFocus(e)}
                     aria-haspopup="listbox"
                     aria-expanded={catalogListIsVisible}
                 >
                     {catalogId ? catalogs.find((cat) => cat.id === catalogId)?.name : 'Todos'}
-                    <Icon icon="mdi:chevron-down" class="text-base text-text-muted transition-transform {catalogListIsVisible ? 'rotate-180' : ''}" />
+                    <Icon icon="mdi:chevron-down" class="text-base text-text-muted transition-transform duration-300 {catalogListIsVisible ? 'rotate-180' : ''}" />
                 </button>
                 {#if catalogListIsVisible}                        
                 <div 
                     transition:scale={{ duration: 150, start: 0.95 }}
-                    class="absolute top-full left-0 mt-1 w-48 overflow-hidden rounded-xl border border-white/10 bg-surface-1 shadow-depth z-50"
+                    class="absolute top-full left-0 mt-1 w-48 overflow-hidden rounded-xl border border-white/8 bg-surface-1/95 backdrop-blur-xl shadow-depth z-50"
                     role="listbox"
                 >
                     <ul class="py-1">
                         <li>
                             <button 
-                                class="w-full px-3 py-2 text-left text-sm transition-colors {catalogId ? 'text-text-secondary hover:bg-surface-2 hover:text-text-primary' : 'text-brand-400 bg-brand-400/10'}" 
+                                class="w-full px-4 py-2.5 text-left text-sm transition-all {catalogId ? 'text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:pl-5' : 'text-brand-400 bg-brand-400/10'}" 
                                 onclick={()=>{catalogId = ''; toggleCatalogListIsVisible(false)}}
                             >
                                 Todos
@@ -227,7 +230,7 @@
                         {#each catalogs as catalog}
                         <li>
                             <button 
-                                class="w-full px-3 py-2 text-left text-sm transition-colors {catalogId === catalog.id ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'}" 
+                                class="w-full px-4 py-2.5 text-left text-sm transition-all {catalogId === catalog.id ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:pl-5'}" 
                                 onclick={()=>{catalogId = catalog.id; toggleCatalogListIsVisible(false)}}
                             >
                                 {catalog.name}
@@ -239,7 +242,7 @@
                 {/if}
             </form>
 
-            <!-- Pagination -->
+            <!-- Pagination — Thread-wrapped controls -->
             <div class="flex items-center gap-1">
                 <form action="?/prev_page" method="post" use:enhance={() => {
                     return async ({ result }) => {
@@ -254,9 +257,9 @@
                     <input type="number" hidden name="total_pages" value={productPagination.totalPages}>
                     <input type="text" hidden name="search-value" value={searchValue}>
                     <button 
-                        class="flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200
+                        class="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-300
                         {productPagination.currentPage > 1 
-                            ? 'text-text-secondary hover:text-brand-400 hover:bg-surface-2' 
+                            ? 'text-text-secondary hover:text-brand-400 hover:bg-surface-2 hover:border hover:border-white/8' 
                             : 'text-text-muted/30 cursor-not-allowed'}"
                         disabled={productPagination.currentPage <= 1}
                         onfocus={(e) => cancelFocus(e)}
@@ -282,7 +285,7 @@
                     <input type="text" hidden name="search-value" value={searchValue}>                    
                     <button 
                         type="button" 
-                        class="w-10 h-8 rounded-lg bg-surface-2 text-sm font-semibold text-text-primary transition-all duration-200 hover:bg-surface-3"
+                        class="w-12 h-9 rounded-xl bg-surface-2/80 border border-white/6 text-sm font-semibold text-text-primary transition-all duration-300 hover:bg-surface-2 hover:border-brand-400/20"
                         onclick={()=>toggleGotoPageListIsVisible()}
                         onfocus={(e) => cancelFocus(e)}
                         aria-label="Ir a página"
@@ -292,12 +295,12 @@
                         {productPagination.currentPage} / {productPagination.totalPages}
                     </button>
                     {#if gotoPageListIsVisible}                        
-                    <div transition:scale={{ duration: 150, start: 0.95 }} class="absolute top-full left-0 mt-1 w-16 max-h-48 overflow-y-auto rounded-xl border border-white/10 bg-surface-1 shadow-depth z-50" role="listbox">
+                    <div transition:scale={{ duration: 150, start: 0.95 }} class="absolute top-full left-0 mt-1 w-16 max-h-48 overflow-y-auto rounded-xl border border-white/8 bg-surface-1/95 backdrop-blur-xl shadow-depth z-50" role="listbox">
                         <ul class="py-1">
                             {#each createListPages(productPagination.totalPages) as page}
                             <li>
                                 <button 
-                                    class="w-full px-3 py-1.5 text-center text-sm transition-colors {page === productPagination.currentPage ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'}" 
+                                    class="w-full px-3 py-2 text-center text-sm transition-all {page === productPagination.currentPage ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'}" 
                                     onclick={()=>{gotoPage = page; toggleGotoPageListIsVisible(false)}}
                                     onfocus={(e) => cancelFocus(e)}
                                 >
@@ -323,9 +326,9 @@
                     <input type="number" hidden name="total_pages" value={productPagination.totalPages}>
                     <input type="text" hidden name="search-value" value={searchValue}>
                     <button 
-                        class="flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200
+                        class="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-300
                         {productPagination.currentPage < productPagination.totalPages 
-                            ? 'text-text-secondary hover:text-brand-400 hover:bg-surface-2' 
+                            ? 'text-text-secondary hover:text-brand-400 hover:bg-surface-2 hover:border hover:border-white/8' 
                             : 'text-text-muted/30 cursor-not-allowed'}"
                         disabled={productPagination.currentPage >= productPagination.totalPages}
                         onfocus={(e) => cancelFocus(e)}
@@ -336,7 +339,7 @@
                 </form>
             </div>
 
-            <!-- Search -->
+            <!-- Search — Thread-wrapped input -->
             <div class="flex items-center gap-2 ml-auto">
                 <form action="?/search" method="post" use:enhance={() => {
                     return async ({result}) => {
@@ -354,10 +357,10 @@
                 {#if inputSearchIsVisible}
                 <input 
                     bind:this={inputSearch} 
-                    transition:slide={{ axis: "x", duration: 200 }} 
+                    transition:slide={{ axis: "x", duration: 250, easing: (t) => 1 - Math.pow(1 - t, 3) }} 
                     type="text" 
                     placeholder="Buscar..." 
-                    class="w-40 px-3 py-1.5 rounded-xl bg-surface-2 border border-white/5 text-sm text-text-primary placeholder:text-text-muted/50 outline-none transition-all duration-200 focus:border-brand-400/30 focus:w-56"
+                    class="w-44 px-3 py-2 rounded-xl bg-surface-2/80 border border-white/6 text-sm text-text-primary placeholder:text-text-muted/50 outline-none transition-all duration-300 focus:border-brand-400/25 focus:w-60 focus:bg-surface-2"
                     oninput={(e) => updateSearchValue(e)}
                     aria-label="Buscar productos"
                 >
@@ -366,7 +369,7 @@
                 {#if inputSearchIsVisible}
                 <button 
                     in:scale={{ duration: 150, start: 0.8 }}
-                    class="flex items-center justify-center w-8 h-8 rounded-lg text-text-muted transition-colors hover:text-brand-400 hover:bg-surface-2" 
+                    class="flex items-center justify-center w-9 h-9 rounded-xl text-text-muted transition-all duration-300 hover:text-brand-400 hover:bg-surface-2 hover:border hover:border-white/8" 
                     onclick={() => {clearSearchValue(); toggleInputSearchIsVisible(false)}} 
                     aria-label="Limpiar búsqueda"
                 >
@@ -375,7 +378,7 @@
                 {:else}
                 <button 
                     in:scale={{ duration: 150, start: 0.8 }}
-                    class="flex items-center justify-center w-8 h-8 rounded-lg text-text-muted transition-colors hover:text-brand-400 hover:bg-surface-2" 
+                    class="flex items-center justify-center w-9 h-9 rounded-xl text-text-muted transition-all duration-300 hover:text-brand-400 hover:bg-surface-2 hover:border hover:border-white/8" 
                     onclick={() => {toggleInputSearchIsVisible(true);
                         setTimeout(() => { inputSearch?.focus(); }, 100);
                     }} 
@@ -388,10 +391,10 @@
         </div>
     </section>
 
-    <!-- Products grid -->
-    <section class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 justify-items-center">
-        {#each products as product (product.product.id)}
-            <div class="animate-fade-up" style="animation-delay: {50 * products.indexOf(product)}ms">
+    <!-- Products grid — Thread-woven layout -->
+    <section class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 justify-items-center">
+        {#each products as product, index (product.product.id)}
+            <div class="animate-thread-appear" style="--stagger-delay: {60 * index}ms">
                 <ProductCard {product} {toggleProductModalIsVisible} {productSelected} {selectThisProduct} />                
             </div>
         {/each}
@@ -401,7 +404,7 @@
 <form action="?/update_cart" method="post" use:enhance={() => {
     return async ({ result }) => {
         if (result.type === 'success') {
-
+            await invalidateAll();
         }
     }
 }}
@@ -416,7 +419,7 @@ class="hidden"
 <Toast message={toastMessage} />
 
 <ImgsProductModal {productSelected} imgsProductModalIsVisible={productModalIsVisible} toggleImgsProductModalIsVisible={toggleProductModalIsVisible}>
-    <button class="px-2 py-1 border rounded-full hover:text-red-500 focus:text-red-500 focus:bg-stone-800" onclick={addToCart}
+    <button class="btn-secondary px-4 py-2" onclick={addToCart}
     onfocus={(e) => cancelFocus(e)}
     >
         Añadir al carrito

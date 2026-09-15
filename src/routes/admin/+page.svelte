@@ -27,8 +27,6 @@
     // HTML Elements
     let selectCatalogElement: HTMLButtonElement | undefined = $state();
 
-    let selectCatalogElementHeight: number = $state(9);
-
     // Visible Elements
     let addProductModalIsVisible = $state(false);
     let addProductToCatalogModalIsVisible = $state(false);
@@ -133,19 +131,15 @@
     
     $inspect(productPagination);
     
-    $effect(() => {
-        if (typeof selectCatalogElement !== 'undefined' && catalogListIsVisible) {
-            selectCatalogElementHeight = selectCatalogElement.clientHeight;
-        }
-    })
-
 </script>
 
 <div in:fade class="flex flex-col gap-2 px-5 py-5">
     <section class="flex flex-col gap-3 ">
-        <div class="sticky -top-1 z-40 bg-stone-900/95 backdrop-blur-md place-content-around flex flex-wrap p-3 gap-2 place-items-center">
+        <div class="sticky top-2 z-40 glass rounded-2xl p-4 border border-white/4 flex flex-wrap items-center gap-3">
+            <!-- Thread accent line at top -->
+            <div class="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-brand-400/20 to-transparent"></div>
             <div class="flex flex-row gap-2 place-items-center">
-                <button class="flex flex-row gap-1 border rounded-md p-1 hover:text-red-500 focus:text-red-500 cursor-pointer place-items-center"
+                <button class="btn-primary"
                 onclick={() => {
                     if (catalogId) {
                         toggleOptAddProductIsVisible();
@@ -155,26 +149,26 @@
                     }}
                 onfocus={(e) => cancelFocus(e)}
                 >
-                    <Icon icon="material-symbols:add-rounded" class="text-3xl" />
-                    <span style="font-family: Nunito;">
+                    <Icon icon="material-symbols:add-rounded" class="text-xl" />
+                    <span>
                         Añadir Producto
                     </span>
                 </button>
                 {#if optAddProductIsVisible}    
-                <div transition:slide={{axis: "x"}} class="flex flex-row gap-1 border rounded-md h-fit">
-                    <button class="flex flex-row gap-1 border rounded-md p-1 bg-red-400 text-stone-900 hover:bg-red-500 focus:bg-red-500 cursor-pointer place-items-center"
+                <div transition:slide={{axis: "x"}} class="flex flex-row gap-1 items-center">
+                    <button class="px-3 py-2 rounded-xl bg-brand-500/15 text-brand-400 text-sm font-medium transition-all duration-300 hover:bg-brand-500/25"
                     onclick={() => toggleAddProductModalIsVisible(true)}
                     onfocus={(e) => cancelFocus(e)}
                     >
-                        <span style="font-family: Nunito;">
+                        <span>
                             Nuevo
                         </span>
                     </button>
-                    <button class="flex flex-row gap-1 border border-transparent rounded-md p-1 hover:text-red-500 focus:text-red-500 cursor-pointer place-items-center"
+                    <button class="px-3 py-2 rounded-xl text-sm font-medium border border-white/6 text-text-secondary transition-all duration-300 hover:text-brand-400 hover:border-brand-400/25 hover:bg-brand-400/5"
                     onclick={() => toggleAddProductToCatalogModalIsVisible(true)}
                     onfocus={(e) => cancelFocus(e)}
                     >
-                        <span style="font-family: Nunito;">
+                        <span>
                             Existente
                         </span>
                     </button>
@@ -194,32 +188,33 @@
                         }
                     }
                 }}
-                class="flex flex-col place-content-center relative"
+                class="relative"
                 >
                     <input type="text" hidden name="catalog_id" value={catalogId} >
                     <!-- <input type="text" class="w-10 text-center text-3xl bg-transparent outline-none" value={productPagination.currentPage} oninput={(e)=>updatePagination(e)} /> -->
-                    <button bind:this={selectCatalogElement} type="button" class="text-center text-2xl bg-transparent outline-none hover:text-red-500 focus:text-red-500" 
+                    <button bind:this={selectCatalogElement} type="button" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-2/80 border border-white/6 text-sm font-medium text-text-primary transition-all duration-300 hover:border-brand-400/20 hover:bg-surface-2"
                     onclick={()=>toggleCatalogListIsVisible()}
                     onfocus={(e) => cancelFocus(e)}
+                    aria-haspopup="listbox"
+                    aria-expanded={catalogListIsVisible}
                     >
-                        {catalogId ? catalogs.find((cat) => cat.id === catalogId)?.name : 'Todo'}
+                        {catalogId ? catalogs.find((cat) => cat.id === catalogId)?.name : 'Todos'}
+                        <Icon icon="mdi:chevron-down" class="text-base text-text-muted transition-transform duration-300 {catalogListIsVisible ? 'rotate-180' : ''}" />
                     </button>
                     {#if catalogListIsVisible}                        
-                    <div transition:scale class="absolute flex flex-col text-2xl rounded-b-md border bg-stone-900/95 max-h-60 overflow-y-auto place-self-center"
-                    style="top: {selectCatalogElementHeight}px;"
-                    >
-                        <ul>
+                    <div transition:scale={{ duration: 150, start: 0.95 }} class="absolute top-full left-0 mt-1 w-48 overflow-hidden rounded-xl border border-white/8 bg-surface-1/95 backdrop-blur-xl shadow-depth z-50" role="listbox">
+                        <ul class="py-1">
                             <li>
-                                <button class="hover:bg-stone-800 focus:bg-stone-800 px-2 py-1 w-full {catalogId ? '' : 'text-red-500'}" 
+                                <button class="w-full px-4 py-2.5 text-left text-sm transition-all {catalogId ? 'text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:pl-5' : 'text-brand-400 bg-brand-400/10'}" 
                                 onclick={()=>{catalogId = ''; toggleCatalogListIsVisible(false)}}
                                 onfocus={(e) => cancelFocus(e)}
                                 >
-                                    Todo
+                                    Todos
                                 </button>
                             </li>
                             {#each catalogs as catalog}
                             <li>
-                                <button class="hover:bg-stone-800 focus:bg-stone-800 px-2 py-1 w-full {catalogId === catalog.id ? 'text-red-500' : ''}" 
+                                <button class="w-full px-4 py-2.5 text-left text-sm transition-all {catalogId === catalog.id ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:pl-5'}" 
                                 onclick={()=>{catalogId = catalog.id; toggleCatalogListIsVisible(false)}}
                                 onfocus={(e) => cancelFocus(e)}
                                 >
@@ -244,15 +239,16 @@
                 >
                     <input type="number" hidden name="current_page" value={productPagination.currentPage}>
                     <input type="number" hidden name="total_pages" value={productPagination.totalPages}>
-                    {#if productPagination.currentPage > 1}
-                    <button class="hover:text-red-500 focus:text-red-500" onfocus={(e) => cancelFocus(e)}>
-                        <Icon icon="icon-park-outline:left-c" class="text-3xl" />
+                    <button class="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-300
+                    {productPagination.currentPage > 1 
+                        ? 'text-text-secondary hover:text-brand-400 hover:bg-surface-2 hover:border hover:border-white/8' 
+                        : 'text-text-muted/30 cursor-not-allowed'}"
+                    disabled={productPagination.currentPage <= 1}
+                    onfocus={(e) => cancelFocus(e)}
+                    aria-label="Página anterior"
+                    >
+                        <Icon icon="mdi:chevron-left" class="text-lg" />
                     </button>
-                    {:else}
-                    <button class="opacity-50" disabled>
-                        <Icon icon="icon-park-outline:left-c" class="text-3xl" />
-                    </button>
-                    {/if}
                 </form>
                 <!-- <input type="text" class="w-10 text-center text-3xl bg-transparent outline-none" value={productPagination.currentPage ?? 1} /> -->
                 <form action="?/goto_page" method="post" use:enhance={() => {
@@ -269,18 +265,21 @@
                 >
                     <input type="number" hidden name="goto_page" value={gotoPage} >
                     <!-- <input type="text" class="w-10 text-center text-3xl bg-transparent outline-none" value={productPagination.currentPage} oninput={(e)=>updatePagination(e)} /> -->
-                    <button type="button" class="w-10 text-center text-3xl h-9 bg-transparent outline-none hover:text-red-500 focus:text-red-500" 
+                    <button type="button" class="w-12 h-9 rounded-xl bg-surface-2/80 border border-white/6 text-sm font-semibold text-text-primary transition-all duration-300 hover:bg-surface-2 hover:border-brand-400/20"
                     onclick={()=>toggleGotoPageListIsVisible()}
                     onfocus={(e) => cancelFocus(e)}
+                    aria-label="Ir a página"
+                    aria-haspopup="listbox"
+                    aria-expanded={gotoPageListIsVisible}
                     >
-                        {productPagination.currentPage}
+                        {productPagination.currentPage} / {productPagination.totalPages}
                     </button>
                     {#if gotoPageListIsVisible}                        
-                    <div transition:scale class="absolute top-9 flex flex-col text-3xl rounded-b-md border bg-stone-900/95 max-h-60 overflow-y-auto place-self-center">
-                        <ul>
+                    <div transition:scale={{ duration: 150, start: 0.95 }} class="absolute top-full left-0 mt-1 w-16 max-h-48 overflow-y-auto rounded-xl border border-white/8 bg-surface-1/95 backdrop-blur-xl shadow-depth z-50" role="listbox">
+                        <ul class="py-1">
                             {#each createListPages(productPagination.totalPages) as page}
                             <li>
-                                <button class="hover:bg-stone-800 focus:bg-stone-800 focus:text-red-500 px-2 py-1 w-full" 
+                                <button class="w-full px-3 py-2 text-center text-sm transition-all {page === productPagination.currentPage ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'}" 
                                 onclick={()=>{gotoPage = page; toggleGotoPageListIsVisible(false)}}
                                 onfocus={(e) => cancelFocus(e)}
                                 >
@@ -305,25 +304,28 @@
                 >
                     <input type="number" hidden name="current_page" value={productPagination.currentPage}>
                     <input type="number" hidden name="total_pages" value={productPagination.totalPages}>
-                    {#if productPagination.currentPage < productPagination.totalPages}
-                    <button class="hover:text-red-500 focus:text-red-500" onfocus={(e) => cancelFocus(e)}>
-                        <Icon icon="icon-park-outline:right-c" class="text-3xl" />
+                    <button class="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-300
+                    {productPagination.currentPage < productPagination.totalPages 
+                        ? 'text-text-secondary hover:text-brand-400 hover:bg-surface-2 hover:border hover:border-white/8' 
+                        : 'text-text-muted/30 cursor-not-allowed'}"
+                    disabled={productPagination.currentPage >= productPagination.totalPages}
+                    onfocus={(e) => cancelFocus(e)}
+                    aria-label="Página siguiente"
+                    >
+                        <Icon icon="mdi:chevron-right" class="text-lg" />
                     </button>
-                    {:else}    
-                    <button class="opacity-50" disabled>
-                        <Icon icon="icon-park-outline:right-c" class="text-3xl" />
-                    </button>
-                    {/if}
                 </form>
             </div>
 
         </div>
 
-        <div class="flex flex-wrap grow justify-center p-2 gap-5">
-            {#each products as product}
-                <ProductCard {product} {productSelected} {selectThisProduct} {toggleDeleteProductModalIsVisible} {toggleEditProductModalIsVisible} />
+        <section class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 justify-items-center p-2">
+            {#each products as product, index (product.product.id)}
+                <div class="animate-thread-appear" style="--stagger-delay: {60 * index}ms">
+                    <ProductCard {product} {productSelected} {selectThisProduct} {toggleDeleteProductModalIsVisible} {toggleEditProductModalIsVisible} />
+                </div>
             {/each}
-        </div>
+        </section>
     </section>
     <AddProductModal {setProductPagination} {toggleAddProductModalIsVisible} {addProductModalIsVisible} />
     <DeleteProductModal {setProductPagination} {catalogId} {toggleDeleteProductModalIsVisible} {deleteProductModalIsVisible} {productSelected} />

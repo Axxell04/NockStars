@@ -42,18 +42,23 @@
 
 </script>
 
-<a href={contact.url} target="_blank" class="group flex items-center gap-3 py-3 px-4 rounded-xl transition-all duration-300
-    bg-surface-1 border border-white/5 hover:border-white/10 hover:bg-surface-2
+<a href={contact.url} target="_blank" class="group flex items-center gap-4 py-4 px-5 rounded-xl transition-all duration-400 ease-out
+    bg-surface-1/80 border border-white/4 hover:border-brand-400/20 hover:bg-surface-2/80 hover:shadow-glow-sm
     {actualRoute?.includes('/admin') ? 'pointer-events-none' : ''}
     " 
     onclick={actualRoute?.includes('/admin') ? (e) => e.preventDefault() : () => {}}
 >
-    <span class="flex items-center justify-center w-10 h-10 rounded-full bg-surface-2 text-brand-400 transition-colors group-hover:bg-brand-500/10">
+    <!-- Thread-wrapped icon -->
+    <span class="relative flex items-center justify-center w-11 h-11 rounded-full bg-surface-2 text-brand-400 transition-all duration-400 group-hover:bg-brand-500/10 group-hover:scale-110">
         <Icon {icon} class="text-xl"/>
+        <!-- Thread ring on hover -->
+        <span class="absolute inset-0 rounded-full border border-brand-400/0 group-hover:border-brand-400/20 transition-all duration-400 scale-110"></span>
     </span>
-    <span class="text-base font-medium text-text-secondary transition-colors group-hover:text-text-primary font-[var(--font-body)]">
+    
+    <span class="text-base font-medium text-text-secondary transition-colors duration-300 group-hover:text-text-primary font-[var(--font-body)]">
         {contact.text}
     </span>
+
     {#if actualRoute?.includes('/admin')}        
     <div transition:scale={{ duration: 150, start: 0.9 }} class="flex items-center gap-1 ml-auto text-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         <button class="p-1.5 rounded-lg text-text-muted transition-colors hover:text-brand-400 hover:bg-surface-3" 

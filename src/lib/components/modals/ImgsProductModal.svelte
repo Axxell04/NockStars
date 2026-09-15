@@ -20,7 +20,6 @@
     let { toggleImgsProductModalIsVisible, imgsProductModalIsVisible, productSelected, children, setImgIndex }: Props = $props();
 
     let imgIndex = $state(0);
-    let imgSalt = $state(false);
 
     $effect(() => {
         if (typeof setImgIndex !== 'undefined') {
@@ -30,21 +29,13 @@
 
     function nextImg () {
         if (nextImgIsValid()) {
-            imgSalt = true;
-            setTimeout(() => {
-                imgSalt = false;
-                imgIndex = imgIndex + 1;
-            }, 50);
+            imgIndex = imgIndex + 1;
         }
     }
 
     function prevImg () {
         if (prevImgIsValid()) {
-            imgSalt = true;
-            setTimeout(() => {
-                imgSalt = false;
-                imgIndex = imgIndex - 1;
-            }, 50);
+            imgIndex = imgIndex - 1;
         }
     }
 
@@ -100,21 +91,22 @@
     <div transition:fade={{duration: 200}}>
         <ContainerModal toggleModal={toggleImgsProductModalIsVisible} visible={imgsProductModalIsVisible} cancelClick={true}>
             <div class="flex flex-col gap-6 max-h-full relative">
-                <!-- Image area -->
+                <!-- Image area — caja estable: no salta entre fotos con distinto aspect ratio -->
                 <div class="relative flex items-center justify-center" style="height: 80%;">
-                    {#if !imgSalt}
-                    <div in:scale={{ duration: 300, start: 0.95 }} class="relative max-h-full">
+                    <div in:scale={{ duration: 300, start: 0.95 }} class="relative w-full max-w-[28rem] h-full max-h-[26rem] overflow-hidden rounded-2xl bg-surface-2/40">
+                        {#key imgIndex}
                         <img 
-                            class="object-contain max-h-[26rem] rounded-2xl" 
+                            class="object-contain w-full h-full"
                             src={productSelected?.imgs[imgIndex].url} 
                             alt={productSelected?.product.name}
                             draggable="false"
+                            transition:fade={{ duration: 200 }}
                         >
+                        {/key}
                         <span class="absolute bottom-3 left-1/2 -translate-x-1/2 glass px-3 py-1 rounded-full text-xs font-medium text-text-secondary">
                             {imgIndex + 1} / {productSelected?.imgs.length ?? imgIndex + 1}
                         </span>
                     </div>
-                    {/if}
                 </div>
 
                 <!-- Controls bar -->

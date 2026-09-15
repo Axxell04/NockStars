@@ -47,7 +47,7 @@ export async function bindImg (productId: string, url: string) {
 }
 
 export async function getProducts (options: GetProductsOptions = {}) {
-    const { page = 1, limit = 4, search, catalogId } = options;
+    const { page = 1, limit = 10, search, catalogId } = options;
     const offset = (page - 1) * limit;
     let products: table.Product[];
     

@@ -49,8 +49,14 @@
 
 </script>
 
-<div in:fade class="flex flex-col gap-2 px-5 py-5">
-    <section class="flex flex-col gap-3 ">
+<div in:fade class="flex flex-col gap-6 px-5 py-5">
+    <!-- Section header -->
+    <div class="flex items-center gap-3">
+        <div class="w-1 h-6 bg-brand-400 rounded-full"></div>
+        <h2 class="text-2xl font-bold text-text-primary tracking-wide">Catálogos</h2>
+    </div>
+
+    <section class="flex flex-col gap-4 ">
         <form action="?/view_catalog" method="post" use:enhance={() => {
             return async ({ result }) => {
                 if (result.type === 'success') {
@@ -65,9 +71,13 @@
                 View Catalog
             </button>
         </form>
-        <div class="flex flex-wrap grow justify-center p-2 gap-3">
-            {#each catalogs as catalog}
-                <CatalogCard {catalog} {catalogSelected} {selectThisCatalog}  />
+        
+        <!-- Thread-woven catalog grid -->
+        <div class="flex flex-wrap grow justify-center p-2 gap-4">
+            {#each catalogs as catalog, index}
+                <div class="animate-thread-appear" style="--stagger-delay: {80 * index}ms">
+                    <CatalogCard {catalog} {catalogSelected} {selectThisCatalog}  />
+                </div>
             {/each}
         </div>
     </section>

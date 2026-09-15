@@ -42,24 +42,33 @@
 
 </script>
 
-<div in:fade class="flex flex-col items-center gap-8 py-8">
-    <!-- Contacts grid -->
-    <div class="flex flex-wrap gap-3 justify-center max-w-2xl">
-        {#each contacts as contact}
-        <ContactCard {contact} />
+<div in:fade class="flex flex-col items-center gap-10 py-10">
+    <!-- Section header -->
+    <div class="flex flex-col items-center gap-3">
+        <div class="w-1 h-6 bg-brand-400 rounded-full"></div>
+        <h2 class="text-3xl font-bold text-text-primary tracking-wide text-center">Contacto</h2>
+        <p class="text-text-muted text-center max-w-md">Conectá con nosotros a través de nuestros canales</p>
+    </div>
+
+    <!-- Contacts grid — Thread-woven -->
+    <div class="flex flex-wrap gap-4 justify-center max-w-2xl">
+        {#each contacts as contact, index}
+        <div class="animate-thread-appear" style="--stagger-delay: {80 * index}ms">
+            <ContactCard {contact} />
+        </div>
         {/each}
     </div>
 
-    <!-- Divider -->
+    <!-- Thread divider -->
     <div class="w-full max-w-md flex items-center gap-4">
-        <div class="flex-1 h-px bg-white/10"></div>
+        <div class="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
         <span class="text-xs text-text-muted uppercase tracking-widest">o</span>
-        <div class="flex-1 h-px bg-white/10"></div>
+        <div class="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
     </div>
 
-    <!-- Contact form toggle -->
+    <!-- Contact form toggle — Thread-wrapped button -->
     <button 
-        class="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/10 text-sm font-medium text-text-secondary transition-all duration-200 hover:border-brand-400/30 hover:text-brand-400 hover:bg-brand-400/10"
+        class="flex items-center gap-2 px-6 py-3 rounded-xl border border-white/8 text-sm font-medium text-text-secondary transition-all duration-300 hover:border-brand-400/25 hover:text-brand-400 hover:bg-brand-400/5 hover:shadow-glow-sm"
         onclick={() => toggleFormSendMailIsVisible()}
         onfocus={(e) => cancelFocus(e)}
         aria-expanded={formSendMailIsVisible}
@@ -69,7 +78,7 @@
         Enviar correo
     </button>
 
-    <!-- Contact form -->
+    <!-- Contact form — Thread-wrapped card -->
     {#if formSendMailIsVisible}
     <form 
         transition:slide={{ duration: 300, easing: (t) => 1 - Math.pow(1 - t, 3) }}
@@ -87,8 +96,12 @@
                 }
             }
         }}
-        class="w-full max-w-md flex flex-col gap-4 p-6 rounded-2xl bg-surface-1 border border-white/5"
+        class="relative w-full max-w-md flex flex-col gap-5 p-8 rounded-2xl bg-surface-1/80 border border-white/4"
     >
+        <!-- Thread corner accents -->
+        <div class="absolute top-0 left-0 w-8 h-8 border-l-2 border-t-2 border-brand-400/15 rounded-tl-2xl pointer-events-none"></div>
+        <div class="absolute bottom-0 right-0 w-8 h-8 border-r-2 border-b-2 border-brand-400/15 rounded-br-2xl pointer-events-none"></div>
+
         <div class="flex flex-col gap-2">
             <label for="from" class="text-sm font-medium text-text-secondary">
                 Remitente
@@ -98,7 +111,7 @@
                 id="from" 
                 name="from" 
                 autocomplete="off"
-                class="px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-text-primary placeholder:text-text-muted/50 outline-none transition-all duration-200 focus:border-brand-400/30 focus:ring-2 focus:ring-brand-400/10"
+                class="input-thread"
                 placeholder="tu@email.com"
                 required
             />
@@ -111,13 +124,13 @@
                 name="message" 
                 id="message"
                 rows="4"
-                class="px-4 py-3 rounded-xl bg-surface-2 border border-white/5 text-text-primary placeholder:text-text-muted/50 outline-none transition-all duration-200 focus:border-brand-400/30 focus:ring-2 focus:ring-brand-400/10 resize-none"
+                class="input-thread resize-none"
                 placeholder="Escribí tu mensaje..."
                 required
             ></textarea>
         </div>
         <button 
-            class="w-full py-3 rounded-xl bg-brand-500 text-surface-0 font-semibold text-sm transition-all duration-200 hover:bg-brand-600 shadow-lg shadow-brand-500/20 active:scale-[0.98]"
+            class="btn-primary w-full"
             onfocus={(e) => cancelFocus(e)}
         >
             Enviar mensaje
@@ -125,9 +138,9 @@
     </form>
     {/if}
 
-    <!-- Form feedback -->
+    <!-- Form feedback — Thread-wrapped toast -->
     {#if formMessage}
-    <div transition:scale={{ duration: 200, start: 0.9 }} class="flex items-center gap-2 px-4 py-2.5 rounded-full bg-brand-500/10 text-brand-400 text-sm font-medium">
+    <div transition:scale={{ duration: 200, start: 0.9 }} class="flex items-center gap-2 px-5 py-3 rounded-full bg-brand-500/10 text-brand-400 text-sm font-medium border border-brand-400/15">
         <Icon icon="mdi:check-circle" class="text-lg" />
         {formMessage}
     </div>

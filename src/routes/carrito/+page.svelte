@@ -5,6 +5,7 @@
 	import Icon from "@iconify/svelte";
 	import type { PurchaseDetail } from "$lib/interfaces/cart";
 	import { enhance } from "$app/forms";
+	import { invalidateAll } from "$app/navigation";
 	import ClearCartModal from "$lib/components/modals/carrito/ClearCartModal.svelte";
 	import SendCartModal from "$lib/components/modals/carrito/SendCartModal.svelte";
 
@@ -81,22 +82,21 @@
         if (typeof btnUpdateCartElement !== 'undefined') {
             btnUpdateCartElement.click();
         }
-        // USAR UNA COLA DE ACTUALIZACIÓN PARA EVITAR ACTUALIZACIONES DESFAZADAS???
     })
 
 </script>
 
 <div in:fade class="flex flex-col gap-6">
-    <!-- Header -->
-    <section class="sticky top-[var(--header-height,0px)] z-20 glass rounded-2xl p-4">
+    <!-- Header — Thread-wrapped glass panel, sticky below header -->
+    <section class="sticky top-0 z-20 glass rounded-2xl p-4 border border-white/4">
+        <!-- Thread accent line at top -->
+        <div class="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-brand-400/20 to-transparent"></div>
+        
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h2 class="text-xl font-bold text-text-primary">Carrito de compras</h2>
             <div class="flex items-center gap-3">
                 <button 
-                    class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200
-                    {cart.length > 0 
-                        ? 'bg-brand-500 text-surface-0 hover:bg-brand-600 shadow-lg shadow-brand-500/20' 
-                        : 'bg-surface-2 text-text-muted cursor-not-allowed'}"
+                    class="btn-primary {cart.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}"
                     onclick={() => {if (cart.length > 0) {toggleSendCartModalIsVisible(true)}}}
                     onfocus={(e) => cancelFocus(e)}
                     disabled={cart.length === 0}
@@ -105,10 +105,7 @@
                     Realizar pedido
                 </button>
                 <button 
-                    class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-white/10 text-text-secondary transition-all duration-200
-                    {cart.length > 0 
-                        ? 'hover:border-brand-400/30 hover:text-brand-400 hover:bg-brand-400/10' 
-                        : 'opacity-30 cursor-not-allowed'}"
+                    class="btn-secondary {cart.length === 0 ? 'opacity-30 cursor-not-allowed' : ''}"
                     onclick={() => {if (cart.length > 0) {toggleClearCartModalIsVisible(true)}}}
                     onfocus={(e) => cancelFocus(e)}
                     disabled={cart.length === 0}
@@ -120,14 +117,14 @@
         </div>
     </section>
 
-    <!-- Cart items -->
-    <section class="flex flex-col gap-3">
+    <!-- Cart items — Thread-woven list -->
+    <section class="flex flex-col gap-4">
         {#each cart as purchaseDetail, index (purchaseDetail.product.product.id)}
             <div 
-                class="flex gap-4 p-4 rounded-2xl bg-surface-1 border border-white/5 transition-all duration-300 hover:border-white/10 hover:bg-surface-2/50"
-                style="animation: fade-up 0.4s var(--ease-smooth) {index * 0.05}s both"
+                class="flex gap-4 p-4 rounded-2xl bg-surface-1/80 border border-white/4 transition-all duration-400 hover:border-white/8 hover:bg-surface-2/50 hover:shadow-glow-sm animate-thread-appear"
+                style="--stagger-delay: {60 * index}ms"
             >
-                <!-- Product image -->
+                <!-- Product image — Thread-wrapped -->
                 <div class="flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 overflow-hidden rounded-xl bg-surface-2">
                     <img 
                         src={purchaseDetail.product.imgs[0].url} 
@@ -147,12 +144,12 @@
                         </p>
                     </div>
 
-                    <!-- Quantity controls -->
+                    <!-- Quantity controls — Thread-wrapped buttons -->
                     <div class="flex items-center justify-between mt-3">
                         <span class="text-xs text-text-muted uppercase tracking-wider">Cantidad</span>
                         <div class="flex items-center gap-3">
                             <button 
-                                class="flex items-center justify-center w-8 h-8 rounded-full border border-white/10 text-text-secondary transition-all duration-200 hover:border-brand-400/30 hover:text-brand-400 hover:bg-brand-400/10"
+                                class="flex items-center justify-center w-9 h-9 rounded-full border border-white/8 text-text-secondary transition-all duration-300 hover:border-brand-400/25 hover:text-brand-400 hover:bg-brand-400/5"
                                 onclick={() => subtract(purchaseDetail)}
                                 onfocus={(e) => cancelFocus(e)}
                             >
@@ -162,7 +159,7 @@
                                 {purchaseDetail.amount}
                             </span>
                             <button 
-                                class="flex items-center justify-center w-8 h-8 rounded-full border border-white/10 text-text-secondary transition-all duration-200 hover:border-brand-400/30 hover:text-brand-400 hover:bg-brand-400/10"
+                                class="flex items-center justify-center w-9 h-9 rounded-full border border-white/8 text-text-secondary transition-all duration-300 hover:border-brand-400/25 hover:text-brand-400 hover:bg-brand-400/5"
                                 onclick={() => addProduct(purchaseDetail)}
                                 onfocus={(e) => cancelFocus(e)}
                             >
@@ -175,10 +172,14 @@
         {/each}
 
         {#if cart.length === 0}
-            <div class="flex flex-col items-center justify-center py-16 text-text-muted">
-                <Icon icon="mdi:cart-outline" class="text-6xl mb-4 opacity-30" />
-                <p class="text-lg">Tu carrito está vacío</p>
-                <a href="/" class="mt-4 px-4 py-2 rounded-xl bg-brand-500 text-surface-0 text-sm font-medium hover:bg-brand-600 transition-colors">
+            <div class="flex flex-col items-center justify-center py-20 text-text-muted">
+                <div class="relative mb-6">
+                    <Icon icon="mdi:cart-outline" class="text-7xl opacity-20" />
+                    <!-- Thread accent -->
+                    <div class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-12 h-[1px] bg-brand-400/20"></div>
+                </div>
+                <p class="text-lg text-text-secondary">Tu carrito está vacío</p>
+                <a href="/" class="btn-primary mt-6">
                     Explorar tienda
                 </a>
             </div>
@@ -186,7 +187,13 @@
     </section>
 </div>
 
-<form action="?/update_cart" method="post" use:enhance 
+<form action="?/update_cart" method="post" use:enhance={() => {
+    return async ({ result }) => {
+        if (result.type === 'success') {
+            await invalidateAll();
+        }
+    }
+}}
 class="hidden"
 >
     <input type="hidden" name="cart" value={JSON.stringify(cart)}>

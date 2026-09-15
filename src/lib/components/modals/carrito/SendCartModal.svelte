@@ -2,6 +2,7 @@
 	import { fade, scale } from "svelte/transition";
 	import ContainerModal from "../ContainerModal.svelte";
 	import { enhance } from "$app/forms";
+	import { invalidateAll } from "$app/navigation";
 	import type { PurchaseDetail } from "$lib/interfaces/cart";
 	import { page } from "$app/state";
 
@@ -61,6 +62,7 @@
                         formMessage = result.data.message as string;
                     }
                 } else if (result.type === "success") {
+                    await invalidateAll();
                     resetCart();
                     if (result.data?.cod) {
                         sendWhatsApp(result.data?.cod as string);

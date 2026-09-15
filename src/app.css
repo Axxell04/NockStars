@@ -2,12 +2,12 @@
 @import 'tailwindcss';
 
 /* ========================================
-   DESIGN SYSTEM — NockStars
-   Aesthetic: Luxury Refinement × Dark Noir
+   THREADVERSE — NockStars Design System
+   Aesthetic: Lifestyle Immersion × Thread/Fabric Universe
    ======================================== */
 
 @theme {
-  /* Core palette */
+  /* Core palette — Warm neutrals + signature red */
   --color-brand-50: #fef2f2;
   --color-brand-100: #fde6e6;
   --color-brand-200: #fbd0d0;
@@ -19,39 +19,51 @@
   --color-brand-800: #991b1b;
   --color-brand-900: #7f1d1d;
 
-  /* Surface layers */
-  --color-surface-0: #0c0a09;
-  --color-surface-1: #1c1917;
-  --color-surface-2: #292524;
-  --color-surface-3: #44403c;
-  --color-surface-4: #57534e;
+  /* Surface layers — Deep charcoal with warm undertones */
+  --color-surface-0: #0a0a0a;
+  --color-surface-1: #141414;
+  --color-surface-2: #1e1e1e;
+  --color-surface-3: #2a2a2a;
+  --color-surface-4: #3a3a3a;
 
   /* Text hierarchy */
-  --color-text-primary: #fafaf9;
-  --color-text-secondary: #d6d3d1;
-  --color-text-muted: #a8a29e;
+  --color-text-primary: #fafafa;
+  --color-text-secondary: #a3a3a3;
+  --color-text-muted: #6b6b6b;
   --color-text-accent: #f87171;
 
-  /* Shadows */
-  --shadow-glow-sm: 0 0 10px rgba(248, 113, 113, 0.08);
-  --shadow-glow-md: 0 0 20px rgba(248, 113, 113, 0.12);
-  --shadow-glow-lg: 0 4px 30px rgba(248, 113, 113, 0.18);
-  --shadow-depth: 0 8px 32px rgba(0, 0, 0, 0.4);
-  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(248, 113, 113, 0.06);
-  --shadow-card-hover: 0 8px 32px rgba(248, 113, 113, 0.15), 0 0 0 1px rgba(248, 113, 113, 0.2);
+  /* Thread colors — Visual threads that connect elements */
+  --color-thread-1: rgba(248, 113, 113, 0.15);
+  --color-thread-2: rgba(248, 113, 113, 0.08);
+  --color-thread-3: rgba(248, 113, 113, 0.03);
 
-  /* Typography scale */
+  /* Shadows — Depth with thread glow */
+  --shadow-glow-sm: 0 0 15px rgba(248, 113, 113, 0.06);
+  --shadow-glow-md: 0 0 30px rgba(248, 113, 113, 0.1);
+  --shadow-glow-lg: 0 4px 40px rgba(248, 113, 113, 0.15);
+  --shadow-depth: 0 12px 40px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 2px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(248, 113, 113, 0.04);
+  --shadow-card-hover: 0 8px 40px rgba(248, 113, 113, 0.12), 0 0 0 1px rgba(248, 113, 113, 0.15);
+
+  /* Typography — Display + Body pairing */
   --font-display: 'Cinzel', Georgia, 'Times New Roman', serif;
   --font-body: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-  /* Transitions */
+  /* Easing curves — Emil Kowalski inspired */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-expo: cubic-bezier(0.87, 0, 0.13, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Border radius */
-  --radius-card: 1rem;
-  --radius-button: 0.625rem;
+  --radius-card: 1.25rem;
+  --radius-button: 0.75rem;
   --radius-pill: 9999px;
+
+  /* Thread animation timing */
+  --thread-draw: 1.2s;
+  --thread-fade: 0.6s;
 }
 
 /* ========================================
@@ -71,21 +83,28 @@ html {
 
 body {
   background-color: var(--color-surface-0);
-  color: var(--color-text-accent);
+  color: var(--color-text-primary);
   overflow-x: hidden;
+  cursor: default;
 }
 
-/* Subtle grain texture overlay */
+/* Subtle fabric texture — Lightweight, no animation */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 9998;
   pointer-events: none;
-  opacity: 0.03;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-size: 256px 256px;
+  opacity: 0.02;
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      rgba(248, 113, 113, 0.02) 3px,
+      rgba(248, 113, 113, 0.02) 4px
+    );
+  background-size: 4px 4px;
 }
 
 input, textarea {
@@ -104,7 +123,7 @@ a {
 }
 
 /* ========================================
-   SCROLLBAR
+   SCROLLBAR — Thread-wrapped
    ======================================== */
 
 body {
@@ -133,69 +152,283 @@ body::-webkit-scrollbar-thumb {
 }
 
 /* ========================================
-   UTILITY CLASSES
+   GLASS MORPHISM — Simplified for performance
    ======================================== */
 
 .glass {
-  background: rgba(28, 25, 23, 0.8);
-  backdrop-filter: blur(16px) saturate(1.2);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  background: rgba(14, 14, 14, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(248, 113, 113, 0.06);
 }
 
 .glass-subtle {
-  background: rgba(28, 25, 23, 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(14, 14, 14, 0.85);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
-.glow-border {
-  box-shadow: var(--shadow-glow-sm);
-  border: 1px solid rgba(248, 113, 113, 0.12);
-}
+/* ========================================
+   THREAD ELEMENTS — The signature visual language
+   ======================================== */
 
-.glow-border:hover {
-  box-shadow: var(--shadow-glow-md);
-  border-color: rgba(248, 113, 113, 0.25);
-}
-
-/* Animated gradient underline */
-.gradient-underline {
+/* Thread line — A thin decorative line that connects elements */
+.thread-line {
   position: relative;
 }
 
-.gradient-underline::after {
+.thread-line::after {
   content: '';
   position: absolute;
-  bottom: -2px;
+  bottom: 0;
   left: 0;
-  width: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--color-brand-400), var(--color-brand-600));
-  transition: width 0.3s var(--ease-smooth);
-}
-
-.gradient-underline:hover::after,
-.gradient-underline:focus::after {
   width: 100%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-brand-400) 20%,
+    var(--color-brand-400) 80%,
+    transparent 100%
+  );
+  opacity: 0.15;
+  transform: scaleX(0);
+  transition: transform 0.6s var(--ease-out-expo);
 }
 
-/* Stagger animation helper */
-@keyframes fade-up {
+.thread-line:hover::after,
+.thread-line:focus::after {
+  transform: scaleX(1);
+}
+
+/* Thread glow — Subtle glow effect on interactive elements */
+.thread-glow {
+  position: relative;
+}
+
+.thread-glow::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(248, 113, 113, 0.2) 0%,
+    transparent 50%,
+    rgba(248, 113, 113, 0.1) 100%
+  );
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: -1;
+}
+
+.thread-glow:hover::before {
+  opacity: 1;
+}
+
+/* Thread border — Animated border that draws on hover */
+.thread-border {
+  position: relative;
+  overflow: hidden;
+}
+
+.thread-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    var(--color-brand-400) 0%,
+    transparent 40%,
+    transparent 60%,
+    var(--color-brand-400) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.thread-border:hover::before {
+  opacity: 1;
+}
+
+/* ========================================
+   BUTTONS — Responsive and tactile
+   ======================================== */
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-button);
+  background: var(--color-brand-500);
+  color: var(--color-surface-0);
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.2s var(--ease-out-expo);
+  box-shadow: 0 4px 20px rgba(248, 113, 113, 0.25);
+}
+
+.btn-primary:hover {
+  background: var(--color-brand-600);
+  box-shadow: 0 6px 30px rgba(248, 113, 113, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: scale(0.97) translateY(0);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-button);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.2s var(--ease-out-expo);
+}
+
+.btn-secondary:hover {
+  border-color: rgba(248, 113, 113, 0.3);
+  color: var(--color-brand-400);
+  background: rgba(248, 113, 113, 0.05);
+}
+
+.btn-secondary:active {
+  transform: scale(0.97);
+}
+
+/* ========================================
+   INPUTS — Thread-wrapped
+   ======================================== */
+
+.input-thread {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border-radius: var(--radius-button);
+  background: var(--color-surface-2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  transition: all 0.3s var(--ease-out-expo);
+}
+
+.input-thread::placeholder {
+  color: var(--color-text-muted);
+}
+
+.input-thread:focus {
+  outline: none;
+  border-color: rgba(248, 113, 113, 0.3);
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.08);
+}
+
+/* ========================================
+   CARDS — Woven into the fabric
+   ======================================== */
+
+.card-thread {
+  position: relative;
+  background: var(--color-surface-1);
+  border-radius: var(--radius-card);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: all 0.4s var(--ease-out-expo);
+  overflow: hidden;
+}
+
+.card-thread::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(248, 113, 113, 0.2),
+    transparent
+  );
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.card-thread:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+}
+
+.card-thread:hover::before {
+  opacity: 1;
+}
+
+/* ========================================
+   ANIMATIONS — Thread-inspired motion
+   ======================================== */
+
+/* Thread drawing animation — Elements appear as if being stitched */
+@keyframes thread-draw {
+  from {
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Fade up with thread feel */
+@keyframes thread-appear {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(16px) scale(0.98);
+    filter: blur(4px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+    filter: blur(0);
   }
 }
 
-.animate-fade-up {
-  animation: fade-up 0.5s var(--ease-smooth) both;
+.animate-thread-appear {
+  animation: thread-appear 0.8s var(--ease-out-expo) both;
 }
 
-/* Shimmer effect for loading states */
+/* Stagger helper */
+.stagger-thread {
+  --stagger-delay: 0ms;
+  animation-delay: var(--stagger-delay);
+}
+
+/* Pulse glow for important elements */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(248, 113, 113, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(248, 113, 113, 0.2);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* Shimmer for loading states */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -210,4 +443,343 @@ body::-webkit-scrollbar-thumb {
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
+}
+
+/* ========================================
+   UTILITIES — Threadverse specifics
+   ======================================== */
+
+/* Thread connector — Visual line connecting elements */
+.thread-connector {
+  position: relative;
+}
+
+.thread-connector::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -20px;
+  width: 1px;
+  height: 20px;
+  background: linear-gradient(to bottom, transparent, var(--color-brand-400));
+  opacity: 0.3;
+}
+
+/* Thread corner — Decorative corner element */
+.thread-corner {
+  position: relative;
+}
+
+.thread-corner::before,
+.thread-corner::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  transition: all 0.4s var(--ease-out-expo);
+}
+
+.thread-corner::before {
+  top: -1px;
+  left: -1px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.thread-corner::after {
+  bottom: -1px;
+  right: -1px;
+  border-left: none;
+  border-top: none;
+}
+
+.thread-corner:hover::before,
+.thread-corner:hover::after {
+  width: 30px;
+  height: 30px;
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+/* Fabric texture class */
+.fabric-texture {
+  position: relative;
+}
+
+.fabric-texture::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 1px,
+      rgba(248, 113, 113, 0.02) 1px,
+      rgba(248, 113, 113, 0.02) 2px
+    );
+  background-size: 8px 8px;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* ========================================
+   THREADVERSE ANIMATED BACKGROUND
+   ======================================== */
+
+/* Main background container — containment limits GPU work */
+.threadverse-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+
+/* ========================================
+   MESH GRADIENT ORBS — Slowly drifting blobs
+   ======================================== */
+
+.mesh-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(30px);
+  opacity: 0.1;
+  will-change: transform;
+  contain: layout style;
+}
+
+/* Top-left orb — Brand red */
+.mesh-orb-1 {
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, var(--color-brand-400) 0%, transparent 70%);
+  top: -60px;
+  left: -60px;
+  animation: mesh-drift-1 30s ease-in-out infinite;
+}
+
+/* Bottom-right orb — Warm orange */
+.mesh-orb-2 {
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(circle, #f97316 0%, transparent 70%);
+  bottom: -50px;
+  right: -50px;
+  animation: mesh-drift-2 35s ease-in-out infinite;
+}
+
+/* Center orb — Subtle purple */
+.mesh-orb-3 {
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle, #a855f7 0%, transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: mesh-drift-3 40s ease-in-out infinite;
+  opacity: 0.05;
+}
+
+/* Top-right orb — Warm red */
+.mesh-orb-4 {
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle, #ef4444 0%, transparent 70%);
+  top: 10%;
+  right: 10%;
+  animation: mesh-drift-4 32s ease-in-out infinite;
+  opacity: 0.06;
+}
+
+/* Mesh drift animations — Slow, organic movement */
+@keyframes mesh-drift-1 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(80px, 60px) scale(1.1);
+  }
+  50% {
+    transform: translate(40px, 120px) scale(0.95);
+  }
+  75% {
+    transform: translate(-40px, 80px) scale(1.05);
+  }
+}
+
+@keyframes mesh-drift-2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(-60px, -80px) scale(1.05);
+  }
+  50% {
+    transform: translate(-120px, -40px) scale(1.1);
+  }
+  75% {
+    transform: translate(-40px, -100px) scale(0.95);
+  }
+}
+
+@keyframes mesh-drift-3 {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  33% {
+    transform: translate(-40%, -60%) scale(1.15);
+  }
+  66% {
+    transform: translate(-60%, -40%) scale(0.9);
+  }
+}
+
+@keyframes mesh-drift-4 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(-50px, 70px) scale(1.1);
+  }
+  50% {
+    transform: translate(-100px, 30px) scale(0.95);
+  }
+  75% {
+    transform: translate(-30px, -50px) scale(1.05);
+  }
+}
+
+/* ========================================
+   THREAD PARTICLES — Floating threads
+   ======================================== */
+
+.thread-particles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.thread-particle {
+  position: absolute;
+  width: 1px;
+  height: 40px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--color-brand-400),
+    transparent
+  );
+  opacity: 0;
+  will-change: transform;
+}
+
+/* Thread particle animations — Slow float with fade */
+@keyframes thread-float {
+  0% {
+    transform: translateY(100vh);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.08;
+  }
+  90% {
+    opacity: 0.08;
+  }
+  100% {
+    transform: translateY(-100px);
+    opacity: 0;
+  }
+}
+
+/* Particle positions and delays — Only 4 particles for performance */
+.thread-particle-1 {
+  left: 15%;
+  animation: thread-float 25s linear infinite;
+  animation-delay: 0s;
+  height: 40px;
+}
+
+.thread-particle-2 {
+  left: 45%;
+  animation: thread-float 32s linear infinite;
+  animation-delay: 8s;
+  height: 50px;
+}
+
+.thread-particle-3 {
+  left: 70%;
+  animation: thread-float 28s linear infinite;
+  animation-delay: 15s;
+  height: 45px;
+}
+
+.thread-particle-4 {
+  left: 85%;
+  animation: thread-float 35s linear infinite;
+  animation-delay: 22s;
+  height: 35px;
+}
+
+/* ========================================
+   RESPONSIVE — Thread-aware breakpoints
+   ======================================== */
+
+@media (max-width: 640px) {
+  .glass {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  /* Further reduce on mobile */
+  .mesh-orb {
+    filter: blur(20px);
+  }
+
+  .mesh-orb-1 {
+    width: 100px;
+    height: 100px;
+  }
+
+  .mesh-orb-2 {
+    width: 80px;
+    height: 80px;
+  }
+
+  .mesh-orb-3 {
+    width: 70px;
+    height: 70px;
+  }
+
+  .mesh-orb-4 {
+    width: 60px;
+    height: 60px;
+  }
+
+  /* Only 2 particles on mobile */
+  .thread-particle-3,
+  .thread-particle-4 {
+    display: none;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .mesh-orb {
+    animation: none !important;
+  }
+
+  .thread-particle {
+    animation: none !important;
+    opacity: 0 !important;
+  }
 }
