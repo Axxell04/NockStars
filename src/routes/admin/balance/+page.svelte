@@ -121,10 +121,11 @@
 </script>
 
 
-<div in:fade class="flex flex-col gap-2 max-w-full max-h-full">
-    <section class="px-10 w-full sticky top-0 z-10 bg-stone-900/95 backdrop-blur-lg">
-        <div class="flex flex-wrap gap-3 place-items-center place-content-between text-center text-red-400 font-normal p-4 border border-transparent border-b-red-400">
-            <div class="flex flex-row gap-2 place-items-center">
+<div in:fade class="flex flex-col gap-2 px-5 py-5 max-w-full max-h-full">
+    <section class="w-full sticky top-0 z-40">
+        <div class="relative glass rounded-2xl p-4 border border-white/4 flex flex-wrap gap-3 place-items-center place-content-between text-center text-brand-400 font-normal">
+            <div class="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-brand-400/20 to-transparent"></div>
+            <div class="flex flex-row gap-3 place-items-center">
                 <form action="?/set_view_state" method="post" use:enhance={() => {
                     return async ({ result }) => {
                         if (result.type === "success") {
@@ -140,9 +141,11 @@
                 class="flex flex-col place-content-center relative"
                 >
                     <input type="text" hidden name="view_state" value={viewState} />
-                    <button bind:this={selectStateElement} type="button" class="text-center text-2xl bg-transparent outline-none hover:text-red-500 focus:text-red-500" 
+                    <button bind:this={selectStateElement} type="button" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-2/80 border border-white/6 text-sm font-medium text-text-primary transition-all duration-300 hover:border-brand-400/20 hover:bg-surface-2"
                     onclick={()=>toggleStateListIsVisible()}
                     onfocus={(e) => cancelFocus(e)}
+                    aria-haspopup="listbox"
+                    aria-expanded={stateListIsVisible}
                     >
                         {#if viewState === 'resume'}
                         Resumen
@@ -153,29 +156,31 @@
                         {:else if viewState === 'expense'}
                         Gastos
                         {/if}
+                        <Icon icon="mdi:chevron-down" class="text-base text-text-muted transition-transform duration-300 {stateListIsVisible ? 'rotate-180' : ''}" />
                     </button>
                     {#if stateListIsVisible}                        
-                    <div transition:scale class="absolute flex flex-col text-2xl rounded-b-md border bg-stone-900/95 max-h-60 overflow-y-auto place-self-center z-10"
+                    <div transition:scale class="absolute flex flex-col w-48 max-h-60 overflow-y-auto rounded-xl border border-white/8 bg-surface-1/95 backdrop-blur-xl shadow-depth place-self-center z-50"
                     style="top: {selectStateElementHeight}px;"
+                    role="listbox"
                     >
-                        <ul>
+                        <ul class="py-1">
                             <li>
-                                <button class="hover:bg-stone-800 focus:bg-stone-800 px-2 py-1 w-full {viewState === 'resume' ? '' : 'text-red-500'}" onclick={()=>{viewState = 'resume'; toggleStateListIsVisible(false)}}>
+                                <button class="w-full px-4 py-2.5 text-left text-sm transition-all {viewState === 'resume' ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:pl-5'}" onclick={()=>{viewState = 'resume'; toggleStateListIsVisible(false)}}>
                                     Resumen
                                 </button>
                             </li>
                             <li>
-                                <button class="hover:bg-stone-800 focus:bg-stone-800 px-2 py-1 w-full {viewState === 'revenue' ? '' : 'text-red-500'}" onclick={()=>{viewState = 'revenue'; toggleStateListIsVisible(false)}}>
+                                <button class="w-full px-4 py-2.5 text-left text-sm transition-all {viewState === 'revenue' ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:pl-5'}" onclick={()=>{viewState = 'revenue'; toggleStateListIsVisible(false)}}>
                                     Ingresos
                                 </button>
                             </li>
                             <li>
-                                <button class="hover:bg-stone-800 focus:bg-stone-800 px-2 py-1 w-full {viewState === 'cost' ? '' : 'text-red-500'}" onclick={()=>{viewState = 'cost'; toggleStateListIsVisible(false)}}>
+                                <button class="w-full px-4 py-2.5 text-left text-sm transition-all {viewState === 'cost' ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:pl-5'}" onclick={()=>{viewState = 'cost'; toggleStateListIsVisible(false)}}>
                                     Costos
                                 </button>
                             </li>
                             <li>
-                                <button class="hover:bg-stone-800 focus:bg-stone-800 px-2 py-1 w-full {viewState === 'expense' ? '' : 'text-red-500'}" onclick={()=>{viewState = 'expense'; toggleStateListIsVisible(false)}}>
+                                <button class="w-full px-4 py-2.5 text-left text-sm transition-all {viewState === 'expense' ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:pl-5'}" onclick={()=>{viewState = 'expense'; toggleStateListIsVisible(false)}}>
                                     Gastos
                                 </button>
                             </li>
@@ -199,12 +204,12 @@
                     <input type="number" hidden name="total_pages" value={balanceDetailPagination.totalPages}>
                     <input type="hidden" name="view_state" value={viewState}>
                     {#if balanceDetailPagination.currentPage > 1}
-                    <button class="hover:text-red-500 focus:text-red-500" onfocus={(e) => cancelFocus(e)}>
-                        <Icon icon="icon-park-outline:left-c" class="text-3xl" />
+                    <button class="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-300 text-text-secondary hover:text-brand-400 hover:bg-surface-2 hover:border hover:border-white/8" onfocus={(e) => cancelFocus(e)} aria-label="Página anterior">
+                        <Icon icon="icon-park-outline:left-c" class="text-lg" />
                     </button>
                     {:else}
-                    <button class="opacity-50" disabled>
-                        <Icon icon="icon-park-outline:left-c" class="text-3xl" />
+                    <button class="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-300 text-text-muted/30 cursor-not-allowed" disabled aria-label="Página anterior">
+                        <Icon icon="icon-park-outline:left-c" class="text-lg" />
                     </button>
                     {/if}
                 </form>
@@ -222,18 +227,21 @@
                 >
                     <input type="number" hidden name="goto_page" value={gotoPage} >
                     <input type="hidden" name="view_state" value={viewState}>
-                    <button type="button" class="w-10 text-center text-3xl bg-transparent h-9 outline-none hover:text-red-500 focus:text-red-500" 
+                    <button type="button" class="w-12 h-9 rounded-xl bg-surface-2/80 border border-white/6 text-sm font-semibold text-text-primary transition-all duration-300 hover:bg-surface-2 hover:border-brand-400/20"
                     onclick={()=>toggleGotoPageListIsVisible()}
                     onfocus={(e) => cancelFocus(e)}
+                    aria-label="Ir a página"
+                    aria-haspopup="listbox"
+                    aria-expanded={gotoPageListIsVisible}
                     >
                         {balanceDetailPagination.currentPage}
                     </button>
                     {#if gotoPageListIsVisible}                        
-                    <div transition:scale class="absolute top-9 flex flex-col text-3xl rounded-b-md border bg-stone-900/95 max-h-65 overflow-y-auto place-self-center">
-                        <ul>
+                    <div transition:scale class="absolute top-9 flex flex-col w-16 max-h-48 overflow-y-auto rounded-xl border border-white/8 bg-surface-1/95 backdrop-blur-xl shadow-depth place-self-center z-50" role="listbox">
+                        <ul class="py-1">
                             {#each createListPages(balanceDetailPagination.totalPages) as page}
                             <li>
-                                <button class="hover:bg-stone-800 focus:bg-stone-800 focus:text-red-500 px-2 py-1 w-full" 
+                                <button class="w-full px-3 py-2 text-center text-sm transition-all {page === balanceDetailPagination.currentPage ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'}" 
                                 onclick={()=>{gotoPage = page; toggleGotoPageListIsVisible(false)}}
                                 onfocus={(e) => cancelFocus(e)}
                                 >
@@ -260,12 +268,12 @@
                     <input type="number" hidden name="total_pages" value={balanceDetailPagination.totalPages}>
                     <input type="hidden" name="view_state" value={viewState}>
                     {#if balanceDetailPagination.currentPage < balanceDetailPagination.totalPages}
-                    <button class="hover:text-red-500 focus-within:text-red-500" onfocus={(e) => cancelFocus(e)}>
-                        <Icon icon="icon-park-outline:right-c" class="text-3xl" />
+                    <button class="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-300 text-text-secondary hover:text-brand-400 hover:bg-surface-2 hover:border hover:border-white/8" onfocus={(e) => cancelFocus(e)} aria-label="Página siguiente">
+                        <Icon icon="icon-park-outline:right-c" class="text-lg" />
                     </button>
                     {:else}    
-                    <button class="opacity-50" disabled>
-                        <Icon icon="icon-park-outline:right-c" class="text-3xl" />
+                    <button class="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-300 text-text-muted/30 cursor-not-allowed" disabled aria-label="Página siguiente">
+                        <Icon icon="icon-park-outline:right-c" class="text-lg" />
                     </button>
                     {/if}
                 </form>
@@ -277,12 +285,12 @@
         {#if typeof balanceDetails !== 'undefined' && viewState !== 'resume'}
         <div class="flex flex-col gap-2">
             {#if !addPanelIsVisible}
-            <button in:scale class="flex flex-row gap-1 border p-1 rounded-md hover:text-red-500 focus:text-red-500 place-items-center"
+            <button in:scale class="flex flex-row gap-1 px-3 py-2 rounded-xl text-sm font-medium border border-white/6 text-text-secondary transition-all duration-300 hover:text-brand-400 hover:border-brand-400/25 hover:bg-brand-400/5 place-items-center"
             onfocus={(e) => cancelFocus(e)}
             onclick={() => toggleAddPanelIsVisible(true)}
             >
-                <Icon icon="material-symbols:add-rounded" class="text-2xl" />
-                <span style="font-family: Nunito;">
+                <Icon icon="material-symbols:add-rounded" class="text-xl" />
+                <span>
                     Añadir
                 </span>
             </button>
@@ -299,33 +307,33 @@
                     }
                 }
             }}
-            class="flex flex-col gap-2 bg-stone-700/20 p-2 rounded-xl"
+            class="flex flex-col gap-3 p-4 glass rounded-2xl border border-white/4"
             >
-            <div in:scale class="flex flex-row gap-2 rounded-full">
-                <button type="button" class="focus:text-red-500 rounded-full px-1 grow"
+            <div in:scale class="flex flex-row gap-2">
+                <button type="button" class="grow px-3 py-2 rounded-xl text-sm font-medium border border-white/6 text-text-secondary transition-all duration-300 hover:text-brand-400 hover:border-brand-400/25 hover:bg-brand-400/5"
                 onfocus={(e) => cancelFocus(e)}
                 onclick={() => toggleAddPanelIsVisible(false)}
                 >
                     Cancelar
                 </button>
-                <button class="bg-red-400 text-stone-900 focus:bg-red-500 rounded-lg px-1 grow"
+                <button class="btn-primary grow rounded-xl"
                 onfocus={(e) => cancelFocus(e)}
                 >
                     Confirmar
                 </button>
             </div>
             <div class="flex flex-col gap-2 place-items-center text-center">
-                <div class="flex flex-col">
-                    <span>
+                <div class="flex flex-col gap-1 w-full max-w-xs">
+                    <span class="text-text-secondary text-sm">
                         Motivo
                     </span>
-                    <input type="text" name="reason" id="reason" class="bg-transparent text-red-400 border rounded-md outline-none px-1" required autocomplete="off">
+                    <input type="text" name="reason" id="reason" class="input-thread" required autocomplete="off">
                 </div>
-                <div class="flex flex-col">
-                    <span>
+                <div class="flex flex-col gap-1 w-full max-w-xs">
+                    <span class="text-text-secondary text-sm">
                         Valor
                     </span>
-                    <input type="number" step="0.01" name="value" id="value" class="bg-transparent text-red-400 border rounded-md outline-none px-1" required autocomplete="off">
+                    <input type="number" step="0.01" name="value" id="value" class="input-thread" required autocomplete="off">
                 </div>
             </div>
             </form>
@@ -334,10 +342,10 @@
         </div>
         {:else if viewState === 'resume'}
         <div class="flex flex-row gap-3 place-items-center place-content-center text-center">
-            <span>
+            <span class="text-text-secondary">
                 Ganancias:
             </span>
-            <span class="font-semibold">
+            <span class="font-bold text-brand-400 tabular-nums">
                 $ {profits.toFixed(2)}
             </span>
         </div>
@@ -356,27 +364,27 @@
         {/if}
         <!-- {/key} -->
         {#if viewState === 'resume'}
-        <div transition:scale={{delay: 100, duration: 200}} class="flex flex-col gap-4 p-2 rounded-md bg-stone-800 self-start place-items-center card">
-            <span>
+        <div transition:scale={{delay: 100, duration: 200}} class="card-thread flex flex-col gap-4 p-4 self-start place-items-center">
+            <span class="text-text-secondary text-sm">
                 Ingresos
             </span>
-            <span>
+            <span class="text-xl font-bold text-brand-400 tabular-nums">
                 $ {totalRevenue.toFixed(2)}
             </span>
         </div>
-        <div transition:scale={{delay: 200, duration: 200}} class="flex flex-col gap-4 p-2 rounded-md bg-stone-800 self-start place-items-center card">
-            <span>
+        <div transition:scale={{delay: 200, duration: 200}} class="card-thread flex flex-col gap-4 p-4 self-start place-items-center">
+            <span class="text-text-secondary text-sm">
                 Costos
             </span>
-            <span>
+            <span class="text-xl font-bold text-brand-400 tabular-nums">
                 $ {totalCost.toFixed(2)}
             </span>
         </div>
-        <div transition:scale={{delay: 300, duration: 200}} class="flex flex-col gap-4 p-2 rounded-md bg-stone-800 self-start place-items-center card">
-            <span>
+        <div transition:scale={{delay: 300, duration: 200}} class="card-thread flex flex-col gap-4 p-4 self-start place-items-center">
+            <span class="text-text-secondary text-sm">
                 Gastos
             </span>
-            <span>
+            <span class="text-xl font-bold text-brand-400 tabular-nums">
                 $ {totalExpense.toFixed(2)}
             </span>
         </div>
@@ -400,9 +408,3 @@
         Refresh Totals
     </button>
 </form>
-
-<style>
-    .card:hover {
-        box-shadow: oklch(70.4% 0.191 22.216)  0px 0px 5px;
-    }
-</style>

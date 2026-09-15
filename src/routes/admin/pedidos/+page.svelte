@@ -145,10 +145,11 @@
 
 </script>
 
-<div in:fade class="flex flex-col gap-2 max-w-full max-h-full">
-    <section class="px-10 w-full sticky top-0 z-10 bg-stone-900/95 backdrop-blur-lg">
-        <div class="flex flex-wrap gap-3 place-items-center place-content-between text-center text-red-400 font-normal p-4 border border-transparent border-b-red-400">
-            <button class="mx-auto py-1 px-3 border rounded-md hover:text-red-500 active:text-red-500 active:scale-90 {!cod ? 'hidden' : ''}"
+<div in:fade class="flex flex-col gap-2 px-5 py-5 max-w-full max-h-full">
+    <section class="w-full sticky top-0 z-40">
+        <div class="relative glass rounded-2xl p-4 border border-white/4 flex flex-wrap gap-3 place-items-center place-content-between text-center text-brand-400 font-normal">
+            <div class="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-brand-400/20 to-transparent"></div>
+            <button class="mx-auto px-3 py-2 rounded-xl text-sm font-medium border border-white/6 text-text-secondary transition-all duration-300 hover:text-brand-400 hover:border-brand-400/25 hover:bg-brand-400/5 active:scale-90 {!cod ? 'hidden' : ''}"
                 onclick={() => {
                     // page.url.href = page.url.href.replace(page.url.search, '');
                     // page.url.search = '';
@@ -158,7 +159,7 @@
             >
                 Hecho
             </button>
-            <div class="flex flex-row gap-2 place-items-center {page.url.searchParams.get("cod") ? 'hidden' : ''}">
+            <div class="flex flex-row gap-3 place-items-center {page.url.searchParams.get("cod") ? 'hidden' : ''}">
                 <form action="?/set_view_state" method="post" use:enhance={() => {
                     return async ({ result }) => {
                         if (result.type === "success") {
@@ -173,28 +174,32 @@
                 >
                     <input type="text" hidden name="view_state" value={viewState} />
                     <input type="text" hidden name="cod" value={cod} />                    
-                    <button bind:this={selectStateElement} type="button" class="text-center text-2xl bg-transparent outline-none hover:text-red-500 focus:text-red-500" 
+                    <button bind:this={selectStateElement} type="button" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-2/80 border border-white/6 text-sm font-medium text-text-primary transition-all duration-300 hover:border-brand-400/20 hover:bg-surface-2"
                     onclick={()=>toggleStateListIsVisible()}
                     onfocus={(e) => cancelFocus(e)}
+                    aria-haspopup="listbox"
+                    aria-expanded={stateListIsVisible}
                     >
                         {#if viewState === 'pending'}
                         Pendientes
                         {:else if viewState === 'completed'}
                         Completados
                         {/if}
+                        <Icon icon="mdi:chevron-down" class="text-base text-text-muted transition-transform duration-300 {stateListIsVisible ? 'rotate-180' : ''}" />
                     </button>
                     {#if stateListIsVisible}                        
-                    <div transition:scale class="absolute flex flex-col text-2xl rounded-b-md border bg-stone-900/95 max-h-60 overflow-y-auto place-self-center z-10"
+                    <div transition:scale class="absolute flex flex-col w-48 max-h-60 overflow-y-auto rounded-xl border border-white/8 bg-surface-1/95 backdrop-blur-xl shadow-depth place-self-center z-50"
                     style="top: {selectStateElementHeight}px;"
+                    role="listbox"
                     >
-                        <ul>
+                        <ul class="py-1">
                             <li>
-                                <button class="hover:bg-stone-800 focus:bg-stone-800 px-2 py-1 w-full {viewState === 'completed' ? '' : 'text-red-500'}" onclick={()=>{viewState = 'pending'; toggleStateListIsVisible(false)}}>
+                                <button class="w-full px-4 py-2.5 text-left text-sm transition-all {viewState === 'pending' ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:pl-5'}" onclick={()=>{viewState = 'pending'; toggleStateListIsVisible(false)}}>
                                     Pendientes
                                 </button>
                             </li>
                             <li>
-                                <button class="hover:bg-stone-800 focus:bg-stone-800 px-2 py-1 w-full {viewState === 'pending' ? '' : 'text-red-500'}" onclick={()=>{viewState = 'completed'; toggleStateListIsVisible(false)}}>
+                                <button class="w-full px-4 py-2.5 text-left text-sm transition-all {viewState === 'completed' ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:pl-5'}" onclick={()=>{viewState = 'completed'; toggleStateListIsVisible(false)}}>
                                     Completados
                                 </button>
                             </li>
@@ -221,12 +226,12 @@
                     <input type="number" hidden name="total_pages" value={orderPagination.totalPages}>
                     <input type="hidden" name="view_state" value={viewState}>
                     {#if orderPagination.currentPage > 1}
-                    <button class="hover:text-red-500 focus:text-red-500" onfocus={(e) => cancelFocus(e)}>
-                        <Icon icon="icon-park-outline:left-c" class="text-3xl" />
+                    <button class="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-300 text-text-secondary hover:text-brand-400 hover:bg-surface-2 hover:border hover:border-white/8" onfocus={(e) => cancelFocus(e)} aria-label="Página anterior">
+                        <Icon icon="icon-park-outline:left-c" class="text-lg" />
                     </button>
                     {:else}
-                    <button class="opacity-50" disabled>
-                        <Icon icon="icon-park-outline:left-c" class="text-3xl" />
+                    <button class="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-300 text-text-muted/30 cursor-not-allowed" disabled aria-label="Página anterior">
+                        <Icon icon="icon-park-outline:left-c" class="text-lg" />
                     </button>
                     {/if}
                 </form>
@@ -244,18 +249,21 @@
                 >
                     <input type="number" hidden name="goto_page" value={gotoPage} >
                     <input type="hidden" name="view_state" value={viewState}>
-                    <button type="button" class="w-10 text-center text-3xl bg-transparent h-9 outline-none hover:text-red-500 focus:text-red-500" 
+                    <button type="button" class="w-12 h-9 rounded-xl bg-surface-2/80 border border-white/6 text-sm font-semibold text-text-primary transition-all duration-300 hover:bg-surface-2 hover:border-brand-400/20"
                     onclick={()=>toggleGotoPageListIsVisible()}
                     onfocus={(e) => cancelFocus(e)}
+                    aria-label="Ir a página"
+                    aria-haspopup="listbox"
+                    aria-expanded={gotoPageListIsVisible}
                     >
                         {orderPagination.currentPage}
                     </button>
                     {#if gotoPageListIsVisible}                        
-                    <div transition:scale class="absolute top-9 flex flex-col text-3xl rounded-b-md border bg-stone-900/95 max-h-65 overflow-y-auto place-self-center">
-                        <ul>
+                    <div transition:scale class="absolute top-9 flex flex-col w-16 max-h-48 overflow-y-auto rounded-xl border border-white/8 bg-surface-1/95 backdrop-blur-xl shadow-depth place-self-center z-50" role="listbox">
+                        <ul class="py-1">
                             {#each createListPages(orderPagination.totalPages) as page}
                             <li>
-                                <button class="hover:bg-stone-800 focus:bg-stone-800 focus:text-red-500 px-2 py-1 w-full" 
+                                <button class="w-full px-3 py-2 text-center text-sm transition-all {page === orderPagination.currentPage ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'}" 
                                 onclick={()=>{gotoPage = page; toggleGotoPageListIsVisible(false)}}
                                 onfocus={(e) => cancelFocus(e)}
                                 >
@@ -282,12 +290,12 @@
                     <input type="number" hidden name="total_pages" value={orderPagination.totalPages}>
                     <input type="hidden" name="view_state" value={viewState}>
                     {#if orderPagination.currentPage < orderPagination.totalPages}
-                    <button class="hover:text-red-500 focus-within:text-red-500" onfocus={(e) => cancelFocus(e)}>
-                        <Icon icon="icon-park-outline:right-c" class="text-3xl" />
+                    <button class="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-300 text-text-secondary hover:text-brand-400 hover:bg-surface-2 hover:border hover:border-white/8" onfocus={(e) => cancelFocus(e)} aria-label="Página siguiente">
+                        <Icon icon="icon-park-outline:right-c" class="text-lg" />
                     </button>
                     {:else}    
-                    <button class="opacity-50" disabled>
-                        <Icon icon="icon-park-outline:right-c" class="text-3xl" />
+                    <button class="flex items-center justify-center w-9 h-9 rounded-xl transition-all duration-300 text-text-muted/30 cursor-not-allowed" disabled aria-label="Página siguiente">
+                        <Icon icon="icon-park-outline:right-c" class="text-lg" />
                     </button>
                     {/if}
                 </form>

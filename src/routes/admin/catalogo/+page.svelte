@@ -88,13 +88,14 @@
 
 <div in:fade class="flex flex-col gap-2 px-5 py-5">
     <section class="flex flex-col gap-3 ">
-        <div class="sticky top-0 z-10 bg-stone-900/95 backdrop-blur-md place-content-around flex flex-row p-3 gap-2 place-items-center">
-            <button class="flex flex-row gap-1 border rounded-md p-1 hover:text-red-500 focus:text-red-500 cursor-pointer place-items-center"
+        <div class="sticky top-0 z-40 glass rounded-2xl p-4 border border-white/4 relative place-content-around flex flex-row gap-3 place-items-center">
+            <div class="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-brand-400/20 to-transparent"></div>
+            <button class="btn-primary"
             onclick={() => toggleAddCatalogModalIsVisible(true)}
             onfocus={(e) => cancelFocus(e)}
             >
-                <Icon icon="material-symbols:add-rounded" class="text-3xl" />
-                <span style="font-family: Nunito;">
+                <Icon icon="material-symbols:add-rounded" class="text-xl" />
+                <span>
                     Añadir Catalogo
                 </span>
             </button>
