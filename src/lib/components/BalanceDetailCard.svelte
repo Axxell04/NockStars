@@ -177,13 +177,13 @@ role="button"
         </div>
         {#if confirmationDeleteIsVisible}
         <div transition:scale={{duration: 200}} class="flex flex-row gap-1 place-content-between p-1 bg-stone-700/20 rounded-full">
-            <button type="button" class="grow focus:text-red-500" style="font-family: Nunito;" 
+            <button type="button" class="grow focus:text-red-500" style="font-family: 'PT Sans';" 
             onclick={() => toggleConfirmationDeleteIsVisible(false)}
             onfocus={(e) => cancelFocus(e)}
             >
                 Cancelar
             </button>
-            <button formaction="?/delete_balance" class="bg-red-400 focus:bg-red-500 grow rounded-full text-stone-900 p-1" style="font-family: Nunito;"
+            <button formaction="?/delete_balance" class="bg-red-400 focus:bg-red-500 grow rounded-full text-stone-900 p-1" style="font-family: 'PT Sans';"
             onfocus={(e) => cancelFocus(e)}
             >
                 Confirmar
@@ -192,13 +192,13 @@ role="button"
         </div>
         {:else if confirmationEditIsVisible}
         <div transition:scale={{duration: 200}} class="flex flex-row gap-1 place-content-between p-1 bg-stone-700/20 rounded-full">
-            <button type="button" class="grow focus:text-red-500" style="font-family: Nunito;" 
+            <button type="button" class="grow focus:text-red-500" style="font-family: 'PT Sans';" 
             onclick={() => toggleConfirmationEditIsVisible(false)}
             onfocus={(e) => cancelFocus(e)}
             >
                 Cancelar
             </button>
-            <button type="button" class="bg-red-400 focus:bg-red-500 grow rounded-full text-stone-900 p-1" style="font-family: Nunito;"
+            <button type="button" class="bg-red-400 focus:bg-red-500 grow rounded-full text-stone-900 p-1" style="font-family: 'PT Sans';"
             onclick={() => sendEditBalanceDetail()}
             onfocus={(e) => cancelFocus(e)}
             >

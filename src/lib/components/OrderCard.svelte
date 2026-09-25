@@ -154,9 +154,9 @@ role="button"
                 {(order.content as PurchaseDetail[]).length}
             </span>
         </div>
-        <div class="flex flex-row gap-2 text-xl place-items-center">
-            <Icon icon="solar:user-linear" class="text-3xl" />
-            <span>
+        <div class="flex flex-row gap-2 text-xl place-items-center min-w-0">
+            <Icon icon="solar:user-linear" class="text-3xl flex-shrink-0" />
+            <span class="truncate">
                 {order.clientName}
             </span>
         </div>
@@ -164,21 +164,21 @@ role="button"
     <div class="">
         <div class="flex flex-col gap-2">
             {#each purchaseDetails as purchaseDetail}
-            <div class="flex flex-row gap-1 {purchaseDetailSelected?.product.product.id === purchaseDetail.product.product.id ? 'bg-stone-700/60' : 'bg-stone-700/20'} rounded-sm px-2 place-items-center place-content-between"
+            <div class="flex flex-row gap-1 {purchaseDetailSelected?.product.product.id === purchaseDetail.product.product.id ? 'bg-stone-700/60' : 'bg-stone-700/20'} rounded-sm px-2 place-items-center place-content-between min-w-0"
             onclick={() => { if (confirmationEditIsVisible) {selectThisPurchaseDetail(purchaseDetail)}}}
             role="button"
             tabindex="0"
             onkeydown={() => {}}
             >
-                <div class="flex flex-row gap-2 place-items-center">
-                    <span>
+                <div class="flex flex-row gap-2 place-items-center min-w-0">
+                    <span class="truncate">
                         {purchaseDetail.product.product.name}                    
                     </span>
-                    <span>
+                    <span class="flex-shrink-0">
                         ({purchaseDetail.amount})
                     </span>
                 </div>
-                <span class="font-semibold">
+                <span class="font-semibold flex-shrink-0">
                     $ {(purchaseDetail.product.product.price * purchaseDetail.amount).toFixed(2)}
                 </span>
             </div>
@@ -193,11 +193,11 @@ role="button"
             </div>
         </div>
     </div>
-    <div class="flex flex-row gap-3 justify-center">
-        <span class="font-bold">
+    <div class="flex flex-row gap-3 justify-center min-w-0">
+        <span class="font-bold flex-shrink-0">
             COD:
         </span>
-        <span>
+        <span class="break-all">
             {order.id}
         </span>
     </div>
@@ -249,13 +249,13 @@ role="button"
         </div>
         {#if confirmationDeleteIsVisible}
         <div transition:scale={{duration: 200}} class="flex flex-row gap-1 place-content-between p-1 bg-stone-700/20 rounded-full">
-            <button type="button" class="grow focus:text-red-500" style="font-family: Nunito;" 
+            <button type="button" class="grow focus:text-red-500" style="font-family: 'PT Sans';" 
             onclick={() => toggleConfirmationDeleteIsVisible(false)}
             onfocus={(e) => cancelFocus(e)}
             >
                 Cancelar
             </button>
-            <button formaction="?/delete_order" class="bg-red-400 focus:bg-red-500 grow rounded-full text-stone-900 p-1" style="font-family: Nunito;"
+            <button formaction="?/delete_order" class="bg-red-400 focus:bg-red-500 grow rounded-full text-stone-900 p-1" style="font-family: 'PT Sans';"
             onfocus={(e) => cancelFocus(e)}
             >
                 Confirmar
@@ -264,13 +264,13 @@ role="button"
         </div>
         {:else if confirmationEditIsVisible}
         <div transition:scale={{duration: 200}} class="flex flex-row gap-1 place-content-between p-1 bg-stone-700/20 rounded-full">
-            <button type="button" class="grow focus:text-red-500" style="font-family: Nunito;" 
+            <button type="button" class="grow focus:text-red-500" style="font-family: 'PT Sans';" 
             onclick={() => toggleConfirmationEditIsVisible(false)}
             onfocus={(e) => cancelFocus(e)}
             >
                 Cancelar
             </button>
-            <button type="button" class="bg-red-400 focus:bg-red-500 grow rounded-full text-stone-900 p-1" style="font-family: Nunito;"
+            <button type="button" class="bg-red-400 focus:bg-red-500 grow rounded-full text-stone-900 p-1" style="font-family: 'PT Sans';"
             onclick={() => sendEditOrder()}
             onfocus={(e) => cancelFocus(e)}
             >

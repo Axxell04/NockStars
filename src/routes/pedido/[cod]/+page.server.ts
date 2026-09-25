@@ -18,7 +18,7 @@ export const load: PageServerLoad = async (event) => {
         return redirect(307, `/admin/pedidos?cod=${cod}`);
     } else {
         return {
-            message: "Su pedido está siendo manejado, gracias por confiar en Murci"
+            message: "Su pedido está siendo manejado, gracias por confiar en NockStars"
         }
     }
 

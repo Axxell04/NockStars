@@ -70,7 +70,7 @@
         onclick={() => toggleAddContactModalIsVisible(true)}
         >
             <Icon icon="material-symbols:add-rounded" class="text-3xl" />
-            <span style="font-family: Nunito;">
+            <span style="font-family: 'PT Sans';">
                 Añadir Contacto
             </span>
         </button>

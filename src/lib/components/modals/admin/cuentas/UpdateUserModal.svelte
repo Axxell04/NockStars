@@ -59,11 +59,11 @@
                 <input type="hidden" name="admin" value={!userSelected?.admin}>
                 {#if userSelected?.admin}
                 <p>
-                    ¿Desea quitar el rol de administrador al usuario <b style="font-family: Nunito;">{userSelected.username}</b>?
+                    ¿Desea quitar el rol de administrador al usuario <b style="font-family: 'PT Sans';">{userSelected.username}</b>?
                 </p>
                 {:else}
                 <p>
-                    ¿Desea dar rol de administrador al usuario <b style="font-family: Nunito;">{userSelected?.username}</b>?
+                    ¿Desea dar rol de administrador al usuario <b style="font-family: 'PT Sans';">{userSelected?.username}</b>?
                 </p>
                 {/if}
                 <div class="flex flex-wrap gap-4 place-items-center justify-center">

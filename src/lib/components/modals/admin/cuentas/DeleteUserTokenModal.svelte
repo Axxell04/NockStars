@@ -57,13 +57,13 @@
                 <input type="hidden" name="token_id" value={userTokenSelected?.id ?? ''}>
                 <div class="flex flex-col gap-2 place-items-center">
                     <label for="token">Token</label>
-                    <span class="text-red-300" style="font-family: Nunito;">
+                    <span class="text-red-300" style="font-family: 'PT Sans';">
                         {userTokenSelected?.text ?? ''}
                     </span>
                 </div>
                 <div class="flex flex-col gap-2 place-items-center">
                     <label for="used">Usado</label>
-                    <span class="text-red-300" style="font-family: Nunito;">
+                    <span class="text-red-300" style="font-family: 'PT Sans';">
                         {userTokenSelected?.active ? 'No' : 'Sí'}
                     </span>
                 </div>

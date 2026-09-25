@@ -180,68 +180,70 @@
 </script>
 
 <div in:fade class="flex flex-col gap-6 max-w-full max-h-full">
+    <!-- Catalog selector — visually docked to the toolbar, scrolls away independently -->
+    <div class="relative z-40 -mb-5 flex justify-start">
+        <form action="?/set_catalog" method="post" use:enhance={() => {
+            return async ({ result }) => {
+                if (result.type === "success") {
+                    if (result.data?.pagination) {
+                        setProductPagination(result.data.pagination as ProductPagination);
+                        toggleInputSearchIsVisible(false);                                
+                    }
+                }
+            }
+        }}
+        class="relative"
+        >
+            <input type="text" hidden name="catalog_id" value={catalogId} >
+            <button 
+                bind:this={selectCatalogElement} 
+                type="button" 
+                class="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-1/95 backdrop-blur-xl border border-white/6 text-sm font-medium text-text-primary transition-all duration-300 hover:border-brand-400/20 hover:bg-surface-2"
+                onclick={()=>toggleCatalogListIsVisible()}
+                onfocus={(e) => cancelFocus(e)}
+                aria-haspopup="listbox"
+                aria-expanded={catalogListIsVisible}
+            >
+                {catalogId ? catalogs.find((cat) => cat.id === catalogId)?.name : 'Todos'}
+                <Icon icon="mdi:chevron-down" class="text-base text-text-muted transition-transform duration-300 {catalogListIsVisible ? 'rotate-180' : ''}" />
+            </button>
+            {#if catalogListIsVisible}                        
+            <div 
+                transition:scale={{ duration: 150, start: 0.95 }}
+                class="absolute top-full left-0 mt-1 w-48 overflow-hidden rounded-xl border border-white/8 bg-surface-1/95 backdrop-blur-xl shadow-depth z-50"
+                role="listbox"
+            >
+                <ul class="py-1">
+                    <li>
+                        <button 
+                            class="w-full px-4 py-2.5 text-left text-sm transition-all {catalogId ? 'text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:pl-5' : 'text-brand-400 bg-brand-400/10'}" 
+                            onclick={()=>{catalogId = ''; toggleCatalogListIsVisible(false)}}
+                        >
+                            Todos
+                        </button>
+                    </li>
+                    {#each catalogs as catalog}
+                    <li>
+                        <button 
+                            class="w-full px-4 py-2.5 text-left text-sm transition-all {catalogId === catalog.id ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:pl-5'}" 
+                            onclick={()=>{catalogId = catalog.id; toggleCatalogListIsVisible(false)}}
+                        >
+                            {catalog.name}
+                        </button>
+                    </li>
+                    {/each}
+                </ul>
+            </div>
+            {/if}
+        </form>
+    </div>
+
     <!-- Toolbar — Thread-wrapped glass panel, sticky below header -->
     <section class="sticky top-2 z-30 glass rounded-2xl p-4 border border-white/4">
         <!-- Thread accent line at top -->
         <div class="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-brand-400/20 to-transparent"></div>
         
         <div class="flex flex-wrap items-center gap-3">
-            <!-- Catalog selector — Thread-wrapped dropdown -->
-            <form action="?/set_catalog" method="post" use:enhance={() => {
-                return async ({ result }) => {
-                    if (result.type === "success") {
-                        if (result.data?.pagination) {
-                            setProductPagination(result.data.pagination as ProductPagination);
-                            toggleInputSearchIsVisible(false);                                
-                        }
-                    }
-                }
-            }}
-            class="relative"
-            >
-                <input type="text" hidden name="catalog_id" value={catalogId} >
-                <button 
-                    bind:this={selectCatalogElement} 
-                    type="button" 
-                    class="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-2/80 border border-white/6 text-sm font-medium text-text-primary transition-all duration-300 hover:border-brand-400/20 hover:bg-surface-2"
-                    onclick={()=>toggleCatalogListIsVisible()}
-                    onfocus={(e) => cancelFocus(e)}
-                    aria-haspopup="listbox"
-                    aria-expanded={catalogListIsVisible}
-                >
-                    {catalogId ? catalogs.find((cat) => cat.id === catalogId)?.name : 'Todos'}
-                    <Icon icon="mdi:chevron-down" class="text-base text-text-muted transition-transform duration-300 {catalogListIsVisible ? 'rotate-180' : ''}" />
-                </button>
-                {#if catalogListIsVisible}                        
-                <div 
-                    transition:scale={{ duration: 150, start: 0.95 }}
-                    class="absolute top-full left-0 mt-1 w-48 overflow-hidden rounded-xl border border-white/8 bg-surface-1/95 backdrop-blur-xl shadow-depth z-50"
-                    role="listbox"
-                >
-                    <ul class="py-1">
-                        <li>
-                            <button 
-                                class="w-full px-4 py-2.5 text-left text-sm transition-all {catalogId ? 'text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:pl-5' : 'text-brand-400 bg-brand-400/10'}" 
-                                onclick={()=>{catalogId = ''; toggleCatalogListIsVisible(false)}}
-                            >
-                                Todos
-                            </button>
-                        </li>
-                        {#each catalogs as catalog}
-                        <li>
-                            <button 
-                                class="w-full px-4 py-2.5 text-left text-sm transition-all {catalogId === catalog.id ? 'text-brand-400 bg-brand-400/10' : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:pl-5'}" 
-                                onclick={()=>{catalogId = catalog.id; toggleCatalogListIsVisible(false)}}
-                            >
-                                {catalog.name}
-                            </button>
-                        </li>
-                        {/each}
-                    </ul>
-                </div>
-                {/if}
-            </form>
-
             <!-- Pagination — Thread-wrapped controls -->
             <div class="flex items-center gap-1">
                 <form action="?/prev_page" method="post" use:enhance={() => {

@@ -105,7 +105,7 @@
     <section in:fade class="flex flex-col gap-2 place-items-center px-4">
         {#each users as user}
             <div class="flex flex-row gap-2 p-2 place-items-center">
-                <span class="text-xl" style="font-family: Nunito;">
+                <span class="text-xl" style="font-family: 'PT Sans';">
                     {user.username}
                 </span>
                 {#if user.admin}

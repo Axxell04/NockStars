@@ -55,7 +55,7 @@
         <span class="absolute inset-0 rounded-full border border-brand-400/0 group-hover:border-brand-400/20 transition-all duration-400 scale-110"></span>
     </span>
     
-    <span class="text-base font-medium text-text-secondary transition-colors duration-300 group-hover:text-text-primary font-[var(--font-body)]">
+    <span class="min-w-0 break-words text-base font-medium text-text-secondary transition-colors duration-300 group-hover:text-text-primary font-[var(--font-body)]">
         {contact.text}
     </span>
 

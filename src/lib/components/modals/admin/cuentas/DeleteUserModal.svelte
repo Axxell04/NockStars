@@ -58,13 +58,13 @@
                 <input type="hidden" name="user_id" value={userSelected?.id ?? ''}>
                 <div class="flex flex-col gap-2 place-items-center">
                     <label for="username">Username</label>
-                    <span class="text-red-300" style="font-family: Nunito;">
+                    <span class="text-red-300" style="font-family: 'PT Sans';">
                         {userSelected?.username ?? ''}
                     </span>
                 </div>
                 <div class="flex flex-col gap-2 place-items-center">
                     <label for="admin">Admin</label>
-                    <span class="text-red-300" style="font-family: Nunito;">
+                    <span class="text-red-300" style="font-family: 'PT Sans';">
                         {userSelected?.admin ? 'Sí' : 'No'}
                     </span>
                 </div>

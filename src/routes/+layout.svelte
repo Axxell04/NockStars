@@ -26,12 +26,21 @@
 	let btnCardSelectNavHeight = $state(41);
 
 	let cardSelectNavMenuIsVisible = $state(false);
+	let mobileNavIsVisible = $state(false);
 
 	function toggleCardSelectNavMenuIsVisible(visible?: boolean) {
 		if (typeof visible === 'undefined') {
 			cardSelectNavMenuIsVisible = !cardSelectNavMenuIsVisible;
 		} else {
 			cardSelectNavMenuIsVisible = visible;
+		}
+	}
+
+	function toggleMobileNavIsVisible(visible?: boolean) {
+		if (typeof visible === 'undefined') {
+			mobileNavIsVisible = !mobileNavIsVisible;
+		} else {
+			mobileNavIsVisible = visible;
 		}
 	}
 
@@ -77,8 +86,8 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
 	<!-- Cinzel: only 400, 700, 900 (titles/brand) -->
 	<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&display=swap" rel="stylesheet" />
-	<!-- Nunito: only 400, 600, 700 (body text) -->
-	<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet" />
+	<!-- PT Sans: 400, 700 + italic (body text) -->
+	<link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
 
 	<!-- SEO: Title & Description -->
 	<title>{seoTitle}</title>
@@ -137,10 +146,10 @@
 
 	<!-- Barra superior: usuario + admin -->
 	{#if data.user}
-		<div class="flex items-center justify-end gap-4 px-6 py-1.5 text-sm border-b border-white/4">
-			<span class="flex items-center gap-1.5 text-text-muted">
-				<Icon icon="mdi:account-circle-outline" class="text-base" />
-				{data.user?.username}
+		<div class="flex items-center justify-end gap-3 px-4 py-1.5 text-sm border-b border-white/4 sm:gap-4 sm:px-6">
+			<span class="flex items-center gap-1.5 min-w-0 text-text-muted">
+				<Icon icon="mdi:account-circle-outline" class="text-base flex-shrink-0" />
+				<span class="truncate max-w-[6rem]">{data.user?.username}</span>
 			</span>
 			{#if data.user.admin}
 				<a
@@ -156,7 +165,7 @@
 					<button
 						bind:this={btnCardSelectNav}
 						class="flex items-center gap-1 text-text-muted transition-colors duration-200 hover:text-brand-400 focus:text-brand-400"
-						onclick={() => toggleCardSelectNavMenuIsVisible()}
+						onclick={() => { toggleCardSelectNavMenuIsVisible(); toggleMobileNavIsVisible(false); }}
 						onfocus={(e) => cancelFocus(e)}
 						aria-haspopup="true"
 						aria-expanded={cardSelectNavMenuIsVisible}
@@ -206,9 +215,9 @@
 	{/if}
 
 	<!-- Barra principal: logo + nav + acciones -->
-	<div class="flex items-center justify-between gap-4 px-6 py-3">
+	<div class="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
 		<!-- Logo — Threadverse branded -->
-		<div class="flex items-center gap-3">
+		<div class="flex items-center gap-2 sm:gap-3">
 			<button
 				class="transition-transform duration-300 hover:scale-105 active:scale-95"
 				onclick={() => goto('/admin')}
@@ -217,12 +226,12 @@
 			>
 				<img src="/nock-logo.png" alt="logo de NockStars" class="h-10 w-auto" />
 			</button>
-			<h1 class="text-xl font-bold tracking-wider text-text-primary sm:text-2xl">
-				<a class="relative px-2 group transition-colors duration-200 hover:text-brand-400" href="/" onfocus={(e) => cancelFocus(e)}>
-					nockstars
+			<a class="relative px-2 group transition-colors duration-200 hover:text-brand-400" href="/" onfocus={(e) => cancelFocus(e)}>
+			<h1 class="text-lg min-[420px]:text-xl font-bold tracking-wider text-text-primary sm:text-2xl">
+					NockStars
 					<span class="absolute -bottom-1 left-0 h-[2px] w-0 bg-gradient-to-r from-brand-400 to-brand-600 transition-all duration-500 group-hover:w-full"></span>
-				</a>
-			</h1>
+				</h1>
+			</a>
 		</div>
 
 		<!-- Navegación — Thread-connected nav -->
@@ -237,7 +246,7 @@
 			<!-- Mobile menu button -->
 			<button
 				class="flex items-center justify-center p-2 text-text-muted transition-colors hover:text-brand-400 md:hidden"
-				onclick={() => toggleCardSelectNavMenuIsVisible()}
+				onclick={() => { toggleMobileNavIsVisible(); toggleCardSelectNavMenuIsVisible(false); }}
 				aria-label="Menú de navegación"
 			>
 				<Icon icon="mdi:menu" class="text-2xl" />
@@ -262,7 +271,7 @@
 	</div>
 
 	<!-- Mobile nav drawer — Thread-animated -->
-	{#if cardSelectNavMenuIsVisible}
+	{#if mobileNavIsVisible}
 		<nav
 			transition:slide={{ duration: 250, easing: (t) => 1 - Math.pow(1 - t, 3) }}
 			class="flex flex-col gap-1 border-t border-white/5 px-6 py-3 md:hidden"
@@ -271,21 +280,21 @@
 			<a
 				href={validityAnchor('/')}
 				class="rounded-lg px-3 py-2.5 text-sm font-medium text-text-secondary transition-all hover:bg-surface-2 hover:text-brand-400 hover:pl-4"
-				onclick={() => toggleCardSelectNavMenuIsVisible(false)}
+				onclick={() => toggleMobileNavIsVisible(false)}
 			>
 				Tienda
 			</a>
 			<a
 				href={validityAnchor('/catalogo')}
 				class="rounded-lg px-3 py-2.5 text-sm font-medium text-text-secondary transition-all hover:bg-surface-2 hover:text-brand-400 hover:pl-4"
-				onclick={() => toggleCardSelectNavMenuIsVisible(false)}
+				onclick={() => toggleMobileNavIsVisible(false)}
 			>
 				Catálogo
 			</a>
 			<a
 				href={validityAnchor('/contacto')}
 				class="rounded-lg px-3 py-2.5 text-sm font-medium text-text-secondary transition-all hover:bg-surface-2 hover:text-brand-400 hover:pl-4"
-				onclick={() => toggleCardSelectNavMenuIsVisible(false)}
+				onclick={() => toggleMobileNavIsVisible(false)}
 			>
 				Contacto
 			</a>

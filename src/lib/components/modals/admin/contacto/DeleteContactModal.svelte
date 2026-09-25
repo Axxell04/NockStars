@@ -57,19 +57,19 @@
                 <input type="hidden" name="id_contact" value={contactSelected?.id ?? ''}>
                 <div class="flex flex-col gap-2 place-items-center">
                     <label for="icon">Icono</label>
-                    <span class="text-red-300" style="font-family: Nunito;">
+                    <span class="text-red-300" style="font-family: 'PT Sans';">
                         {contactSelected?.icon ?? ''}
                     </span>
                 </div>
                 <div class="flex flex-col gap-2 place-items-center">
                     <label for="text">Texto</label>
-                    <span class="text-red-300" style="font-family: Nunito;">
+                    <span class="text-red-300" style="font-family: 'PT Sans';">
                         {contactSelected?.text ?? ''}
                     </span>
                 </div>
                 <div class="flex flex-col gap-2 place-items-center">
                     <label for="url">URL</label>
-                    <span class="text-red-300" style="font-family: Nunito;">
+                    <span class="text-red-300" style="font-family: 'PT Sans';">
                         {contactSelected?.url ?? ''}
                     </span>
                 </div>
