@@ -139,7 +139,7 @@
             <!-- Thread accent line at top -->
             <div class="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-brand-400/20 to-transparent"></div>
             <div class="flex flex-row gap-2 place-items-center">
-                <button class="btn-primary"
+                <button class="btn-primary" style="padding-inline: 10px;"
                 onclick={() => {
                     if (catalogId) {
                         toggleOptAddProductIsVisible();
@@ -149,10 +149,7 @@
                     }}
                 onfocus={(e) => cancelFocus(e)}
                 >
-                    <Icon icon="material-symbols:add-rounded" class="text-xl" />
-                    <span>
-                        Añadir Producto
-                    </span>
+                    <Icon icon="lucide:package-plus" class="text-xl" />
                 </button>
                 {#if optAddProductIsVisible}    
                 <div transition:slide={{axis: "x"}} class="flex flex-row gap-1 items-center">

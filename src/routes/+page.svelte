@@ -419,9 +419,9 @@ class="hidden"
 <Toast message={toastMessage} />
 
 <ImgsProductModal {productSelected} imgsProductModalIsVisible={productModalIsVisible} toggleImgsProductModalIsVisible={toggleProductModalIsVisible}>
-    <button class="btn-secondary px-4 py-2" onclick={addToCart}
+    <button class="flex items-center justify-center w-12 h-12 rounded-full border border-white/10 text-text-secondary transition-all duration-200 hover:text-brand-400 hover:border-brand-400/30 hover:bg-brand-400/10" onclick={addToCart}
     onfocus={(e) => cancelFocus(e)}
     >
-        Añadir al carrito
+        <Icon icon="bi:cart-plus-fill" class="text-2xl" />
     </button>
 </ImgsProductModal>
