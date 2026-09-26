@@ -3,19 +3,13 @@
 	import { fade } from 'svelte/transition';
 	import type { PageProps } from './$types';
 	import { goto } from '$app/navigation';
-	import type { ProductPagination } from '$lib/interfaces/product';
 	import type { Catalog } from '$lib/interfaces/catalog';
 	import CatalogCard from '$lib/components/CatalogCard.svelte';
 
 	let { data }: PageProps = $props();
 
-	// Pagination Data
+	// Catalog list
 	let catalogs: Catalog[] = $state(data.catalogs);
-	let productPagination: ProductPagination = $state({
-		totalPages: 0,
-		currentPage: 0,
-		products: []
-	});
 
 	// Selected Product
 	let catalogSelected: Catalog | undefined = $state();
@@ -28,12 +22,6 @@
 	}
 
 	// Effects
-
-	$effect(() => {
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency marker for $effect
-		productPagination;
-		scrollTo({ behavior: 'smooth', top: 170 });
-	});
 
 	$effect(() => {
 		if (catalogSelected && typeof btnViewCatalog !== 'undefined') {

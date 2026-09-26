@@ -159,17 +159,25 @@
 
 	// Effects
 
+	// Plain `let`, deliberately not `$state`: non-reactive in runes mode, so
+	// mutating it cannot re-trigger the effect below.
+	let hasScrolledToProducts = false;
+
 	$effect(() => {
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency marker for $effect
-		productPagination;
-		scrollTo({ behavior: 'smooth', top: 170 });
+		if (productPagination.currentPage >= 0) {
+			// The visitor should land at the top of the storefront. Only re-frame
+			// the viewport once the product set has actually changed underneath
+			// them (pagination, catalog switch), not on the initial mount.
+			if (hasScrolledToProducts) {
+				scrollTo({ behavior: 'smooth', top: 170 });
+			}
+			hasScrolledToProducts = true;
+		}
 	});
 
 	//Update cart locals
 	$effect(() => {
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency marker for $effect
-		cart;
-		if (typeof btnUpdateCartElement !== 'undefined') {
+		if (cart.length >= 0 && typeof btnUpdateCartElement !== 'undefined') {
 			btnUpdateCartElement.click();
 		}
 	});
