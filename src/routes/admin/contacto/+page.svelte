@@ -57,8 +57,6 @@
 			}, 200);
 		}
 	}
-
-	$inspect(contacts);
 </script>
 
 <div in:fade class="flex flex-col place-items-center gap-2 px-5 py-5">

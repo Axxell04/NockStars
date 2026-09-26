@@ -123,8 +123,6 @@
 			refreshTotals();
 		}
 	});
-
-	$inspect(balanceDetailPagination);
 </script>
 
 <div in:fade class="flex max-h-full max-w-full flex-col gap-2 px-5 py-5">

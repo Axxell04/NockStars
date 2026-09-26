@@ -44,8 +44,6 @@
 		}
 	});
 
-	$inspect(productSelected);
-
 	let inputImgs: HTMLInputElement | undefined = $state();
 
 	let listDelete: number[] = $state([]);

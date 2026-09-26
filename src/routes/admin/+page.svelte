@@ -128,8 +128,6 @@
 			scrollTo({ behavior: 'smooth', top: 170 });
 		}
 	});
-
-	$inspect(productPagination);
 </script>
 
 <div in:fade class="flex flex-col gap-2 px-5 py-5">
