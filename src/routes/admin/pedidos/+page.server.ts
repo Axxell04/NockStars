@@ -207,6 +207,10 @@ export const actions: Actions = {
 			return fail(400, { message: 'Invalid pagination params' });
 		}
 
+		// Rejects out-of-range navigation early so the UI gets a real 404 instead
+		// of silently landing on another page. Note this bound is checked against
+		// the client-supplied `total_pages`, so it is a UX guard, not a security
+		// boundary: clampPage inside getOrders is what guarantees a valid offset.
 		if (gotoPage < 1 || gotoPage > totalPages) {
 			return fail(404, { message: 'Page not found' });
 		}

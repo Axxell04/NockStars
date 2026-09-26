@@ -29,35 +29,34 @@ export async function createOrder(content: object, clientName: string) {
 	return orderId;
 }
 
-export async function getOrders(options: GetOrderOptions = {}) {
-	const { limit = 10, completed, cod } = options;
-	// `page` is reassigned below, so it cannot join the const destructuring above.
-	let { page = 1 } = options;
-	const offset = (page - 1) * limit;
-	let orders: table.Order[] = [];
-	if (cod) {
-		orders = await getDb().select().from(table.order).where(eq(table.order.id, cod)).execute();
-		page = 0;
-	} else {
-		orders =
-			typeof completed === 'undefined'
-				? await getDb()
-						.select()
-						.from(table.order)
-						.limit(limit)
-						.offset(offset)
-						.orderBy(table.order.createdAt)
-						.execute()
-				: await getDb()
-						.select()
-						.from(table.order)
-						.where(eq(table.order.completed, completed))
-						.limit(limit)
-						.offset(offset)
-						.orderBy(table.order.createdAt)
-						.execute();
-	}
+/**
+ * Clamps a requested page into the range the database actually has results for.
+ *
+ * `page` arrives from form data on every pagination action, so it is caller
+ * controlled. Unclamped, `page = -5` produces a negative SQL offset and
+ * `page = 99` against three pages of orders produces an empty phantom page that
+ * still reports `currentPage: 99`.
+ *
+ * The row count is the only authority on how many pages exist. Neither the
+ * caller nor the `total_pages` hidden input can be trusted: that input is
+ * attacker controlled form data, which is exactly what the action-level checks
+ * in the route are for. This clamp is the layer below them, so a caller that
+ * forgets to validate still cannot produce an invalid offset.
+ *
+ * Exported for testing. This must stay pure.
+ */
+export function clampPage(page: number, totalPages: number): number {
+	// With no rows there is no page 0, but page 1 is still the only sane target
+	// and keeps the offset at zero.
+	const lastPage = Math.max(totalPages, 1);
+	return Math.min(Math.max(page, 1), lastPage);
+}
 
+export async function getOrders(options: GetOrderOptions = {}) {
+	const { limit = 10, completed, cod, page = 1 } = options;
+
+	// Counted before the page query because the count is what makes the clamp
+	// possible. Two independent reads, so their relative order costs nothing.
 	const totalOrders =
 		typeof completed === 'undefined'
 			? (await getDb().select().from(table.order).execute()).length
@@ -70,10 +69,46 @@ export async function getOrders(options: GetOrderOptions = {}) {
 				).length;
 	const totalPages = Math.ceil(totalOrders / limit);
 
+	// `cod` is a single-order lookup rather than a page of results: it ignores
+	// paging entirely and reports page 0. That is why the clamp below must not
+	// run for it — 0 is a deliberate answer here, not an out-of-range request.
+	if (cod) {
+		const orders = await getDb()
+			.select()
+			.from(table.order)
+			.where(eq(table.order.id, cod))
+			.execute();
+		return {
+			orders: orders,
+			totalPages,
+			currentPage: 0
+		};
+	}
+
+	const currentPage = clampPage(page, totalPages);
+	const offset = (currentPage - 1) * limit;
+	const orders =
+		typeof completed === 'undefined'
+			? await getDb()
+					.select()
+					.from(table.order)
+					.limit(limit)
+					.offset(offset)
+					.orderBy(table.order.createdAt)
+					.execute()
+			: await getDb()
+					.select()
+					.from(table.order)
+					.where(eq(table.order.completed, completed))
+					.limit(limit)
+					.offset(offset)
+					.orderBy(table.order.createdAt)
+					.execute();
+
 	return {
 		orders: orders,
 		totalPages,
-		currentPage: page
+		currentPage
 	};
 }
 
