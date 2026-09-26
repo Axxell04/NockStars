@@ -92,9 +92,10 @@
 
 	$effect(() => {
 		if (resMessage) {
-			setTimeout(() => {
+			const timeout = setTimeout(() => {
 				resMessage = '';
 			}, 5000);
+			return () => clearTimeout(timeout);
 		}
 	});
 </script>

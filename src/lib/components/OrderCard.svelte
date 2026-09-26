@@ -102,7 +102,7 @@
 			) {
 				btnDeleteOrder.click();
 			} else {
-				previousPurchaseDetails = { ...purchaseDetails };
+				previousPurchaseDetails = [...purchaseDetails];
 				updateOrderPaginationContent(order.id, updatedPurchaseDetails);
 			}
 		}

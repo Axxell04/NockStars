@@ -10,16 +10,6 @@
 
 	let { children, toggleModal, cancelClick }: Props = $props();
 
-	// $effect(() => {
-	//     if (typeof window !== 'undefined') {
-	//         if (visible) {
-	//             document.body.classList.add('overflow-hidden');
-	//         } else {
-	//             document.body.classList.remove('overflow-hidden');
-	//         }
-	//     }
-	// })
-
 	onMount(() => {
 		document.body.classList.add('overflow-hidden');
 	});

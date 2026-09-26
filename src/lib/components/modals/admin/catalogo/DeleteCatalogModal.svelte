@@ -32,9 +32,10 @@
 
 	$effect(() => {
 		if (formMessage) {
-			setTimeout(() => {
+			const timeout = setTimeout(() => {
 				formMessage = '';
 			}, 6000);
+			return () => clearTimeout(timeout);
 		}
 	});
 </script>

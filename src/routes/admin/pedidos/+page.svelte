@@ -30,7 +30,6 @@
 
 	// HTML Elements
 	let selectStateElement: HTMLButtonElement | undefined = $state();
-	let btnGetOrders: HTMLButtonElement | undefined = $state();
 	let btnSetInitViewState: HTMLButtonElement | undefined = $state();
 
 	let selectStateElementHeight: number = $state(9);
@@ -127,13 +126,6 @@
 			selectStateElementHeight = selectStateElement.clientHeight;
 		}
 	});
-
-	// $effect(() => {
-	//     viewState;
-	//     if (typeof btnGetOrders !== 'undefined') {
-	//         // btnGetOrders.click();
-	//     }
-	// });
 
 	onMount(() => {
 		if (typeof btnSetInitViewState !== 'undefined') {
@@ -409,7 +401,7 @@
 	}}
 	class="hidden"
 >
-	<button type="submit" bind:this={btnGetOrders}> Get Orders </button>
+	<button type="submit"> Get Orders </button>
 </form>
 
 <Toast message={toastMessage} />

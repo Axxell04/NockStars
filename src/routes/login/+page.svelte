@@ -45,10 +45,11 @@
 	// Effects
 	$effect(() => {
 		if (formMessage) {
-			setTimeout(() => {
+			const timeout = setTimeout(() => {
 				formMessage = '';
 			}, 6000);
 			window.scrollTo({ top: 10000000 });
+			return () => clearTimeout(timeout);
 		}
 	});
 </script>
