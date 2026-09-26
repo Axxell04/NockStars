@@ -31,6 +31,7 @@
 
     // Cart
     let cart = $state(data.cart);
+    let cartCount: number = $derived(cart.reduce((acc, item) => acc + item.amount, 0));
 
     // HTML Elements
     let selectCatalogElement: HTMLButtonElement | undefined = $state();
@@ -181,7 +182,7 @@
 
 <div in:fade class="flex flex-col gap-6 max-w-full max-h-full">
     <!-- Catalog selector — visually docked to the toolbar, scrolls away independently -->
-    <div class="relative z-40 -mb-5 flex justify-start">
+    <div class="relative z-40 -mb-5 flex justify-start gap-2">
         <form action="?/set_catalog" method="post" use:enhance={() => {
             return async ({ result }) => {
                 if (result.type === "success") {
@@ -236,6 +237,21 @@
             </div>
             {/if}
         </form>
+
+        <!-- Cart — docked beside the catalog selector, same visual level -->
+        <a
+            href="/carrito"
+            class="ml-auto group relative flex items-center px-4 py-2 rounded-xl bg-surface-1/95 backdrop-blur-xl border border-white/6 text-sm font-medium text-text-primary transition-all duration-300 hover:border-brand-400/20 hover:bg-surface-2"
+            onfocus={(e) => cancelFocus(e)}
+            aria-label="Ir al carrito"
+        >
+            <Icon icon="bi:cart-fill" class="text-lg" />
+            {#if cartCount > 0}
+            <span class="absolute -top-1 -right-1 flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-brand-500 text-surface-0 text-[11px] font-bold shadow-glow-sm transition-transform duration-300 group-hover:scale-110">
+                {cartCount > 99 ? '99+' : cartCount}
+            </span>
+            {/if}
+        </a>
     </div>
 
     <!-- Toolbar — Thread-wrapped glass panel, sticky below header -->
