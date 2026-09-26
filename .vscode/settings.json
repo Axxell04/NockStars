@@ -1,21 +1,21 @@
 {
-    "github.copilot.enable": {
-        "*": false,
-        "plaintext": false,
-        "markdown": false,
-        "scminput": false
-    },
-    "workbench.colorCustomizations": {
-        "activityBar.background": "#4C105A",
-        "titleBar.activeBackground": "#6B167F",
-        "titleBar.activeForeground": "#FEFBFE",
-        "titleBar.inactiveBackground": "#4C105A",
-        "titleBar.inactiveForeground": "#FEFBFE",
-        "statusBar.background": "#4C105A",
-        "statusBar.foreground": "#FEFBFE",
-        "statusBar.debuggingBackground": "#4C105A",
-        "statusBar.debuggingForeground": "#FEFBFE",
-        "statusBar.noFolderBackground": "#4C105A",
-        "statusBar.noFolderForeground": "#FEFBFE"
-    }
+	"github.copilot.enable": {
+		"*": false,
+		"plaintext": false,
+		"markdown": false,
+		"scminput": false
+	},
+	"workbench.colorCustomizations": {
+		"activityBar.background": "#4C105A",
+		"titleBar.activeBackground": "#6B167F",
+		"titleBar.activeForeground": "#FEFBFE",
+		"titleBar.inactiveBackground": "#4C105A",
+		"titleBar.inactiveForeground": "#FEFBFE",
+		"statusBar.background": "#4C105A",
+		"statusBar.foreground": "#FEFBFE",
+		"statusBar.debuggingBackground": "#4C105A",
+		"statusBar.debuggingForeground": "#FEFBFE",
+		"statusBar.noFolderBackground": "#4C105A",
+		"statusBar.noFolderForeground": "#FEFBFE"
+	}
 }

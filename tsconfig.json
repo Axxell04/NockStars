@@ -10,7 +10,7 @@
 		"sourceMap": true,
 		"strict": true,
 		"moduleResolution": "bundler",
-		"outDir": "./dist",
+		"outDir": "./dist"
 	}
 	// "include": ["./src/lib/server/db/schema.js"]
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias

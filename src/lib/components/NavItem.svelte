@@ -2,17 +2,18 @@
 	interface Props {
 		name: string;
 		endPoint: string;
-        actualRoute: string | null
+		actualRoute: string | null;
 	}
 
 	let { name, endPoint, actualRoute }: Props = $props();
 
 	let active = $derived(
 		actualRoute && endPoint
-			? actualRoute === endPoint || endPoint.replace('/admin', '') === actualRoute || endPoint.replace('admin', '') === actualRoute
+			? actualRoute === endPoint ||
+					endPoint.replace('/admin', '') === actualRoute ||
+					endPoint.replace('admin', '') === actualRoute
 			: false
 	);
-
 </script>
 
 <li class="relative list-none">
@@ -23,10 +24,16 @@
 	>
 		{name}
 		<!-- Thread accent line — Animated on hover and active -->
-		<span class="absolute bottom-0 left-1/2 h-[2px] rounded-full transition-all duration-400 {active ? 'w-6 -translate-x-1/2 bg-brand-400' : 'w-0 -translate-x-1/2 bg-brand-400/60 group-hover:w-4'}"></span>
+		<span
+			class="absolute bottom-0 left-1/2 h-[2px] rounded-full transition-all duration-400 {active
+				? 'bg-brand-400 w-6 -translate-x-1/2'
+				: 'bg-brand-400/60 w-0 -translate-x-1/2 group-hover:w-4'}"
+		></span>
 		<!-- Thread glow on active -->
 		{#if active}
-			<span class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-2 bg-brand-400/20 blur-sm rounded-full"></span>
+			<span
+				class="bg-brand-400/20 absolute -bottom-1 left-1/2 h-2 w-8 -translate-x-1/2 rounded-full blur-sm"
+			></span>
 		{/if}
 	</a>
 </li>

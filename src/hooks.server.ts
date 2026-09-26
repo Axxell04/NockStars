@@ -14,7 +14,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	if (balanceViewState) {
 		event.locals.balanceViewSatate = balanceViewState;
 	} else {
-		event.locals.balanceViewSatate = 'resume'
+		event.locals.balanceViewSatate = 'resume';
 	}
 
 	const catalogId = event.cookies.get('catalog-id');
@@ -23,7 +23,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		if (valid) {
 			event.locals.catalogId = catalogId;
 		} else {
-			event.cookies.delete('catalog-id', { 
+			event.cookies.delete('catalog-id', {
 				path: '/',
 				httpOnly: true,
 				sameSite: 'lax',
@@ -41,7 +41,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			event.locals.cart = JSON.parse(cart);
 		} catch {
 			event.locals.cart = [];
-			event.cookies.delete('cart', { 
+			event.cookies.delete('cart', {
 				path: '/',
 				httpOnly: true,
 				sameSite: 'lax',
@@ -65,7 +65,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	} else {
 		auth.deleteSessionTokenCookie(event);
 	}
-	
+
 	event.locals.user = user;
 	event.locals.session = session;
 

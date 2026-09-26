@@ -11,11 +11,11 @@ const config = {
 	preprocess: vitePreprocess(),
 
 	kit: {
-		adapter: isVercel 
-		? adapterVercel()
-		: adapterNode({
-			out: 'build'
-		})
+		adapter: isVercel
+			? adapterVercel()
+			: adapterNode({
+					out: 'build'
+				})
 	}
 };
 

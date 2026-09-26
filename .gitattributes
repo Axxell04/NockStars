@@ -1,0 +1,24 @@
+# Normalize line endings: store LF in the repository, check out LF on every platform.
+# Prettier's default endOfLine is "lf", so this is what keeps `prettier --check`
+# deterministic. Without this file, core.autocrlf=true hands the working tree
+# CRLF files and every single file fails the lint gate after a fresh checkout.
+* text=auto eol=lf
+
+# Windows batch scripts must keep CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets — line endings must never be applied.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.eot binary
+*.ttf binary
+*.pdf binary
+*.zip binary

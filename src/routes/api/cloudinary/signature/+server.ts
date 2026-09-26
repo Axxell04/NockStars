@@ -12,7 +12,10 @@ export const GET: RequestHandler = async ({ locals }) => {
 	}
 
 	if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
-		return json({ error: 'Server misconfiguration: Cloudinary credentials are not set' }, { status: 500 });
+		return json(
+			{ error: 'Server misconfiguration: Cloudinary credentials are not set' },
+			{ status: 500 }
+		);
 	}
 
 	cloudinary.config({
@@ -24,10 +27,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 	const timestamp = Math.round(Date.now() / 1000);
 	const folder = 'murci/products';
 
-	const signature = cloudinary.utils.api_sign_request(
-		{ timestamp, folder },
-		CLOUDINARY_API_SECRET
-	);
+	const signature = cloudinary.utils.api_sign_request({ timestamp, folder }, CLOUDINARY_API_SECRET);
 
 	return json({
 		signature,

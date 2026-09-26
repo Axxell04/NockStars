@@ -1,4 +1,12 @@
-import { pgTable, text, integer, boolean, timestamp, doublePrecision, jsonb } from 'drizzle-orm/pg-core';
+import {
+	pgTable,
+	text,
+	integer,
+	boolean,
+	timestamp,
+	doublePrecision,
+	jsonb
+} from 'drizzle-orm/pg-core';
 
 // USUARIO
 
@@ -36,7 +44,9 @@ export const product = pgTable('product', {
 export const img = pgTable('img', {
 	id: text('id').primaryKey(),
 	url: text('url').notNull(),
-	productId: text('product_id').notNull().references(() => product.id)
+	productId: text('product_id')
+		.notNull()
+		.references(() => product.id)
 });
 
 export const catalog = pgTable('catalog', {
@@ -48,8 +58,12 @@ export const catalog = pgTable('catalog', {
 
 export const productCatalog = pgTable('product_catalog', {
 	id: text('id').primaryKey(),
-	productId: text('product_id').notNull().references(() => product.id),
-	catalogId: text('catalog_id').notNull().references(() => catalog.id)
+	productId: text('product_id')
+		.notNull()
+		.references(() => product.id),
+	catalogId: text('catalog_id')
+		.notNull()
+		.references(() => catalog.id)
 });
 
 export const order = pgTable('order', {
@@ -114,4 +128,3 @@ export type Revenue = typeof revenue.$inferInsert;
 export type Cost = typeof cost.$inferInsert;
 
 export type Expense = typeof expense.$inferInsert;
-

@@ -1,297 +1,306 @@
-import { fail, redirect } from "@sveltejs/kit";
-import type { Actions, PageServerLoad } from "./$types";
-import { createRevenue, deleteRevenue, getRevenues, getTotalRevenue, updateRevenue } from "$lib/server/revenue";
-import { createCost, deleteCost, getCosts, getTotalCost, updateCost } from "$lib/server/cost";
-import { createExpense, deleteExpense, getExpenses, getTotalExpense, updateExpense } from "$lib/server/expense";
-import type { BalanceDetailPagination } from "$lib/interfaces/balance";
+import { fail, redirect } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
+import {
+	createRevenue,
+	deleteRevenue,
+	getRevenues,
+	getTotalRevenue,
+	updateRevenue
+} from '$lib/server/revenue';
+import { createCost, deleteCost, getCosts, getTotalCost, updateCost } from '$lib/server/cost';
+import {
+	createExpense,
+	deleteExpense,
+	getExpenses,
+	getTotalExpense,
+	updateExpense
+} from '$lib/server/expense';
+import type { BalanceDetailPagination } from '$lib/interfaces/balance';
 
 export const load: PageServerLoad = async (event) => {
-    if (!event.locals.user) {
-        return redirect(302, '/login')
-    }
+	if (!event.locals.user) {
+		return redirect(302, '/login');
+	}
 
-    const totalRevenue = await getTotalRevenue();
-    const totalCost = await getTotalCost();
-    const totalExpense = await getTotalExpense();
+	const totalRevenue = await getTotalRevenue();
+	const totalCost = await getTotalCost();
+	const totalExpense = await getTotalExpense();
 
-    return {
-        totalRevenue,
-        totalCost,
-        totalExpense
-    }
+	return {
+		totalRevenue,
+		totalCost,
+		totalExpense
+	};
 };
 
 export const actions: Actions = {
-    set_view_state: async (event) => {
-        const formData = await event.request.formData();
-        const viewState = formData.get('view_state') as string;
+	set_view_state: async (event) => {
+		const formData = await event.request.formData();
+		const viewState = formData.get('view_state') as string;
 
-        if (!viewState) { return fail(400, { message: 'Error en los parámetros de la petición' }) }
+		if (!viewState) {
+			return fail(400, { message: 'Error en los parámetros de la petición' });
+		}
 
-        event.cookies.set('balance_view_state', viewState, {
-            path: '/',
-            httpOnly: true,
-            sameSite: 'lax',
-            secure: event.url.protocol === 'https:'
-        })
+		event.cookies.set('balance_view_state', viewState, {
+			path: '/',
+			httpOnly: true,
+			sameSite: 'lax',
+			secure: event.url.protocol === 'https:'
+		});
 
-        let balanceDetailPagination: BalanceDetailPagination | undefined;
-        if (viewState === 'revenue') {
-            const res = await getRevenues();
-            balanceDetailPagination = {
-                balanceDetails: res.revenues,
-                totalPages: res.totalPages,
-                currentPage: res.currentPage
-            }
-        } else if (viewState === 'cost') {
-            const res = await getCosts();
-            balanceDetailPagination = {
-                balanceDetails: res.costs,
-                totalPages: res.totalPages,
-                currentPage: res.currentPage
-            }
-        } else if (viewState === 'expense') {
-            const res = await getExpenses();
-            balanceDetailPagination = {
-                balanceDetails: res.expenses,
-                totalPages: res.totalPages,
-                currentPage: res.currentPage
-            }
-        }
-        
-        return {
-            balanceDetailPagination
-        }
-    },
-    add_balance: async (event) => {
-        const formData = await event.request.formData();
-        const reason = formData.get('reason') as string;
-        const value = parseFloat(formData.get('value') as string);
+		let balanceDetailPagination: BalanceDetailPagination | undefined;
+		if (viewState === 'revenue') {
+			const res = await getRevenues();
+			balanceDetailPagination = {
+				balanceDetails: res.revenues,
+				totalPages: res.totalPages,
+				currentPage: res.currentPage
+			};
+		} else if (viewState === 'cost') {
+			const res = await getCosts();
+			balanceDetailPagination = {
+				balanceDetails: res.costs,
+				totalPages: res.totalPages,
+				currentPage: res.currentPage
+			};
+		} else if (viewState === 'expense') {
+			const res = await getExpenses();
+			balanceDetailPagination = {
+				balanceDetails: res.expenses,
+				totalPages: res.totalPages,
+				currentPage: res.currentPage
+			};
+		}
 
-        if (!reason || !isNumber(value)) {
-            return fail(400, { message: 'Error en los parámetros de la petición' })
-        }
+		return {
+			balanceDetailPagination
+		};
+	},
+	add_balance: async (event) => {
+		const formData = await event.request.formData();
+		const reason = formData.get('reason') as string;
+		const value = parseFloat(formData.get('value') as string);
 
-        const viewState = event.locals.balanceViewSatate;
-        let balanceDetailPagination: BalanceDetailPagination | undefined;
-        try {
-            if (viewState === 'revenue') {
-                await createRevenue(value, reason);
-                const res = await getRevenues()
-                balanceDetailPagination = {...res, balanceDetails: res.revenues};
-            } else if (viewState === 'cost') {
-                await createCost(value, reason); 
-                const res = await getCosts();
-                balanceDetailPagination = {...res, balanceDetails: res.costs};
-            } else if (viewState === 'expense') {
-                await createExpense(value, reason);
-                const res = await getExpenses();
-                balanceDetailPagination = {...res, balanceDetails: res.expenses};
-            } 
-            
-        } catch {
-            return fail(500, { message: 'A ocurrido un error en el servidor' })
-        }
+		if (!reason || !isNumber(value)) {
+			return fail(400, { message: 'Error en los parámetros de la petición' });
+		}
 
-        return {
-            balanceDetailPagination
-        }
-    },
-    delete_balance: async (event) => {
-        const formData = await event.request.formData();
-        const balanceId = formData.get('balance_id') as string;
+		const viewState = event.locals.balanceViewSatate;
+		let balanceDetailPagination: BalanceDetailPagination | undefined;
+		try {
+			if (viewState === 'revenue') {
+				await createRevenue(value, reason);
+				const res = await getRevenues();
+				balanceDetailPagination = { ...res, balanceDetails: res.revenues };
+			} else if (viewState === 'cost') {
+				await createCost(value, reason);
+				const res = await getCosts();
+				balanceDetailPagination = { ...res, balanceDetails: res.costs };
+			} else if (viewState === 'expense') {
+				await createExpense(value, reason);
+				const res = await getExpenses();
+				balanceDetailPagination = { ...res, balanceDetails: res.expenses };
+			}
+		} catch {
+			return fail(500, { message: 'A ocurrido un error en el servidor' });
+		}
 
-        if (!balanceId) {
-            return fail(400, { message: 'Error en los parámetros de la petición' });
-        }
+		return {
+			balanceDetailPagination
+		};
+	},
+	delete_balance: async (event) => {
+		const formData = await event.request.formData();
+		const balanceId = formData.get('balance_id') as string;
 
-        const viewState = event.locals.balanceViewSatate;
-        let balanceDetailPagination: BalanceDetailPagination | undefined;
+		if (!balanceId) {
+			return fail(400, { message: 'Error en los parámetros de la petición' });
+		}
 
-        try {
-            if (viewState === 'revenue') {
-                await deleteRevenue(balanceId);
-                const res = await getRevenues()
-                balanceDetailPagination = {...res, balanceDetails: res.revenues};
-            } else if (viewState === 'cost') {
-                await deleteCost(balanceId);
-                const res = await getCosts();
-                balanceDetailPagination = {...res, balanceDetails: res.costs};
-            } else if (viewState === 'expense') {
-                await deleteExpense(balanceId);
-                const res = await getExpenses();
-                balanceDetailPagination = {...res, balanceDetails: res.expenses};
-            }
-            
-        } catch {
-            return fail(500, { message: 'A ocurrido un error en el servidor' })
-        }
+		const viewState = event.locals.balanceViewSatate;
+		let balanceDetailPagination: BalanceDetailPagination | undefined;
 
-        return {
-            balanceDetailPagination
-        }
-    },
-    edit_balance: async (event) => {
-        const formData = await event.request.formData();
-        const balanceId = formData.get('balance_id') as string;
-        const newReason = formData.get('new_reason') as string;
-        const newValue = parseFloat(formData.get('new_value') as string);
+		try {
+			if (viewState === 'revenue') {
+				await deleteRevenue(balanceId);
+				const res = await getRevenues();
+				balanceDetailPagination = { ...res, balanceDetails: res.revenues };
+			} else if (viewState === 'cost') {
+				await deleteCost(balanceId);
+				const res = await getCosts();
+				balanceDetailPagination = { ...res, balanceDetails: res.costs };
+			} else if (viewState === 'expense') {
+				await deleteExpense(balanceId);
+				const res = await getExpenses();
+				balanceDetailPagination = { ...res, balanceDetails: res.expenses };
+			}
+		} catch {
+			return fail(500, { message: 'A ocurrido un error en el servidor' });
+		}
 
-        if (!balanceId || !newReason || !isNumber(newValue)) {
-            return fail(400, { message: 'Error en los parámetros de la petición' });
-        }
+		return {
+			balanceDetailPagination
+		};
+	},
+	edit_balance: async (event) => {
+		const formData = await event.request.formData();
+		const balanceId = formData.get('balance_id') as string;
+		const newReason = formData.get('new_reason') as string;
+		const newValue = parseFloat(formData.get('new_value') as string);
 
-        const viewState = event.locals.balanceViewSatate;
-        let balanceDetailPagination: BalanceDetailPagination | undefined;
+		if (!balanceId || !newReason || !isNumber(newValue)) {
+			return fail(400, { message: 'Error en los parámetros de la petición' });
+		}
 
-        try {
-            if (viewState === 'revenue') {
-                await updateRevenue(balanceId, newValue, newReason);
-                const res = await getRevenues()
-                balanceDetailPagination = {...res, balanceDetails: res.revenues};
-            } else if (viewState === 'cost') {
-                await updateCost(balanceId, newValue, newReason);
-                const res = await getCosts();
-                balanceDetailPagination = {...res, balanceDetails: res.costs};
-            } else if (viewState === 'expense') {
-                await updateExpense(balanceId, newValue, newReason);
-                const res = await getExpenses();
-                balanceDetailPagination = {...res, balanceDetails: res.expenses};
-            }
-            
-        } catch {
-            return fail(500, { message: 'A ocurrido un error en el servidor' })
-        }
+		const viewState = event.locals.balanceViewSatate;
+		let balanceDetailPagination: BalanceDetailPagination | undefined;
 
-        return {
-            balanceDetailPagination
-        }
-    },
-    refresh_totals: async () => {
-        const totalRevenue = await getTotalRevenue();
-        const totalCost = await getTotalCost();
-        const totalExpense = await getTotalExpense();
+		try {
+			if (viewState === 'revenue') {
+				await updateRevenue(balanceId, newValue, newReason);
+				const res = await getRevenues();
+				balanceDetailPagination = { ...res, balanceDetails: res.revenues };
+			} else if (viewState === 'cost') {
+				await updateCost(balanceId, newValue, newReason);
+				const res = await getCosts();
+				balanceDetailPagination = { ...res, balanceDetails: res.costs };
+			} else if (viewState === 'expense') {
+				await updateExpense(balanceId, newValue, newReason);
+				const res = await getExpenses();
+				balanceDetailPagination = { ...res, balanceDetails: res.expenses };
+			}
+		} catch {
+			return fail(500, { message: 'A ocurrido un error en el servidor' });
+		}
 
-        return {
-            totalRevenue,
-            totalCost,
-            totalExpense
-        }
-    },
-    prev_page: async (event) => {
-        const formData = await event.request.formData();
-        let totalPages = 0;
-        let currentPage = 0;
-        
-        try {
-            totalPages = parseInt(formData.get('total_pages') as string);
-            currentPage = parseInt(formData.get('current_page') as string);
-            if (isNaN(totalPages) || isNaN(currentPage)) {
-                return fail(400, { message: 'Invalid pagination params' })
-            }
-        } catch {
-            return fail(400, { message: 'Invalid pagination params' })
-        }
+		return {
+			balanceDetailPagination
+		};
+	},
+	refresh_totals: async () => {
+		const totalRevenue = await getTotalRevenue();
+		const totalCost = await getTotalCost();
+		const totalExpense = await getTotalExpense();
 
+		return {
+			totalRevenue,
+			totalCost,
+			totalExpense
+		};
+	},
+	prev_page: async (event) => {
+		const formData = await event.request.formData();
+		let totalPages = 0;
+		let currentPage = 0;
 
-        
-        if (currentPage <= 1) {
-            return fail(404, { message: 'Page not found' })
-        }
+		try {
+			totalPages = parseInt(formData.get('total_pages') as string);
+			currentPage = parseInt(formData.get('current_page') as string);
+			if (isNaN(totalPages) || isNaN(currentPage)) {
+				return fail(400, { message: 'Invalid pagination params' });
+			}
+		} catch {
+			return fail(400, { message: 'Invalid pagination params' });
+		}
 
-        const viewState = event.locals.balanceViewSatate;
-        const prevPage = currentPage - 1;
+		if (currentPage <= 1) {
+			return fail(404, { message: 'Page not found' });
+		}
 
-        let balanceDetailPagination: BalanceDetailPagination | undefined;
+		const viewState = event.locals.balanceViewSatate;
+		const prevPage = currentPage - 1;
 
-        if (viewState === 'revenue') {
-            const res = await getRevenues(prevPage);
-            balanceDetailPagination = {...res, balanceDetails: res.revenues};
-        } else if (viewState === 'cost') {
-            const res = await getCosts(prevPage);
-            balanceDetailPagination = {...res, balanceDetails: res.costs};
-        } else if (viewState === 'expense') {
-            const res = await getExpenses(prevPage);
-            balanceDetailPagination = {...res, balanceDetails: res.expenses};
-        }
+		let balanceDetailPagination: BalanceDetailPagination | undefined;
 
-        return {
-            balanceDetailPagination
-        }
-    },
-    next_page: async (event) => {
-        const formData = await event.request.formData();
-        let totalPages = 0;
-        let currentPage = 0;
-        
-        try {
-            totalPages = parseInt(formData.get('total_pages') as string);
-            currentPage = parseInt(formData.get('current_page') as string);
-            if (isNaN(totalPages) || isNaN(currentPage)) {
-                return fail(400, { message: 'Invalid pagination params' })
-            }
-        } catch {
-            return fail(400, { message: 'Invalid pagination params' })
-        }
+		if (viewState === 'revenue') {
+			const res = await getRevenues(prevPage);
+			balanceDetailPagination = { ...res, balanceDetails: res.revenues };
+		} else if (viewState === 'cost') {
+			const res = await getCosts(prevPage);
+			balanceDetailPagination = { ...res, balanceDetails: res.costs };
+		} else if (viewState === 'expense') {
+			const res = await getExpenses(prevPage);
+			balanceDetailPagination = { ...res, balanceDetails: res.expenses };
+		}
 
-        if (currentPage >= totalPages) {
-            return fail(404, { message: 'Page not found' })
-        }
+		return {
+			balanceDetailPagination
+		};
+	},
+	next_page: async (event) => {
+		const formData = await event.request.formData();
+		let totalPages = 0;
+		let currentPage = 0;
 
-        const viewState = event.locals.balanceViewSatate;
-        const nextPage = currentPage + 1;
+		try {
+			totalPages = parseInt(formData.get('total_pages') as string);
+			currentPage = parseInt(formData.get('current_page') as string);
+			if (isNaN(totalPages) || isNaN(currentPage)) {
+				return fail(400, { message: 'Invalid pagination params' });
+			}
+		} catch {
+			return fail(400, { message: 'Invalid pagination params' });
+		}
 
-        let balanceDetailPagination: BalanceDetailPagination | undefined;
+		if (currentPage >= totalPages) {
+			return fail(404, { message: 'Page not found' });
+		}
 
-        if (viewState === 'revenue') {
-            const res = await getRevenues(nextPage);
-            balanceDetailPagination = {...res, balanceDetails: res.revenues};
-        } else if (viewState === 'cost') {
-            const res = await getCosts(nextPage);
-            balanceDetailPagination = {...res, balanceDetails: res.costs};
-        } else if (viewState === 'expense') {
-            const res = await getExpenses(nextPage);
-            balanceDetailPagination = {...res, balanceDetails: res.expenses};
-        }
+		const viewState = event.locals.balanceViewSatate;
+		const nextPage = currentPage + 1;
 
-        return {
-            balanceDetailPagination
-        }
-    },
-    goto_page: async (event) => {
-        const formData = await event.request.formData();
-        let gotoPage = 0;
+		let balanceDetailPagination: BalanceDetailPagination | undefined;
 
-        try {
-            gotoPage = parseInt(formData.get('goto_page') as string);
-            if (isNaN(gotoPage)) {
-                return fail(400, { message: 'Invalid pagination params' })
-            }
-        } catch {
-            return fail(400, { message: 'Invalid pagination params' })
-        }
+		if (viewState === 'revenue') {
+			const res = await getRevenues(nextPage);
+			balanceDetailPagination = { ...res, balanceDetails: res.revenues };
+		} else if (viewState === 'cost') {
+			const res = await getCosts(nextPage);
+			balanceDetailPagination = { ...res, balanceDetails: res.costs };
+		} else if (viewState === 'expense') {
+			const res = await getExpenses(nextPage);
+			balanceDetailPagination = { ...res, balanceDetails: res.expenses };
+		}
 
-        const viewState = event.locals.balanceViewSatate;
+		return {
+			balanceDetailPagination
+		};
+	},
+	goto_page: async (event) => {
+		const formData = await event.request.formData();
+		let gotoPage = 0;
 
-        let balanceDetailPagination: BalanceDetailPagination | undefined;
+		try {
+			gotoPage = parseInt(formData.get('goto_page') as string);
+			if (isNaN(gotoPage)) {
+				return fail(400, { message: 'Invalid pagination params' });
+			}
+		} catch {
+			return fail(400, { message: 'Invalid pagination params' });
+		}
 
-        if (viewState === 'revenue') {
-            const res = await getRevenues(gotoPage);
-            balanceDetailPagination = {...res, balanceDetails: res.revenues};
-        } else if (viewState === 'cost') {
-            const res = await getCosts(gotoPage);
-            balanceDetailPagination = {...res, balanceDetails: res.costs};
-        } else if (viewState === 'expense') {
-            const res = await getExpenses(gotoPage);
-            balanceDetailPagination = {...res, balanceDetails: res.expenses};
-        }
+		const viewState = event.locals.balanceViewSatate;
 
-        return {
-            balanceDetailPagination
-        }
-    },
+		let balanceDetailPagination: BalanceDetailPagination | undefined;
+
+		if (viewState === 'revenue') {
+			const res = await getRevenues(gotoPage);
+			balanceDetailPagination = { ...res, balanceDetails: res.revenues };
+		} else if (viewState === 'cost') {
+			const res = await getCosts(gotoPage);
+			balanceDetailPagination = { ...res, balanceDetails: res.costs };
+		} else if (viewState === 'expense') {
+			const res = await getExpenses(gotoPage);
+			balanceDetailPagination = { ...res, balanceDetails: res.expenses };
+		}
+
+		return {
+			balanceDetailPagination
+		};
+	}
 };
 
-function isNumber (value: unknown): value is number {
-    return typeof value === 'number' && !isNaN(value) && value > 0 
+function isNumber(value: unknown): value is number {
+	return typeof value === 'number' && !isNaN(value) && value > 0;
 }

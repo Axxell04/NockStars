@@ -1,23 +1,23 @@
 export interface Product {
-    id: string
-    name: string
-    price: number
-    createdAt?: Date | undefined
+	id: string;
+	name: string;
+	price: number;
+	createdAt?: Date | undefined;
 }
 
 export interface Img {
-    id: string
-    url: string
-    productId: string
+	id: string;
+	url: string;
+	productId: string;
 }
 
 export interface ProductComplete {
-    product: Product
-    imgs: Img[]
+	product: Product;
+	imgs: Img[];
 }
 
 export interface ProductPagination {
-    products: ProductComplete[]
-    totalPages: number
-    currentPage: number
+	products: ProductComplete[];
+	totalPages: number;
+	currentPage: number;
 }
