@@ -81,11 +81,14 @@ a fix loop. In this codebase that loop is actively destructive:
   selection and the cart.
 - It does **not** load the TypeScript ESLint plugin set, so it echoes
   `Definition for rule '@typescript-eslint/no-unused-expressions' was not found` for our
-  suppression comments. That is expected. Those comments guard `$effect` dependency
-  markers (`productPagination;`, `cart;`, `isSelected;`) which are load-bearing for
-  reactivity — never delete them.
-- Bare statements inside `$effect` are the Svelte 5 idiom for declaring a dependency,
-  not dead code.
+  suppression comments. That is expected. It is also a reminder that those comments
+  should not exist in the first place: this codebase expresses `$effect` dependencies as
+  **real reads** of the value depended on, never as bare reference statements, and
+  `npm run check:effects` rejects both the markers and the suppressions. Do not add one.
+- A bare statement inside `$effect` is **not** the accepted idiom here. Rewrite it as a
+  read of the value the effect actually depends on, widening the enclosing condition if
+  that dependency was not otherwise visible. See AGENTS.md, "Reactivity: real reads, not
+  markers".
 
 What the tool IS reliably good for: `Each block should have a key`, `bind:this` that could
 be an `{@attach}`, and catching real reactivity mistakes that `svelte-check` misses.

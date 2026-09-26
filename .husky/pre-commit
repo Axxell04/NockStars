@@ -1,0 +1,10 @@
+# Effect dependency conventions: dependencies must be real reads, never bare
+# reference markers or `no-unused-expressions` suppressions. See AGENTS.md.
+#
+# Fast by design (~50ms) — the effect-convention check only, not the full lint
+# chain. `npm run lint` is the deliberate, separate step.
+#
+# This guard is committed and portable: `npm install` wires it up through the
+# `prepare` script, so every clone enforces it.
+
+node scripts/check-effect-conventions.mjs
