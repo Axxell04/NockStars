@@ -161,7 +161,7 @@
 		<div
 			class="pointer-events-none absolute top-3 right-0 left-0 z-10 flex flex-row justify-center gap-1.5"
 		>
-			{#each product.imgs as _, i}
+			{#each product.imgs.keys() as i}
 				<span
 					class="rounded-full transition-all duration-300 {i === imgIndex
 						? 'bg-brand-400 shadow-glow-sm h-1.5 w-4'

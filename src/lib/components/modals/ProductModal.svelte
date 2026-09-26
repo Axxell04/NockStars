@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { fade, fly, scale } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
 
 	import ContainerModal from './ContainerModal.svelte';
 	import type { ProductComplete } from '$lib/interfaces/product';

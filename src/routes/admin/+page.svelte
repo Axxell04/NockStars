@@ -3,7 +3,6 @@
 	import { fade, scale, slide } from 'svelte/transition';
 	import type { PageProps } from './$types';
 	import ProductCard from '$lib/components/ProductCard.svelte';
-	import { goto, invalidate, invalidateAll } from '$app/navigation';
 	import type { ProductComplete, ProductPagination } from '$lib/interfaces/product';
 	import Icon from '@iconify/svelte';
 	import AddProductModal from '$lib/components/modals/admin/AddProductModal.svelte';
@@ -123,6 +122,7 @@
 	// Effects
 
 	$effect(() => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency marker for $effect
 		productPagination;
 		scrollTo({ behavior: 'smooth', top: 170 });
 	});

@@ -3,7 +3,6 @@
 	import ContainerModal from '../ContainerModal.svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
-	import type { PurchaseDetail } from '$lib/interfaces/cart';
 
 	interface Props {
 		resetCart: () => void;
@@ -12,8 +11,6 @@
 	}
 
 	let { resetCart, clearCartModalIsVisible, toggleClearCartModalIsVisible }: Props = $props();
-
-	let formMessage = $state('');
 
 	function cancelFocus(e: FocusEvent) {
 		const target = e.target as HTMLButtonElement;
@@ -33,11 +30,7 @@
 				method="post"
 				use:enhance={() => {
 					return async ({ result }) => {
-						if (result.type === 'failure') {
-							if (result.data?.message) {
-								formMessage = result.data.message as string;
-							}
-						} else if (result.type === 'success') {
+						if (result.type === 'success') {
 							await invalidateAll();
 							resetCart();
 							toggleClearCartModalIsVisible(false);

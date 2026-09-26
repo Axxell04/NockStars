@@ -8,7 +8,7 @@
 		cancelClick?: boolean;
 	}
 
-	let { children, toggleModal, cancelClick, visible }: Props = $props();
+	let { children, toggleModal, cancelClick }: Props = $props();
 
 	// $effect(() => {
 	//     if (typeof window !== 'undefined') {

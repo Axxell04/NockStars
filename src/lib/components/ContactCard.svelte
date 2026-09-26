@@ -32,7 +32,7 @@
 	}
 
 	if (typeof selectThisContact === 'undefined') {
-		selectThisContact = (contact: Contact) => {};
+		selectThisContact = () => {};
 	}
 
 	function cancelFocus(e: FocusEvent) {

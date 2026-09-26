@@ -36,6 +36,7 @@
 	// })
 
 	$effect(() => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency marker for $effect
 		editProductModalIsVisible;
 		if (productSelected) {
 			name = productSelected.product.name;
@@ -55,7 +56,7 @@
 		!productSelected || !listDelete.length
 			? []
 			: [
-					...productSelected?.imgs
+					...productSelected.imgs
 						.filter((img) => {
 							if (listDelete.includes(productSelected.imgs.indexOf(img))) {
 								return true;

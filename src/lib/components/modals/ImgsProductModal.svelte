@@ -1,8 +1,6 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import type { ProductComplete } from '$lib/interfaces/product';
 	import { fade, scale } from 'svelte/transition';
-	import type { ActionData } from '../../../routes/admin/$types';
 	import ContainerModal from './ContainerModal.svelte';
 	import Icon from '@iconify/svelte';
 	import type { Snippet } from 'svelte';

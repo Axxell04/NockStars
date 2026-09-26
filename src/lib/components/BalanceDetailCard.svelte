@@ -1,10 +1,7 @@
 <script lang="ts">
-	import type { PurchaseDetail } from '$lib/interfaces/cart';
 	import Icon from '@iconify/svelte';
-	import type { Order, OrderPagination } from '$lib/interfaces/order';
 	import { scale, slide } from 'svelte/transition';
 	import { enhance } from '$app/forms';
-	import CatalogCard from './CatalogCard.svelte';
 	import type { BalanceDetail, BalanceDetailPagination } from '$lib/interfaces/balance';
 
 	interface Props {
@@ -65,6 +62,7 @@
 	}
 
 	$effect(() => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency marker for $effect
 		isSelected;
 		if (!isSelected && (confirmationDeleteIsVisible || confirmationEditIsVisible)) {
 			toggleConfirmationDeleteIsVisible(false);

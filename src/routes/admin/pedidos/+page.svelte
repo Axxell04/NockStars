@@ -1,20 +1,14 @@
 <script lang="ts">
-	import ProductCard from '$lib/components/ProductCard.svelte';
 	import { onMount } from 'svelte';
-	import { fade, scale, slide } from 'svelte/transition';
+	import { fade, scale } from 'svelte/transition';
 	import type { PageProps } from './$types';
-	import ContainerModal from '$lib/components/modals/ContainerModal.svelte';
-	import ProductModal from '$lib/components/modals/ProductModal.svelte';
-	import type { Product, ProductComplete, ProductPagination } from '$lib/interfaces/product';
 	import Icon from '@iconify/svelte';
-	import ImgsProductModal from '$lib/components/modals/ImgsProductModal.svelte';
 	import { enhance } from '$app/forms';
 	import Toast from '$lib/components/Toast.svelte';
 	import type { Order, OrderPagination } from '$lib/interfaces/order';
 	import type { PurchaseDetail } from '$lib/interfaces/cart';
 	import OrderCard from '$lib/components/OrderCard.svelte';
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
 
 	let { data }: PageProps = $props();
 
@@ -122,6 +116,7 @@
 	// Effects
 
 	$effect(() => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency marker for $effect
 		orderPagination;
 		scrollTo({ behavior: 'smooth', top: 170 });
 		orderSelected = undefined;

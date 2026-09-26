@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { fade, fly, scale } from 'svelte/transition';
+	import { fade, fly } from 'svelte/transition';
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 	import type { User, UserToken } from '$lib/interfaces/user';
@@ -27,8 +27,6 @@
 	let deleteUserModalIsVisible = $state(false);
 	let deleteUserTokenModalIsVisible = $state(false);
 	let updateUserModalIsVisible = $state(false);
-
-	let formMessage = $state('');
 
 	// Toggle Visible Elements
 	function toggleDeleteUserModalIsVisible(visible?: boolean) {
@@ -170,9 +168,7 @@
 				method="post"
 				use:enhance={() => {
 					return async ({ result }) => {
-						if (result.type === 'failure') {
-							formMessage = (result.data?.message as string) ?? '';
-						} else if (result.type === 'success') {
+						if (result.type === 'success') {
 							userTokens = result.data?.userTokens as UserToken[];
 						}
 					};

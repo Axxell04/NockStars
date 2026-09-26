@@ -2,7 +2,6 @@
 	import { enhance } from '$app/forms';
 	import type { ProductComplete, ProductPagination } from '$lib/interfaces/product';
 	import { fade, scale } from 'svelte/transition';
-	import type { ActionData } from '../../../../routes/admin/$types';
 	import ContainerModal from '../ContainerModal.svelte';
 	import Icon from '@iconify/svelte';
 
@@ -53,7 +52,7 @@
 				id="delete-product"
 				action="?/delete_product"
 				method="post"
-				use:enhance={({ formElement, formData, action, cancel }) => {
+				use:enhance={({ formElement }) => {
 					return async ({ result }) => {
 						if (result.type === 'success') {
 							formElement.reset();

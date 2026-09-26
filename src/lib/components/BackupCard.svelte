@@ -1,7 +1,4 @@
 <script lang="ts">
-	interface Props {}
-
-	let {}: Props = $props();
 	let btnDownloadIsVisible = $state(false);
 
 	// Functions

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { Contact } from '$lib/interfaces/contact';
 	import { fade, scale } from 'svelte/transition';
 	import ContainerModal from '../../ContainerModal.svelte';
 	import { enhance } from '$app/forms';

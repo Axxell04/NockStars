@@ -3,10 +3,7 @@
 	import { enhance } from '$app/forms';
 
 	import { fade, scale } from 'svelte/transition';
-	import type { PageProps } from './$types';
-	import { goto, invalidateAll } from '$app/navigation';
-
-	let { form }: PageProps = $props();
+	import { invalidateAll } from '$app/navigation';
 
 	let formMessage = $state('');
 

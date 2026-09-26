@@ -43,7 +43,7 @@
 				id="edit-catalog"
 				action="?/edit_catalog"
 				method="post"
-				use:enhance={({ formElement, formData, action, cancel }) => {
+				use:enhance={({ formElement }) => {
 					return async ({ result }) => {
 						if (result.type === 'failure') {
 							if (result.data?.message) {

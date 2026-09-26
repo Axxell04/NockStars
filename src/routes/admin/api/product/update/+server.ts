@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from '../$types';
-import { bindImg, createProduct, getImgs, getProducts } from '$lib/server/product';
+import { bindImg, getImgs, getProducts } from '$lib/server/product';
 import { updateProduct } from '$lib/server/product';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -52,7 +52,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		try {
 			await updateProduct({ product_id, imgsDelete: finalListDelete });
-		} catch (error) {
+		} catch {
 			return json({ success: false, message: 'Error en la actualización del producto' });
 		}
 

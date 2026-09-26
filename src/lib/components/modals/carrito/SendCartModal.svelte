@@ -17,15 +17,7 @@
 
 	let formMessage = $state('');
 
-	let clientName = $state('');
-
 	let totalValue = $derived(cart.reduce((pv, cv) => pv + cv.amount * cv.product.product.price, 0));
-
-	function updateClientName(e: Event) {
-		const target = e.target as HTMLInputElement;
-		const value = target.value;
-		clientName = value;
-	}
 
 	function cancelFocus(e: FocusEvent) {
 		const target = e.target as HTMLButtonElement;
@@ -97,7 +89,6 @@
 						autocomplete="off"
 						class="max-w-full rounded-md border border-red-400 px-1 outline-none"
 						autocorrect="off"
-						oninput={(e) => updateClientName(e)}
 					/>
 				</div>
 				<div class="flex flex-row place-content-center gap-2">

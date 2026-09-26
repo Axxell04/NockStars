@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import type { ProductComplete, ProductPagination } from '$lib/interfaces/product';
 	import { fade, scale } from 'svelte/transition';
 	import Icon from '@iconify/svelte';
 	import type { Catalog } from '$lib/interfaces/catalog';
@@ -51,7 +50,7 @@
 				id="delete-catalog"
 				action="?/delete_catalog"
 				method="post"
-				use:enhance={({ formElement, formData, action, cancel }) => {
+				use:enhance={({ formElement }) => {
 					return async ({ result }) => {
 						if (result.type === 'success') {
 							formElement.reset();

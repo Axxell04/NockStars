@@ -4,7 +4,6 @@
 	import type { Order, OrderPagination } from '$lib/interfaces/order';
 	import { scale, slide } from 'svelte/transition';
 	import { enhance } from '$app/forms';
-	import CatalogCard from './CatalogCard.svelte';
 
 	interface Props {
 		order: Order;
@@ -119,6 +118,7 @@
 	}
 
 	$effect(() => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency marker for $effect
 		isSelected;
 		if (!isSelected && (confirmationDeleteIsVisible || confirmationEditIsVisible)) {
 			toggleConfirmationDeleteIsVisible(false);

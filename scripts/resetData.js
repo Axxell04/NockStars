@@ -3,7 +3,7 @@ import { config } from 'dotenv';
 import * as table from '../src/lib/server/db/schema.js';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import fs from 'fs';
-import { eq, not } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 // Cargar variables de entorno desde el archivo .env
 config();

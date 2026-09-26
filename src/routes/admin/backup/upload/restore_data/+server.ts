@@ -13,7 +13,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 	try {
 		await execAsync('node scripts/restore.js');
 		return json({ success: true });
-	} catch (error) {
+	} catch {
 		return json({ success: false, message: 'Error al restaurar los datos' });
 	}
 };

@@ -23,7 +23,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			fs.writeFileSync(`uploads/imgs/${file.name}`, buffer);
 		}
 		return json({ success: true });
-	} catch (error) {
+	} catch {
 		return json({ success: false, message: 'Error al realizar la restauración' });
 	}
 };

@@ -2,7 +2,6 @@ import type { RequestHandler } from './$types';
 import { spawn } from 'child_process';
 import { json } from '@sveltejs/kit';
 import path from 'path';
-import fs from 'fs';
 
 import AdminZip from 'adm-zip';
 
@@ -14,10 +13,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 	return new Promise((resolve) => {
 		const process = spawn('node', [scriptPath]);
-		let output = '';
-		process.stdout.on('data', (data) => {
-			output += data.toString();
-		});
+		// Drain stdout so the child never blocks on a full pipe; its output is not consumed.
+		process.stdout.on('data', () => {});
 		process.stderr.on('data', (data) => {
 			console.error('Error: ', data.toString());
 		});

@@ -1,16 +1,11 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { fade, scale } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
 	import type { PageProps } from './$types';
-	import ProductCard from '$lib/components/ProductCard.svelte';
-	import { goto, invalidate, invalidateAll } from '$app/navigation';
-	import type { ProductComplete, ProductPagination } from '$lib/interfaces/product';
-	import Icon from '@iconify/svelte';
-	import type { Catalog, CatalogComplete } from '$lib/interfaces/catalog';
-	import AddCatalogModal from '$lib/components/modals/admin/catalogo/AddCatalogModal.svelte';
+	import { goto } from '$app/navigation';
+	import type { ProductPagination } from '$lib/interfaces/product';
+	import type { Catalog } from '$lib/interfaces/catalog';
 	import CatalogCard from '$lib/components/CatalogCard.svelte';
-	import DeleteCatalogModal from '$lib/components/modals/admin/catalogo/DeleteCatalogModal.svelte';
-	import EditCatalogModal from '$lib/components/modals/admin/catalogo/EditCatalogModal.svelte';
 
 	let { data }: PageProps = $props();
 
@@ -32,13 +27,10 @@
 		catalogSelected = catalog;
 	}
 
-	function setCatalogs(newCatalogs: Catalog[]) {
-		catalogs = newCatalogs;
-	}
-
 	// Effects
 
 	$effect(() => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency marker for $effect
 		productPagination;
 		scrollTo({ behavior: 'smooth', top: 170 });
 	});

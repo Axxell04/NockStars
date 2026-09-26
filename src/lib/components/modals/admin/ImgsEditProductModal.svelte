@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { ProductComplete } from '$lib/interfaces/product';
 	import { fade, scale } from 'svelte/transition';
-	import ContainerModal from '../ContainerModal.svelte';
 	import Icon from '@iconify/svelte';
 	import ImgsProductModal from '../ImgsProductModal.svelte';
 

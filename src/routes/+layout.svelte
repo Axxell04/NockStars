@@ -21,12 +21,27 @@
 	let seoUrl = $derived(page.url.href);
 	let seoType = $derived((seo.type as string) ?? 'website');
 
+	// JSON-LD structured data, injected into svelte:head below.
+	// Built here instead of inline in the markup because a template-literal
+	// interpolation inside an at-html expression breaks the Svelte parser used
+	// by ESLint. The closing tag is assembled from two parts for the same
+	// reason: a literal script close tag here would close this block early.
+	const jsonLdEndTag = '<' + '/script>';
+
+	let jsonLd = $derived(
+		`<script type="application/ld+json">${JSON.stringify({
+			'@context': 'https://schema.org',
+			'@type': 'Organization',
+			name: 'NockStars',
+			url: seoUrl,
+			logo: seoImage,
+			description: seoDescription
+		})}${jsonLdEndTag}`
+	);
+
 	let cartCount = $derived((data.cartCount as number) ?? 0);
 
 	let actualRoute = $derived(page.route.id);
-
-	let btnCardSelectNav: HTMLButtonElement | undefined = $state();
-	let btnCardSelectNavHeight = $state(41);
 
 	let cardSelectNavMenuIsVisible = $state(false);
 	let mobileNavIsVisible = $state(false);
@@ -64,12 +79,6 @@
 			}, 200);
 		}
 	}
-
-	$effect(() => {
-		if (typeof btnCardSelectNav !== 'undefined') {
-			btnCardSelectNavHeight = btnCardSelectNav.offsetHeight;
-		}
-	});
 </script>
 
 <svelte:head>
@@ -121,14 +130,8 @@
 	<meta name="twitter:image" content={seoImage} />
 
 	<!-- Schema.org structured data -->
-	{@html `<script type="application/ld+json">${JSON.stringify({
-		'@context': 'https://schema.org',
-		'@type': 'Organization',
-		name: 'NockStars',
-		url: seoUrl,
-		logo: seoImage,
-		description: seoDescription
-	})}</script>`}
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -- JSON-LD must be injected as raw markup; the payload is built in this file from route/load data, not raw user input -->
+	{@html jsonLd}
 </svelte:head>
 
 <!-- Threadverse animated background -->
@@ -176,7 +179,6 @@
 				</a>
 				<div class="relative" role="menu" aria-label="Menú de administración financiera">
 					<button
-						bind:this={btnCardSelectNav}
 						class="text-text-muted hover:text-brand-400 focus:text-brand-400 flex items-center gap-1 transition-colors duration-200"
 						onclick={() => {
 							toggleCardSelectNavMenuIsVisible();

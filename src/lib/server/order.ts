@@ -1,7 +1,7 @@
 import * as table from '$lib/server/db/schema';
 import { generateId } from '$lib/server/functions';
 import { getDb } from '$lib/server/db';
-import { eq, jaccardDistance } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 type GetOrderOptions = {
 	page?: number;
@@ -30,7 +30,9 @@ export async function createOrder(content: object, clientName: string) {
 }
 
 export async function getOrders(options: GetOrderOptions = {}) {
-	let { page = 1, limit = 10, completed, cod } = options;
+	const { limit = 10, completed, cod } = options;
+	// `page` is reassigned below, so it cannot join the const destructuring above.
+	let { page = 1 } = options;
 	const offset = (page - 1) * limit;
 	let orders: table.Order[] = [];
 	if (cod) {

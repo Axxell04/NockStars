@@ -77,6 +77,7 @@
 	}
 
 	$effect(() => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency marker for $effect
 		cart;
 		if (typeof btnUpdateCartElement !== 'undefined') {
 			btnUpdateCartElement.click();

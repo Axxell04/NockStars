@@ -1,18 +1,15 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import { fade, scale } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
 	import type { PageProps } from './$types';
-	import ProductCard from '$lib/components/ProductCard.svelte';
-	import { goto, invalidate, invalidateAll } from '$app/navigation';
-	import type { ProductComplete, ProductPagination } from '$lib/interfaces/product';
+	import type { ProductPagination } from '$lib/interfaces/product';
 	import Icon from '@iconify/svelte';
-	import type { Catalog, CatalogComplete } from '$lib/interfaces/catalog';
-	import AddCatalogModal from '$lib/components/modals/admin/catalogo/AddCatalogModal.svelte';
+	import type { Catalog } from '$lib/interfaces/catalog';
 	import CatalogCard from '$lib/components/CatalogCard.svelte';
+	import AddCatalogModal from '$lib/components/modals/admin/catalogo/AddCatalogModal.svelte';
 	import DeleteCatalogModal from '$lib/components/modals/admin/catalogo/DeleteCatalogModal.svelte';
 	import EditCatalogModal from '$lib/components/modals/admin/catalogo/EditCatalogModal.svelte';
 
-	let { data, form }: PageProps = $props();
+	let { data }: PageProps = $props();
 
 	// Pagination Data
 	let catalogs: Catalog[] = $state(data.catalogs);
@@ -62,15 +59,6 @@
 		}
 	}
 
-	function createListPages(totalPages: number) {
-		let list = [];
-		for (let index = 1; index <= totalPages; index++) {
-			list.push(index);
-		}
-
-		return list;
-	}
-
 	function cancelFocus(e: FocusEvent) {
 		const target = e.target as HTMLButtonElement;
 		if (target) {
@@ -83,6 +71,7 @@
 	// Effects
 
 	$effect(() => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency marker for $effect
 		productPagination;
 		scrollTo({ behavior: 'smooth', top: 170 });
 	});

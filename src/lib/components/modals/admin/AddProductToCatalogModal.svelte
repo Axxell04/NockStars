@@ -4,7 +4,6 @@
 	import { fade, scale } from 'svelte/transition';
 	import ContainerModal from '../ContainerModal.svelte';
 	import Icon from '@iconify/svelte';
-	import { onMount } from 'svelte';
 
 	interface Props {
 		setProductPagination: (newProductPagination: ProductPagination) => void;
@@ -27,7 +26,6 @@
 
 	let totalProductsList: ProductComplete[] = $state([]);
 	let productsToAddList: ProductComplete[] = $state([]);
-	let productsInCatalog: ProductComplete[] = $state([]);
 
 	function toggleProductToAdd(product: ProductComplete) {
 		const initLength = productsToAddList.length;
@@ -100,7 +98,7 @@
 				id="add-product-to-catalog"
 				action="?/add_product_to_catalog"
 				method="post"
-				use:enhance={({ formElement, formData, action, cancel }) => {
+				use:enhance={({ formElement }) => {
 					return async ({ result }) => {
 						if (result.type === 'failure') {
 							if (result.data?.message) {

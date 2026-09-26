@@ -1,11 +1,8 @@
 <script lang="ts">
 	import ProductCard from '$lib/components/ProductCard.svelte';
-	import { onMount } from 'svelte';
 	import { fade, scale, slide } from 'svelte/transition';
 	import type { PageProps } from './$types';
-	import ContainerModal from '$lib/components/modals/ContainerModal.svelte';
-	import ProductModal from '$lib/components/modals/ProductModal.svelte';
-	import type { Product, ProductComplete, ProductPagination } from '$lib/interfaces/product';
+	import type { ProductComplete, ProductPagination } from '$lib/interfaces/product';
 	import Icon from '@iconify/svelte';
 	import ImgsProductModal from '$lib/components/modals/ImgsProductModal.svelte';
 	import { enhance } from '$app/forms';
@@ -33,12 +30,9 @@
 	let cartCount: number = $derived(cart.reduce((acc, item) => acc + item.amount, 0));
 
 	// HTML Elements
-	let selectCatalogElement: HTMLButtonElement | undefined = $state();
 	let btnUpdateCartElement: HTMLButtonElement | undefined = $state();
 	let inputSearch: HTMLInputElement | undefined = $state();
 	let btnInputSearch: HTMLButtonElement | undefined = $state();
-
-	let selectCatalogElementHeight: number = $state(9);
 
 	// Selected Elements
 	let productSelected: ProductComplete | undefined = $state();
@@ -162,18 +156,14 @@
 	// Effects
 
 	$effect(() => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency marker for $effect
 		productPagination;
 		scrollTo({ behavior: 'smooth', top: 170 });
 	});
 
-	$effect(() => {
-		if (typeof selectCatalogElement !== 'undefined' && catalogListIsVisible) {
-			selectCatalogElementHeight = selectCatalogElement.clientHeight;
-		}
-	});
-
 	//Update cart locals
 	$effect(() => {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency marker for $effect
 		cart;
 		if (typeof btnUpdateCartElement !== 'undefined') {
 			btnUpdateCartElement.click();
@@ -201,7 +191,6 @@
 		>
 			<input type="text" hidden name="catalog_id" value={catalogId} />
 			<button
-				bind:this={selectCatalogElement}
 				type="button"
 				class="bg-surface-1/95 text-text-primary hover:border-brand-400/20 hover:bg-surface-2 flex items-center gap-2 rounded-xl border border-white/6 px-4 py-2 text-sm font-medium backdrop-blur-xl transition-all duration-300"
 				onclick={() => toggleCatalogListIsVisible()}
