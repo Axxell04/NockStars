@@ -4,6 +4,7 @@
 	import '../app.css';
 	import NavItem from '$lib/components/NavItem.svelte';
 	import { goto } from '$app/navigation';
+	import { renderJsonLdScript } from '$lib/json-ld';
 	import type { LayoutProps } from './$types';
 	import { scale, slide } from 'svelte/transition';
 
@@ -21,22 +22,18 @@
 	let seoUrl = $derived(page.url.href);
 	let seoType = $derived((seo.type as string) ?? 'website');
 
-	// JSON-LD structured data, injected into svelte:head below.
-	// Built here instead of inline in the markup because a template-literal
-	// interpolation inside an at-html expression breaks the Svelte parser used
-	// by ESLint. The closing tag is assembled from two parts for the same
-	// reason: a literal script close tag here would close this block early.
-	const jsonLdEndTag = '<' + '/script>';
-
+	// Schema.org structured data. Routed through renderJsonLdScript because
+	// Svelte escapes text interpolation, which would corrupt the JSON, so it has
+	// to be injected as raw markup and the escaping is ours to guarantee.
 	let jsonLd = $derived(
-		`<script type="application/ld+json">${JSON.stringify({
+		renderJsonLdScript({
 			'@context': 'https://schema.org',
 			'@type': 'Organization',
 			name: 'NockStars',
 			url: seoUrl,
 			logo: seoImage,
 			description: seoDescription
-		})}${jsonLdEndTag}`
+		})
 	);
 
 	let cartCount = $derived((data.cartCount as number) ?? 0);
@@ -130,7 +127,7 @@
 	<meta name="twitter:image" content={seoImage} />
 
 	<!-- Schema.org structured data -->
-	<!-- eslint-disable-next-line svelte/no-at-html-tags -- JSON-LD must be injected as raw markup; the payload is built in this file from route/load data, not raw user input -->
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -- JSON-LD cannot use Svelte's escaping or it stops being valid JSON; renderJsonLdScript escapes every `<` so the payload cannot close this script element early -->
 	{@html jsonLd}
 </svelte:head>
 

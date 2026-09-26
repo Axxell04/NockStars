@@ -112,6 +112,27 @@ runtime proof.
   hidden form are how pagination, catalog switching and cart sync reach the
   server. Removing one silently breaks the feature with no error.
 
+## Structured data: one serializer, never a hand-built string
+
+Schema.org JSON-LD must be rendered with `renderJsonLdScript` from
+`src/lib/json-ld.ts`. Never build the `<script type="application/ld+json">` string
+at the call site, and never interpolate into `{@html}` directly.
+
+Svelte's text interpolation escapes `&` and `<`, which corrupts JSON, so
+structured data has to be injected as raw markup. That makes the escaping the
+author's job, and `JSON.stringify` does not do it: it escapes for JSON, not for
+HTML, and leaves `<` and `/` untouched. A single `<` reaching the output closes
+the `<script>` element early and turns the rest of the payload into live markup.
+
+`renderJsonLdScript` replaces every `<` with `<`, its JSON escape. The payload
+stays valid JSON-LD and no tag boundary survives. It is also the only place that
+needs auditing, so new structured data gets the same protection for free. It
+warns in dev when a value carries a raw `<`, which means user input is reaching
+structured data and the source is worth fixing.
+
+The same reasoning applies to any future `{@html}`: it disables Svelte's
+escaping, so the value must be escaped or validated by the code that builds it.
+
 ## Commit hygiene
 
 - Conventional commits, English, one concern per commit.
