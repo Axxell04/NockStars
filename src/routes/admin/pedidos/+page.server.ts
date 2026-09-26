@@ -189,6 +189,7 @@ export const actions: Actions = {
 	},
 	goto_page: async (event) => {
 		const formData = await event.request.formData();
+		let totalPages = 0;
 		let gotoPage = 0;
 		const completed = event.locals.orderViewState
 			? event.locals.orderViewState === 'completed'
@@ -197,12 +198,17 @@ export const actions: Actions = {
 			: false;
 
 		try {
+			totalPages = parseInt(formData.get('total_pages') as string);
 			gotoPage = parseInt(formData.get('goto_page') as string);
-			if (isNaN(gotoPage)) {
+			if (isNaN(totalPages) || isNaN(gotoPage)) {
 				return fail(400, { message: 'Invalid pagination params' });
 			}
 		} catch {
 			return fail(400, { message: 'Invalid pagination params' });
+		}
+
+		if (gotoPage < 1 || gotoPage > totalPages) {
+			return fail(404, { message: 'Page not found' });
 		}
 
 		const orderPagination = await getOrders({ page: gotoPage, completed });

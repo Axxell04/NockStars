@@ -297,6 +297,7 @@
 					class="relative flex flex-col place-content-center"
 				>
 					<input type="number" hidden name="goto_page" value={gotoPage} />
+					<input type="number" hidden name="total_pages" value={orderPagination.totalPages} />
 					<input type="hidden" name="view_state" value={viewState} />
 					<button
 						type="button"
