@@ -18,7 +18,11 @@
 	let gotoPage: number | undefined = $state();
 
 	// Catalogs
-	let catalogs = $state(data.catalogs);
+	// Read-only, never assigned locally, so `$derived` is safe here and keeps the
+	// catalog list in sync whenever the load data refreshes (e.g. a catalog added
+	// in the admin). Do NOT convert the three seeds below to `$derived`: they are
+	// deliberately bootstrap-only and are re-seeded manually from action results.
+	let catalogs = $derived(data.catalogs);
 	let catalogId = $state(data.catalogId ?? '');
 
 	// Search
