@@ -62,8 +62,6 @@
 	}
 
 	$effect(() => {
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency marker for $effect
-		isSelected;
 		if (!isSelected && (confirmationDeleteIsVisible || confirmationEditIsVisible)) {
 			toggleConfirmationDeleteIsVisible(false);
 			toggleConfirmationEditIsVisible(false);

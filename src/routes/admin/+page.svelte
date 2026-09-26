@@ -122,9 +122,9 @@
 	// Effects
 
 	$effect(() => {
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency marker for $effect
-		productPagination;
-		scrollTo({ behavior: 'smooth', top: 170 });
+		if (productPagination.currentPage >= 0) {
+			scrollTo({ behavior: 'smooth', top: 170 });
+		}
 	});
 
 	$inspect(productPagination);

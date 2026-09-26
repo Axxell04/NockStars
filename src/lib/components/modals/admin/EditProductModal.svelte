@@ -36,9 +36,7 @@
 	// })
 
 	$effect(() => {
-		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- reactive dependency marker for $effect
-		editProductModalIsVisible;
-		if (productSelected) {
+		if (editProductModalIsVisible && productSelected) {
 			name = productSelected.product.name;
 			price = productSelected.product.price.toString();
 			imgsList = [];
