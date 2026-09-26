@@ -115,7 +115,12 @@
 	// Effects
 
 	$effect(() => {
-		if (orderPagination.currentPage >= 0) {
+		// `orders` is the dependency: re-frame the viewport and drop the
+		// selection whenever the rendered list is replaced. This is a presence
+		// check, NOT page validation — `currentPage` is never verified anywhere
+		// in this codebase, and the actions below stay unconditional so a
+		// selection carried over from another page is always dropped.
+		if (orderPagination.orders) {
 			scrollTo({ behavior: 'smooth', top: 170 });
 			orderSelected = undefined;
 		}

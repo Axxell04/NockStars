@@ -71,7 +71,9 @@
 	// Effects
 
 	$effect(() => {
-		if (productPagination.currentPage >= 0) {
+		// `products` is the dependency: re-frame whenever the rendered list is
+		// replaced. A presence check, NOT page validation.
+		if (productPagination.products) {
 			scrollTo({ behavior: 'smooth', top: 170 });
 		}
 	});

@@ -164,7 +164,10 @@
 	let hasScrolledToProducts = false;
 
 	$effect(() => {
-		if (productPagination.currentPage >= 0) {
+		// `products` is the dependency: the effect re-frames the viewport
+		// whenever the rendered list is replaced. It is a presence check, NOT
+		// page validation — `currentPage` is never verified anywhere.
+		if (productPagination.products) {
 			// The visitor should land at the top of the storefront. Only re-frame
 			// the viewport once the product set has actually changed underneath
 			// them (pagination, catalog switch), not on the initial mount.

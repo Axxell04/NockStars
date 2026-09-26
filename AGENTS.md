@@ -41,7 +41,7 @@ $effect(() => {
 
 // Correct — the dependency and its meaning are both visible
 $effect(() => {
-	if (productPagination.currentPage >= 0) {
+	if (productPagination.products) {
 		scrollTo({ top: 170 });
 	}
 });
@@ -54,6 +54,13 @@ its author, and it is the reason this rule is mechanically enforced.
 If an effect genuinely needs to re-run on a binding it does not otherwise use,
 that is a signal the effect's condition is incomplete — widen the condition
 until the real dependency is visible. Do not paper over it.
+
+**Never invent a condition to satisfy this rule.** A guard like
+`currentPage >= 0` is a tautology that reads like validation: it implies the
+page number is being checked when nothing checks it anywhere in this codebase.
+Read the value the effect actually acts on — the rendered list, not the page
+counter — and let the body stay unconditional. A comment that says what the
+condition really is worth more than a condition that looks safer than it is.
 
 **Enforced by `npm run check:effects`** (also runs inside `npm run lint` and in
 the `pre-commit` hook). It rejects both bare markers and
