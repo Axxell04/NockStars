@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { checkOrderExists } from '$lib/server/order';
+import { checkOrderExists, getOrderWithItems } from '$lib/server/order';
 
 export const load: PageServerLoad = async (event) => {
 	const cod = event.params.cod;
@@ -17,8 +17,9 @@ export const load: PageServerLoad = async (event) => {
 	if (event.locals.user) {
 		return redirect(307, `/admin/pedidos?cod=${cod}`);
 	} else {
+		const order = await getOrderWithItems(cod);
 		return {
-			message: 'Su pedido está siendo manejado, gracias por confiar en NockStars'
+			order
 		};
 	}
 };

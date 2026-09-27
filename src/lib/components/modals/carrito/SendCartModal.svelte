@@ -3,21 +3,30 @@
 	import ContainerModal from '../ContainerModal.svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
-	import type { PurchaseDetail } from '$lib/interfaces/cart';
+	import type { CartItemWithProduct } from '$lib/actions';
+
 	import { page } from '$app/state';
 
 	interface Props {
-		resetCart: () => void;
 		sendCartModalIsVisible: boolean;
 		toggleSendCartModalIsVisible: (visible?: boolean) => void;
-		cart: PurchaseDetail[];
+		cart: CartItemWithProduct[];
 	}
 
-	let { resetCart, sendCartModalIsVisible, toggleSendCartModalIsVisible, cart }: Props = $props();
+	let { sendCartModalIsVisible, toggleSendCartModalIsVisible, cart }: Props = $props();
 
 	let formMessage = $state('');
 
-	let totalValue = $derived(cart.reduce((pv, cv) => pv + cv.amount * cv.product.product.price, 0));
+	let totalValue = $derived(
+		cart.reduce((pv, cv) => {
+			const variant = cv.variant;
+			const price =
+				variant?.priceOverride !== null && variant?.priceOverride !== undefined
+					? Number(variant.priceOverride)
+					: cv.product.price;
+			return pv + price * cv.quantity;
+		}, 0)
+	);
 
 	function cancelFocus(e: FocusEvent) {
 		const target = e.target as HTMLButtonElement;
@@ -60,7 +69,6 @@
 							}
 						} else if (result.type === 'success') {
 							await invalidateAll();
-							resetCart();
 							if (result.data?.cod) {
 								sendWhatsApp(result.data?.cod as string);
 							}
@@ -73,15 +81,10 @@
 				<input type="hidden" name="cart" value={JSON.stringify(cart)} />
 				<div class="flex flex-col place-items-center">
 					<label for="total_value">Valor total</label>
-					<span class="font-semibold">$ {totalValue}</span>
+					<span class="font-semibold">$ {totalValue.toFixed(2)}</span>
 				</div>
 				<div class="flex flex-col place-items-center gap-2">
 					<label for="contact">Nombre de cliente</label>
-					<!-- <input type="hidden" name="contact" id="contact" value={clientName} autocomplete="off" /> -->
-					<!-- <input type="number" name="contact-mask" id="contact-mask" required autocomplete="off"
-                class="border border-red-400 rounded-md px-1 outline-none max-w-full"
-                oninput={(e) => updateClientName(e)}
-                /> -->
 					<input
 						type="text"
 						name="client-name"

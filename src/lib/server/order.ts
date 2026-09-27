@@ -16,12 +16,70 @@ export async function checkOrderExists(cod: string) {
 	return false;
 }
 
+export async function getOrderWithItems(cod: string) {
+	const [order] = await getDb().select().from(table.order).where(eq(table.order.id, cod)).execute();
+
+	if (!order) {
+		return null;
+	}
+
+	// Get order items with product and variant details
+	const orderItems = await getDb()
+		.select()
+		.from(table.orderItem)
+		.where(eq(table.orderItem.orderId, cod))
+		.execute();
+
+	const enrichedItems = [];
+
+	for (const item of orderItems) {
+		const [product] = await getDb()
+			.select()
+			.from(table.product)
+			.where(eq(table.product.id, item.productId))
+			.execute();
+
+		// Get product images
+		let productImages: table.Img[] = [];
+		if (product) {
+			productImages = await getDb()
+				.select()
+				.from(table.img)
+				.where(eq(table.img.productId, product.id))
+				.execute();
+		}
+
+		let variant = null;
+		if (item.variantId) {
+			const [variantRow] = await getDb()
+				.select()
+				.from(table.productVariant)
+				.where(eq(table.productVariant.id, item.variantId))
+				.execute();
+			variant = variantRow;
+		}
+
+		enrichedItems.push({
+			...item,
+			product: product ? { ...product, images: productImages } : null,
+			variant
+		});
+	}
+
+	return {
+		...order,
+		items: enrichedItems
+	};
+}
+
 export async function createOrder(content: object, clientName: string) {
 	const orderId = generateId(10);
-	const order: table.Order = {
+	const order: table.OrderInsert = {
 		id: orderId,
 		content,
 		clientName,
+		completed: false,
+		revenueId: null,
 		createdAt: new Date()
 	};
 

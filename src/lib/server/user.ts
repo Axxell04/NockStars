@@ -45,9 +45,10 @@ export async function updatePrivileges(id: string, admin: boolean) {
 export async function generateUserToken() {
 	const id = generateId();
 	const text = generateToken();
-	const userToken: table.UserToken = {
+	const userToken: table.UserTokenInsert = {
 		id,
-		text
+		text,
+		active: true
 	};
 
 	await getDb().insert(table.user_token).values(userToken).execute();

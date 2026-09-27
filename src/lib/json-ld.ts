@@ -1,4 +1,6 @@
 import { dev } from '$app/environment';
+import type { Product, ProductVariant } from '$lib/server/db/schema';
+import type { VariantComplete } from '$lib/actions';
 
 /**
  * Renders a schema.org payload as a complete `<script type="application/ld+json">`
@@ -18,7 +20,7 @@ import { dev } from '$app/environment';
  *
  * ## The invariant
  *
- * `<` is replaced with `<`, its JSON escape. The payload stays valid
+ * `<` is replaced with `\u003c`, its JSON escape. The payload stays valid
  * JSON-LD — `JSON.parse` and Google's parser both resolve it to the same
  * character — while the HTML parser can no longer see a tag boundary. It is the
  * only character that needs handling: every tag, and therefore every
@@ -40,4 +42,138 @@ export function renderJsonLdScript(data: unknown): string {
 	}
 
 	return `<script type="application/ld+json">${json.replace(/</g, '\\u003c')}</script>`;
+}
+
+export interface ProductJsonLdInput {
+	product: Product;
+	variant: (ProductVariant & { images?: { url: string; alt: string }[] }) | null;
+	baseUrl: string;
+}
+
+export interface ProductWithVariantsJsonLdInput {
+	product: Product;
+	variants: VariantComplete[];
+	selectedVariant: VariantComplete | null;
+	baseUrl: string;
+}
+
+/**
+ * Builds a schema.org Product JSON-LD object for a product detail page with variant offers.
+ * Uses the selected variant for price, availability, and description in the main product,
+ * and includes all variants as separate offers.
+ */
+export function buildProductWithVariantsJsonLd(input: ProductWithVariantsJsonLdInput): object {
+	const { product, variants, selectedVariant, baseUrl } = input;
+
+	// Use selected variant images if available, otherwise fall back to product images
+	const selectedVariantImages = selectedVariant?.images?.map((img) => `${baseUrl}${img.url}`) ?? [];
+	const productImages: string[] = []; // Product images would need to be passed separately if needed
+
+	const mainImages = selectedVariantImages.length > 0 ? selectedVariantImages : productImages;
+
+	const mainDescription = selectedVariant?.description ?? product.name;
+
+	// Build offers array - one per variant plus implicit if no explicit variants
+	const offers = variants.map((variant) => {
+		const variantPrice =
+			variant.priceOverride !== null && variant.priceOverride !== undefined
+				? Number(variant.priceOverride)
+				: product.price;
+
+		const variantStock = variant.stock;
+
+		const variantAvailability =
+			variantStock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock';
+
+		return {
+			'@type': 'Offer',
+			url: `${baseUrl}/producto/${product.id}?variant=${variant.id}`,
+			priceCurrency: 'USD',
+			price: variantPrice.toFixed(2),
+			availability: variantAvailability,
+			sku: variant.id,
+			name: `${variant.size} / ${variant.color} / ${variant.cut}`
+		};
+	});
+
+	// If no explicit variants, include the implicit variant as a single offer
+	if (variants.length === 0) {
+		const implicitPrice = product.price;
+		const implicitStock = product.stock;
+		const implicitAvailability =
+			implicitStock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock';
+
+		offers.push({
+			'@type': 'Offer',
+			url: `${baseUrl}/producto/${product.id}`,
+			priceCurrency: 'USD',
+			price: implicitPrice.toFixed(2),
+			availability: implicitAvailability,
+			sku: product.id,
+			name: 'Único'
+		});
+	}
+
+	return {
+		'@context': 'https://schema.org',
+		'@type': 'Product',
+		name: product.name,
+		description: mainDescription,
+		image: mainImages.length > 0 ? mainImages : undefined,
+		offers,
+		sku: selectedVariant?.id && selectedVariant.id !== 'implicit' ? selectedVariant.id : product.id
+	};
+}
+
+/**
+ * Builds a schema.org Product JSON-LD object for a product detail page (legacy single-variant version).
+ * Uses the selected variant for price, availability, and description.
+ */
+export function buildProductJsonLd(input: ProductJsonLdInput): object {
+	const { product, variant, baseUrl } = input;
+
+	// Use variant images if available, otherwise fall back to product images
+	// Note: product images would need to be passed separately if variant has none
+	const images = variant?.images?.map((img) => `${baseUrl}${img.url}`) ?? [];
+
+	const price =
+		variant?.priceOverride !== null && variant?.priceOverride !== undefined
+			? Number(variant.priceOverride)
+			: product.price;
+
+	const stock = variant?.id !== 'implicit' && variant !== null ? variant.stock : product.stock;
+
+	const availability = stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock';
+
+	const description = variant?.description ?? product.name;
+
+	return {
+		'@context': 'https://schema.org',
+		'@type': 'Product',
+		name: product.name,
+		description,
+		image: images.length > 0 ? images : undefined,
+		offers: {
+			'@type': 'Offer',
+			url: `${baseUrl}/producto/${product.id}${variant?.id && variant.id !== 'implicit' ? `?variant=${variant.id}` : ''}`,
+			priceCurrency: 'USD',
+			price: price.toFixed(2),
+			availability
+		},
+		sku: variant?.id && variant.id !== 'implicit' ? variant.id : product.id
+	};
+}
+
+/**
+ * Renders a complete Product JSON-LD script tag for a product detail page with variant offers.
+ */
+export function renderProductWithVariantsJsonLd(input: ProductWithVariantsJsonLdInput): string {
+	return renderJsonLdScript(buildProductWithVariantsJsonLd(input));
+}
+
+/**
+ * Renders a complete Product JSON-LD script tag for a product detail page (legacy single-variant version).
+ */
+export function renderProductJsonLd(input: ProductJsonLdInput): string {
+	return renderJsonLdScript(buildProductJsonLd(input));
 }

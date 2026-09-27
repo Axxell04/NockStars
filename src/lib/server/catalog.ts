@@ -1,7 +1,7 @@
 import * as table from '$lib/server/db/schema';
 import { encodeBase32LowerCase } from '@oslojs/encoding';
 import { getDb } from '$lib/server/db';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, desc } from 'drizzle-orm';
 
 export async function createCatalog(name: string, description?: string) {
 	const productId = generateId();
@@ -57,7 +57,7 @@ export async function addProductToCatalog(productId: string, catalogId: string) 
 	await getDb().insert(table.productCatalog).values(productCatalog).execute();
 }
 
-export async function removeProductToCatalog(productId: string, catalogId: string) {
+export async function removeProductFromCatalog(productId: string, catalogId: string) {
 	await getDb()
 		.delete(table.productCatalog)
 		.where(
@@ -67,6 +67,39 @@ export async function removeProductToCatalog(productId: string, catalogId: strin
 			)
 		)
 		.execute();
+}
+
+export async function getProductsByCatalog(catalogId: string) {
+	const products = await getDb()
+		.select({
+			id: table.product.id,
+			name: table.product.name,
+			price: table.product.price,
+			stock: table.product.stock,
+			createdAt: table.product.createdAt
+		})
+		.from(table.product)
+		.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
+		.where(eq(table.productCatalog.catalogId, catalogId))
+		.orderBy(desc(table.product.createdAt))
+		.execute();
+
+	const listProducts: { product: (typeof products)[0]; imgs: table.Img[] }[] = [];
+
+	for (const product of products) {
+		const imgs = await getDb()
+			.select()
+			.from(table.img)
+			.where(eq(table.img.productId, product.id))
+			.execute();
+
+		listProducts.push({
+			product,
+			imgs
+		});
+	}
+
+	return listProducts;
 }
 
 // Complementary Functions

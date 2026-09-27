@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import type { ProductComplete } from '$lib/interfaces/product';
 	import Icon from '@iconify/svelte';
 	import { scale } from 'svelte/transition';
@@ -7,37 +8,21 @@
 
 	interface Props {
 		product: ProductComplete;
-		productSelected?: ProductComplete | undefined;
-		selectThisProduct?: (product: ProductComplete) => void;
-		toggleProductModalIsVisible?: (visible?: boolean) => void;
 		toggleDeleteProductModalIsVisible?: (visible?: boolean) => void;
 		toggleEditProductModalIsVisible?: (visible?: boolean) => void;
 	}
 
-	let {
-		product,
-		toggleProductModalIsVisible,
-		toggleDeleteProductModalIsVisible,
-		toggleEditProductModalIsVisible,
-		productSelected,
-		selectThisProduct
-	}: Props = $props();
+	let { product, toggleDeleteProductModalIsVisible, toggleEditProductModalIsVisible }: Props =
+		$props();
 
 	let actualRoute = $derived(page.route.id);
-	let isSelected = $derived(product.product.id === productSelected?.product.id);
+	let isAdminRoute = $derived(actualRoute?.includes('/admin'));
 
-	if (!toggleProductModalIsVisible) {
-		toggleProductModalIsVisible = () => {};
-	}
 	if (!toggleDeleteProductModalIsVisible) {
 		toggleDeleteProductModalIsVisible = () => {};
 	}
 	if (!toggleEditProductModalIsVisible) {
 		toggleEditProductModalIsVisible = () => {};
-	}
-
-	if (!selectThisProduct) {
-		selectThisProduct = () => {};
 	}
 
 	function cancelFocus(e: FocusEvent) {
@@ -52,8 +37,12 @@
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter' || e.key === ' ') {
 			e.preventDefault();
-			selectThisProduct?.(product);
+			navigateToProduct();
 		}
+	}
+
+	function navigateToProduct() {
+		goto(`/producto/${product.product.id}`);
 	}
 
 	// Auto-carousel
@@ -123,11 +112,8 @@
 
 <div
 	bind:this={cardElement}
-	class="group/card card-thread hover:shadow-glow-md relative isolate flex h-80 w-72 cursor-pointer flex-col overflow-hidden rounded-[1.25rem] transition-all duration-500 ease-out outline-none {isSelected &&
-	actualRoute?.includes('/admin')
-		? 'ring-brand-400/40 shadow-glow-md ring-1 ring-inset'
-		: ''}"
-	onclick={() => selectThisProduct(product)}
+	class="group/card card-thread hover:shadow-glow-md relative isolate flex h-80 w-72 cursor-pointer flex-col overflow-hidden rounded-[1.25rem] transition-all duration-500 ease-out outline-none"
+	onclick={navigateToProduct}
 	onmouseenter={() => {
 		isHovered = true;
 	}}
@@ -199,7 +185,7 @@
 	></div>
 
 	<!-- Admin overlay — Thread-wrapped -->
-	{#if isSelected && actualRoute?.includes('/admin')}
+	{#if isAdminRoute}
 		<div
 			transition:scale={{ duration: 150, start: 0.9 }}
 			class="glass absolute top-3 right-3 z-30 flex flex-col items-center gap-2 rounded-xl border border-white/8 p-2 text-2xl"

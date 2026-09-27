@@ -5,12 +5,11 @@
 	import { invalidateAll } from '$app/navigation';
 
 	interface Props {
-		resetCart: () => void;
 		clearCartModalIsVisible: boolean;
 		toggleClearCartModalIsVisible: (visible?: boolean) => void;
 	}
 
-	let { resetCart, clearCartModalIsVisible, toggleClearCartModalIsVisible }: Props = $props();
+	let { clearCartModalIsVisible, toggleClearCartModalIsVisible }: Props = $props();
 
 	function cancelFocus(e: FocusEvent) {
 		const target = e.target as HTMLButtonElement;
@@ -26,13 +25,12 @@
 	<div transition:fade={{ duration: 200 }}>
 		<ContainerModal toggleModal={toggleClearCartModalIsVisible} cancelClick={true}>
 			<form
-				action="?/clear_cart"
+				action="?/clearCart"
 				method="post"
 				use:enhance={() => {
 					return async ({ result }) => {
 						if (result.type === 'success') {
 							await invalidateAll();
-							resetCart();
 							toggleClearCartModalIsVisible(false);
 						}
 					};

@@ -6,7 +6,7 @@ import {
 	CLOUDINARY_API_SECRET
 } from '$env/static/private';
 
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) {
 		return json({ error: 'Unauthorized' }, { status: 401 });
 	}
@@ -25,7 +25,10 @@ export const GET: RequestHandler = async ({ locals }) => {
 	});
 
 	const timestamp = Math.round(Date.now() / 1000);
-	const folder = 'murci/products';
+	// Support variant-specific folders: ?type=variant&variantId=xxx
+	const type = url.searchParams.get('type');
+	const variantId = url.searchParams.get('variantId');
+	const folder = type === 'variant' && variantId ? `murci/variants/${variantId}` : 'murci/products';
 
 	const signature = cloudinary.utils.api_sign_request({ timestamp, folder }, CLOUDINARY_API_SECRET);
 

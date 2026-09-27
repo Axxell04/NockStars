@@ -8,7 +8,7 @@ import {
 	getProducts,
 	updateProduct
 } from '$lib/server/product';
-import { addProductToCatalog, getCatalogs, removeProductToCatalog } from '$lib/server/catalog';
+import { addProductToCatalog, getCatalogs, removeProductFromCatalog } from '$lib/server/catalog';
 import type { ProductComplete } from '$lib/interfaces/product';
 
 export const load: PageServerLoad = async (event) => {
@@ -291,7 +291,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			await removeProductToCatalog(productId, catalogId);
+			await removeProductFromCatalog(productId, catalogId);
 		} catch (error) {
 			console.log(error);
 			return fail(500, { message: 'Internal server error' });

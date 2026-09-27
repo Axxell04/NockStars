@@ -38,10 +38,6 @@
 	// Selected Product
 	let productSelected: ProductComplete | undefined = $state();
 
-	function selectThisProduct(product: ProductComplete) {
-		productSelected = product;
-	}
-
 	function setProductSelected(product: ProductComplete) {
 		productSelected = product;
 	}
@@ -373,8 +369,6 @@
 				<div class="animate-thread-appear" style="--stagger-delay: {60 * index}ms">
 					<ProductCard
 						{product}
-						{productSelected}
-						{selectThisProduct}
 						{toggleDeleteProductModalIsVisible}
 						{toggleEditProductModalIsVisible}
 					/>

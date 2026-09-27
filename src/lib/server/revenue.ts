@@ -5,10 +5,10 @@ import { desc, eq } from 'drizzle-orm';
 
 export async function createRevenue(value: number, reason?: string) {
 	const revenueId = generateId();
-	const revenue: table.Revenue = {
+	const revenue: table.RevenueInsert = {
 		id: revenueId,
 		value,
-		reason,
+		reason: reason ?? null,
 		createdAt: new Date()
 	};
 

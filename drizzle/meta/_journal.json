@@ -5,8 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1788909839287,
-      "tag": "0000_bored_nightcrawler",
+      "when": 1790461871782,
+      "tag": "0001_add_product_variants_and_cart",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790470284964,
+      "tag": "0001_conscious_gorilla_man",
       "breakpoints": true
     }
   ]

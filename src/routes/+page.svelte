@@ -4,10 +4,10 @@
 	import type { PageProps } from './$types';
 	import type { ProductComplete, ProductPagination } from '$lib/interfaces/product';
 	import Icon from '@iconify/svelte';
-	import ImgsProductModal from '$lib/components/modals/ImgsProductModal.svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import Toast from '$lib/components/Toast.svelte';
+	import type { CartItemWithProduct } from '$lib/actions';
 
 	let { data }: PageProps = $props();
 
@@ -30,25 +30,15 @@
 	let searchValue = $state('');
 
 	// Cart
-	let cart = $state(data.cart);
-	let cartCount: number = $derived(cart.reduce((acc, item) => acc + item.amount, 0));
+	let cart: CartItemWithProduct[] = $state(data.cartItems);
+	let cartCount: number = $derived(cart.reduce((acc, item) => acc + item.quantity, 0));
 
 	// HTML Elements
 	let btnUpdateCartElement: HTMLButtonElement | undefined = $state();
 	let inputSearch: HTMLInputElement | undefined = $state();
 	let btnInputSearch: HTMLButtonElement | undefined = $state();
 
-	// Selected Elements
-	let productSelected: ProductComplete | undefined = $state();
-
-	function selectThisProduct(product: ProductComplete) {
-		productSelected = product;
-
-		toggleProductModalIsVisible(true);
-	}
-
 	// Visible Elements
-	let productModalIsVisible = $state(false);
 	let gotoPageListIsVisible = $state(false);
 	let catalogListIsVisible = $state(false);
 
@@ -56,13 +46,6 @@
 	let toastMessage = $state('');
 
 	// Toggle Visible Elements
-	function toggleProductModalIsVisible(visible?: boolean) {
-		if (typeof visible !== 'undefined') {
-			productModalIsVisible = visible;
-		} else {
-			productModalIsVisible = !productModalIsVisible;
-		}
-	}
 	function toggleGotoPageListIsVisible(visible?: boolean) {
 		if (typeof visible !== 'undefined') {
 			gotoPageListIsVisible = visible;
@@ -86,36 +69,6 @@
 	}
 
 	///////
-
-	function addToCart() {
-		if (typeof productSelected === 'undefined') {
-			return;
-		}
-
-		const indexDetail = cart.findIndex(
-			(des) => des.product.product.id === productSelected?.product.id
-		);
-
-		if (indexDetail !== -1) {
-			cart = cart.map((pd, index) => {
-				if (index === indexDetail) {
-					return {
-						product: cart[indexDetail].product,
-						amount: cart[indexDetail].amount + 1
-					};
-				} else {
-					return pd;
-				}
-			});
-		} else {
-			cart = [...cart, { product: productSelected, amount: 1 }];
-		}
-
-		toastMessage = 'Producto añadido al carrito';
-		setTimeout(() => {
-			toastMessage = '';
-		}, 3000);
-	}
 
 	function setProductPagination(newProductPagination: ProductPagination) {
 		productPagination = newProductPagination;
@@ -474,12 +427,7 @@
 	>
 		{#each products as product, index (product.product.id)}
 			<div class="animate-thread-appear" style="--stagger-delay: {60 * index}ms">
-				<ProductCard
-					{product}
-					{toggleProductModalIsVisible}
-					{productSelected}
-					{selectThisProduct}
-				/>
+				<ProductCard {product} />
 			</div>
 		{/each}
 	</section>
@@ -502,17 +450,3 @@
 </form>
 
 <Toast message={toastMessage} />
-
-<ImgsProductModal
-	{productSelected}
-	imgsProductModalIsVisible={productModalIsVisible}
-	toggleImgsProductModalIsVisible={toggleProductModalIsVisible}
->
-	<button
-		class="text-text-secondary hover:text-brand-400 hover:border-brand-400/30 hover:bg-brand-400/10 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 transition-all duration-200"
-		onclick={addToCart}
-		onfocus={(e) => cancelFocus(e)}
-	>
-		<Icon icon="bi:cart-plus-fill" class="text-2xl" />
-	</button>
-</ImgsProductModal>
