@@ -31,6 +31,7 @@
 
 	// Cart
 	let cart: CartItemWithProduct[] = $state(data.cartItems);
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	let cartCount: number = $derived(cart.reduce((acc, item) => acc + item.quantity, 0));
 
 	// HTML Elements
@@ -216,7 +217,7 @@
 		</form>
 
 		<!-- Cart — docked beside the catalog selector, same visual level -->
-		<a
+		<!-- <a
 			href="/carrito"
 			class="group bg-surface-1/95 text-text-primary hover:border-brand-400/20 hover:bg-surface-2 relative ml-auto flex items-center rounded-xl border border-white/6 px-4 py-2 text-sm font-medium backdrop-blur-xl transition-all duration-300"
 			onfocus={(e) => cancelFocus(e)}
@@ -230,7 +231,7 @@
 					{cartCount > 99 ? '99+' : cartCount}
 				</span>
 			{/if}
-		</a>
+		</a> -->
 	</div>
 
 	<!-- Toolbar — Thread-wrapped glass panel, sticky below header -->
