@@ -110,34 +110,13 @@
 		return compressedFile;
 	}
 
-	async function convertToWebP(file: File): Promise<File> {
-		const bitmap = await createImageBitmap(file);
-		const canvas = document.createElement('canvas');
-		canvas.width = bitmap.width;
-		canvas.height = bitmap.height;
-		const ctx = canvas.getContext('2d')!;
-		ctx.drawImage(bitmap, 0, 0);
-		bitmap.close();
-		return new Promise((resolve, reject) => {
-			canvas.toBlob(
-				(blob) => {
-					if (!blob) return reject(new Error('WebP conversion failed'));
-					resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), { type: 'image/webp' }));
-				},
-				'image/webp',
-				0.85
-			);
-		});
-	}
-
 	async function handleFile(e: Event) {
 		const target = e.target as HTMLInputElement;
 		const files = target.files;
 		if (!files || !files.length) return;
 		imgsList = [];
 		for (const file of files) {
-			const compressed = await compress(file);
-			imgsList.push(await convertToWebP(compressed));
+			imgsList.push(await compress(file));
 		}
 	}
 

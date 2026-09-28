@@ -4,8 +4,8 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import type { CartItemWithProduct } from '$lib/actions';
-
 	import { page } from '$app/state';
+	import Icon from '@iconify/svelte';
 
 	interface Props {
 		sendCartModalIsVisible: boolean;
@@ -27,15 +27,6 @@
 			return pv + price * cv.quantity;
 		}, 0)
 	);
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
-	}
 
 	function sendWhatsApp(cod: string) {
 		const number = '593997733619';
@@ -76,46 +67,59 @@
 						}
 					};
 				}}
-				class="flex flex-col gap-2 rounded-md border bg-stone-900 px-4 py-3"
+				class="modal-shell"
 			>
 				<input type="hidden" name="cart" value={JSON.stringify(cart)} />
-				<div class="flex flex-col place-items-center">
-					<label for="total_value">Valor total</label>
-					<span class="font-semibold">$ {totalValue.toFixed(2)}</span>
+
+				<div class="modal-header">
+					<h3 class="modal-title">Realizar Pedido</h3>
+					<button
+						type="button"
+						class="modal-close"
+						onclick={() => toggleSendCartModalIsVisible(false)}
+						aria-label="Cerrar modal"
+					>
+						<Icon icon="material-symbols:close-rounded" class="text-xl" />
+					</button>
 				</div>
-				<div class="flex flex-col place-items-center gap-2">
-					<label for="contact">Nombre de cliente</label>
+
+				<div
+					class="modal-field bg-surface-2/60 flex flex-row items-center justify-between rounded-lg border border-white/6 p-3"
+				>
+					<span class="text-text-secondary text-sm font-medium">Valor total:</span>
+					<span class="text-brand-400 font-display text-lg font-bold tracking-wide"
+						>$ {totalValue.toFixed(2)}</span
+					>
+				</div>
+
+				<div class="modal-field">
+					<label for="client-name" class="modal-label">Nombre del cliente</label>
 					<input
 						type="text"
 						name="client-name"
 						id="client-name"
 						required
 						autocomplete="off"
-						class="max-w-full rounded-md border border-red-400 px-1 outline-none"
+						placeholder="Tu nombre completo"
+						class="modal-input"
 						autocorrect="off"
 					/>
 				</div>
-				<div class="flex flex-row place-content-center gap-2">
+
+				<div class="modal-actions">
 					<button
 						type="button"
-						class="rounded border px-2 py-1 hover:text-red-500 focus:text-red-500"
-						onclick={() => {
-							toggleSendCartModalIsVisible(false);
-						}}
-						onfocus={(e) => cancelFocus(e)}
+						class="btn-secondary"
+						onclick={() => toggleSendCartModalIsVisible(false)}
 					>
 						Cancelar
 					</button>
-					<button
-						class="rounded border bg-red-400 px-2 py-1 text-stone-900 hover:bg-red-500 focus:bg-red-500"
-						onfocus={(e) => cancelFocus(e)}
-					>
-						Realizar pedido
-					</button>
+					<button type="submit" class="btn-primary"> Realizar pedido </button>
 				</div>
+
 				{#if formMessage}
 					<div transition:scale>
-						<p class="text-center text-red-400">
+						<p class="text-center text-sm font-medium text-red-400">
 							{formMessage}
 						</p>
 					</div>

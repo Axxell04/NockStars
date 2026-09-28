@@ -64,7 +64,11 @@ const RESERVED = new Set([
 	'function',
 	'class',
 	'export',
-	'import'
+	'import',
+	'null',
+	'undefined',
+	'true',
+	'false'
 ]);
 
 const SUPPRESSION = /eslint-disable(?:-next-line|-line)?[^\n]*no-unused-expressions/;

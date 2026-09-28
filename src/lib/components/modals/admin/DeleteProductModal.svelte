@@ -58,11 +58,9 @@
 						if (result.type === 'success') {
 							formElement.reset();
 							if (result.data?.pagination) {
-								// console.log(result.data.products)
 								setProductPagination(result.data.pagination as ProductPagination);
 								toggleDeleteProductModalIsVisible(false);
 							}
-							// await goto("/admin", {invalidateAll: true});
 						} else if (result.type === 'failure') {
 							if (result.data?.message) {
 								formMessage = result.data.message as string;
@@ -71,58 +69,60 @@
 					};
 				}}
 				enctype="multipart/form-data"
-				class="relative flex max-h-fit max-w-full flex-col gap-2 rounded-md border border-red-400 bg-stone-900 px-10 py-5"
+				class="modal-shell"
 			>
-				<div class="flex flex-col place-items-center gap-2">
-					<input
-						type="hidden"
-						name="product_id"
-						value={!productSelected ? '' : productSelected.product.id}
-					/>
-					<input type="hidden" name="catalog_id" value={catalogId} />
-					<label for="name">Nombre</label>
-					<span class="text-red-300">
+				<div class="modal-header">
+					<h3 class="modal-title">Eliminar producto</h3>
+					<button
+						type="button"
+						class="modal-close"
+						onclick={() => toggleDeleteProductModalIsVisible(false)}
+						onfocus={(e) => cancelFocus(e)}
+						aria-label="Cerrar"
+					>
+						<Icon icon="material-symbols:close-rounded" class="text-xl" />
+					</button>
+				</div>
+				<input type="hidden" name="product_id" value={productSelected?.product?.id ?? ''} />
+				<input type="hidden" name="productId" value={productSelected?.product?.id ?? ''} />
+
+				<div class="modal-field text-center">
+					<label for="name" class="modal-label">Nombre</label>
+					<span class="text-text-primary text-base font-medium">
 						{#if productSelected}
 							{productSelected.product.name}
 						{/if}
 					</span>
 				</div>
-				<div class="flex flex-col place-items-center gap-2">
-					<label for="price">Precio</label>
-					<span class="text-red-300">
+
+				<div class="modal-field text-center">
+					<label for="price" class="modal-label">Precio</label>
+					<span class="text-text-secondary text-sm">
 						{#if productSelected}
 							{productSelected.product.price}
 						{/if}
 					</span>
 				</div>
-				<!-- <div class="flex flex-col gap-2 place-items-center">
-                        <label for="imgs">Imagenes</label>
-                        <input type="file" aria-labelledby="imagenes" name="imgs" id="imgs" accept="image/*" multiple 
-                        class="border border-red-400 rounded-md px-1 outline-none max-w-full" 
-                        style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;"
-                        />
-                    </div> -->
-				<div class="flex flex-col place-items-center gap-2">
-					<button
-						type="submit"
-						class="cursor-pointer rounded-md border p-2 hover:text-red-500"
-						onfocus={(e) => cancelFocus(e)}
-					>
+
+				<div class="modal-actions">
+					<button type="submit" class="btn-primary" onfocus={(e) => cancelFocus(e)}>
 						Eliminar
 					</button>
 				</div>
+
 				{#if catalogId}
-					<div class="flex flex-col place-items-center gap-2">
+					<div class="modal-actions">
 						<button
 							formaction="?/remove_product_to_catalog"
 							type="submit"
-							class="cursor-pointer rounded-md border p-2 hover:text-red-500 focus:text-red-500"
+							class="btn-secondary"
 							onfocus={(e) => cancelFocus(e)}
 						>
 							Quitar del catálogo
 						</button>
 					</div>
 				{/if}
+
 				{#if formMessage}
 					<div transition:scale>
 						<p class="text-center text-red-400">
@@ -130,15 +130,6 @@
 						</p>
 					</div>
 				{/if}
-				<div
-					role="button"
-					tabindex="0"
-					onkeydown={() => {}}
-					class="absolute top-2 right-2 cursor-pointer hover:text-red-500"
-					onclick={() => toggleDeleteProductModalIsVisible(false)}
-				>
-					<Icon icon="material-symbols:close-rounded" class="text-3xl" />
-				</div>
 			</form>
 		</ContainerModal>
 	</div>

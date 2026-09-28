@@ -3,6 +3,7 @@
 	import ContainerModal from '../ContainerModal.svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import Icon from '@iconify/svelte';
 
 	interface Props {
 		clearCartModalIsVisible: boolean;
@@ -10,15 +11,6 @@
 	}
 
 	let { clearCartModalIsVisible, toggleClearCartModalIsVisible }: Props = $props();
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
-	}
 </script>
 
 {#if clearCartModalIsVisible}
@@ -35,24 +27,33 @@
 						}
 					};
 				}}
-				class="flex flex-col gap-2 rounded-md border bg-stone-900 px-4 py-3"
+				class="modal-shell"
 			>
-				<span class="text-xl"> ¿Desea vaciar su carrito de compra? </span>
-				<div class="flex flex-row place-content-center gap-2">
+				<div class="modal-header">
+					<h3 class="modal-title">Vaciar carrito</h3>
 					<button
 						type="button"
-						class="rounded border px-2 py-1 hover:text-red-500 focus:text-red-500"
+						class="modal-close"
 						onclick={() => toggleClearCartModalIsVisible(false)}
-						onfocus={(e) => cancelFocus(e)}
+						aria-label="Cerrar modal"
+					>
+						<Icon icon="material-symbols:close-rounded" class="text-xl" />
+					</button>
+				</div>
+
+				<p class="text-text-secondary text-sm leading-relaxed">
+					¿Estás seguro de que deseas vaciar tu carrito de compra? Esta acción no se puede deshacer.
+				</p>
+
+				<div class="modal-actions">
+					<button
+						type="button"
+						class="btn-secondary"
+						onclick={() => toggleClearCartModalIsVisible(false)}
 					>
 						Cancelar
 					</button>
-					<button
-						class="rounded border bg-red-400 px-2 py-1 text-stone-900 hover:bg-red-500 focus:bg-red-500"
-						onfocus={(e) => cancelFocus(e)}
-					>
-						Confirmar
-					</button>
+					<button type="submit" class="btn-primary"> Confirmar </button>
 				</div>
 			</form>
 		</ContainerModal>

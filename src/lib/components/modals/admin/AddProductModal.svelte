@@ -40,34 +40,13 @@
 		return compressedFile;
 	}
 
-	async function convertToWebP(file: File): Promise<File> {
-		const bitmap = await createImageBitmap(file);
-		const canvas = document.createElement('canvas');
-		canvas.width = bitmap.width;
-		canvas.height = bitmap.height;
-		const ctx = canvas.getContext('2d')!;
-		ctx.drawImage(bitmap, 0, 0);
-		bitmap.close();
-		return new Promise((resolve, reject) => {
-			canvas.toBlob(
-				(blob) => {
-					if (!blob) return reject(new Error('WebP conversion failed'));
-					resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), { type: 'image/webp' }));
-				},
-				'image/webp',
-				0.85
-			);
-		});
-	}
-
 	async function handleFile(e: Event) {
 		const target = e.target as HTMLInputElement;
 		const files = target.files;
 		if (!files || !files.length) return;
 		imgsList = [];
 		for (const file of files) {
-			const compressed = await compress(file);
-			imgsList.push(await convertToWebP(compressed));
+			imgsList.push(await compress(file));
 		}
 	}
 
@@ -172,37 +151,48 @@
 			visible={addProductModalIsVisible}
 			cancelClick={true}
 		>
-			<form
-				id="add-product"
-				method="post"
-				class="relative flex max-h-fit max-w-full flex-col gap-2 rounded-md border border-red-400 bg-stone-900 px-4 py-3"
-			>
-				<div class="flex flex-col place-items-center gap-2">
-					<label for="name">Nombre</label>
+			<form id="add-product" method="post" class="modal-shell">
+				<div class="modal-header">
+					<h3 class="modal-title">Nuevo producto</h3>
+					<button
+						type="button"
+						class="modal-close"
+						onclick={() => toggleAddProductModalIsVisible(false)}
+						onfocus={(e) => cancelFocus(e)}
+						aria-label="Cerrar"
+					>
+						<Icon icon="material-symbols:close-rounded" class="text-xl" />
+					</button>
+				</div>
+
+				<div class="modal-field">
+					<label for="name" class="modal-label">Nombre</label>
 					<input
 						type="text"
 						name="name"
 						id="name"
 						required
 						autocomplete="off"
-						class="max-w-full rounded-md border border-red-400 px-1 outline-none"
+						class="modal-input"
 						bind:value={name}
 					/>
 				</div>
-				<div class="flex flex-col place-items-center gap-2">
-					<label for="price">Precio</label>
+
+				<div class="modal-field">
+					<label for="price" class="modal-label">Precio</label>
 					<input
 						type="number"
 						name="price"
 						id="price"
 						required
 						step="0.01"
-						class="max-w-full rounded-md border border-red-400 px-1 outline-none"
+						class="modal-input"
 						bind:value={price}
 					/>
 				</div>
-				<div class="flex flex-col place-items-center gap-2">
-					<label for="imgs">Imagenes</label>
+
+				<div class="modal-field">
+					<label for="imgs" class="modal-label">Imágenes</label>
 					<input
 						type="file"
 						aria-labelledby="imagenes"
@@ -211,23 +201,25 @@
 						accept="image/*"
 						multiple
 						required
-						class="max-w-full rounded-md border border-red-400 px-1 outline-none"
+						class="modal-input"
 						style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;"
 						onchange={handleFile}
 						bind:this={inputImgs}
 					/>
 				</div>
-				<div class="flex flex-col place-items-center gap-2">
+
+				<div class="modal-actions">
 					<button
 						type="button"
 						disabled={uploading || !name || !price || !imgsList.length}
-						class="cursor-pointer rounded-md border p-2 hover:text-red-500 focus:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+						class="btn-primary disabled:cursor-not-allowed disabled:opacity-50"
 						onclick={() => sendProduct()}
 						onfocus={(e) => cancelFocus(e)}
 					>
 						{uploading ? 'Subiendo...' : 'Agregar'}
 					</button>
 				</div>
+
 				{#if formMessage}
 					<div transition:scale>
 						<p class="text-center text-red-400">
@@ -235,15 +227,6 @@
 						</p>
 					</div>
 				{/if}
-				<div
-					role="button"
-					tabindex="0"
-					onkeydown={() => {}}
-					class="absolute top-2 right-2 cursor-pointer hover:text-red-500"
-					onclick={() => toggleAddProductModalIsVisible(false)}
-				>
-					<Icon icon="material-symbols:close-rounded" class="text-3xl" />
-				</div>
 			</form>
 		</ContainerModal>
 	</div>

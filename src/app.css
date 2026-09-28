@@ -345,6 +345,135 @@ body::-webkit-scrollbar-thumb {
 	box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.08);
 }
 
+.modal-shell {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 0.9rem;
+	width: min(100%, 42rem);
+	padding: 1.25rem 1.5rem;
+	border-radius: var(--radius-card, 1.25rem);
+	border: 1px solid rgba(248, 113, 113, 0.18);
+	background: rgba(18, 18, 18, 0.96);
+	backdrop-filter: blur(12px);
+	box-shadow:
+		0 0 0 1px rgba(248, 113, 113, 0.06),
+		var(--shadow-depth, 0 18px 42px rgba(0, 0, 0, 0.45));
+	transform-origin: center;
+}
+
+.modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	padding: 0.2rem 0 0.9rem;
+	border-bottom: 1px solid rgba(248, 113, 113, 0.1);
+}
+
+.modal-title {
+	margin: 0;
+	font-size: clamp(1.2rem, 1.8vw, 1.8rem);
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	font-family: var(--font-display);
+	color: var(--color-text-primary);
+	text-transform: uppercase;
+}
+
+.modal-field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+}
+
+.modal-label {
+	font-size: 0.68rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--color-text-secondary);
+}
+
+.modal-input,
+.modal-textarea,
+.modal-select {
+	width: 100%;
+	padding: 0.8rem 0.9rem;
+	border-radius: 0.8rem;
+	background: rgba(27, 27, 27, 0.8);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	color: var(--color-text-primary);
+	font-size: 0.95rem;
+	transition:
+		border-color 0.2s var(--ease-out-expo),
+		box-shadow 0.2s var(--ease-out-expo);
+}
+
+.modal-input::placeholder,
+.modal-textarea::placeholder {
+	color: var(--color-text-muted);
+}
+
+.modal-input:focus,
+.modal-textarea:focus,
+.modal-select:focus {
+	outline: none;
+	border-color: rgba(248, 113, 113, 0.4);
+	box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.08);
+}
+
+.modal-close {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.4rem;
+	height: 2.4rem;
+	border: 0;
+	border-radius: 9999px;
+	background: transparent;
+	color: rgba(255, 255, 255, 0.82);
+	font-size: 1.7rem;
+	line-height: 1;
+	cursor: pointer;
+	transition:
+		transform 160ms var(--ease-out-expo),
+		color 160ms var(--ease-out-expo),
+		background-color 160ms var(--ease-out-expo);
+}
+
+.modal-close:hover {
+	color: var(--color-brand-400);
+	background: rgba(248, 113, 113, 0.08);
+	transform: scale(1.05);
+}
+
+.modal-close:active {
+	transform: scale(0.92);
+}
+
+.modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.75rem;
+	padding-top: 0.35rem;
+}
+
+/* Accessibility focus styles: no focus outline on click, clear outline on keyboard navigation */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible) {
+	outline: none;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+	outline: 2px solid var(--color-brand-400);
+	outline-offset: 2px;
+}
+
 /* ========================================
    CARDS — Woven into the fabric
    ======================================== */

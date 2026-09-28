@@ -63,38 +63,51 @@
 					};
 				}}
 				enctype="multipart/form-data"
-				class="relative flex max-h-fit max-w-full flex-col gap-2 rounded-md border border-red-400 bg-stone-900 px-4 py-3"
+				class="modal-shell"
 			>
-				<div class="flex flex-col place-items-center gap-2">
-					<label for="name">Nombre</label>
+				<div class="modal-header">
+					<h3 class="modal-title">Nuevo catálogo</h3>
+					<button
+						type="button"
+						class="modal-close"
+						onclick={() => toggleAddCatalogModalIsVisible(false)}
+						onfocus={(e) => cancelFocus(e)}
+						aria-label="Cerrar"
+					>
+						<Icon icon="material-symbols:close-rounded" class="text-xl" />
+					</button>
+				</div>
+
+				<div class="modal-field">
+					<label for="name" class="modal-label">Nombre</label>
 					<input
 						type="text"
 						name="name"
 						id="name"
 						required
 						autocomplete="off"
-						class="max-w-full rounded-md border border-red-400 px-1 outline-none"
+						class="modal-input"
 					/>
 				</div>
-				<div class="flex flex-col place-items-center gap-2">
-					<label for="description">Descripción</label>
+
+				<div class="modal-field">
+					<label for="description" class="modal-label">Descripción</label>
 					<input
 						type="text"
 						name="description"
 						id="description"
 						required
 						step="0.01"
-						class="max-w-full rounded-md border border-red-400 px-1 outline-none"
+						class="modal-input"
 					/>
 				</div>
-				<div class="flex flex-col place-items-center gap-2">
-					<button
-						class="cursor-pointer rounded-md border p-2 hover:text-red-500 focus:text-red-500"
-						onfocus={(e) => cancelFocus(e)}
-					>
+
+				<div class="modal-actions">
+					<button type="submit" class="btn-primary" onfocus={(e) => cancelFocus(e)}>
 						Agregar
 					</button>
 				</div>
+
 				{#if formMessage}
 					<div transition:scale>
 						<p class="text-center text-red-400">
@@ -102,15 +115,6 @@
 						</p>
 					</div>
 				{/if}
-				<div
-					role="button"
-					tabindex="0"
-					onkeydown={() => {}}
-					class="absolute top-2 right-2 cursor-pointer hover:text-red-500"
-					onclick={() => toggleAddCatalogModalIsVisible(false)}
-				>
-					<Icon icon="material-symbols:close-rounded" class="text-3xl" />
-				</div>
 			</form>
 		</ContainerModal>
 	</div>

@@ -56,11 +56,9 @@
 						if (result.type === 'success') {
 							formElement.reset();
 							if (result.data?.catalogs) {
-								// console.log(result.data.products)
 								setCatalogs(result.data.catalogs as Catalog[]);
 								toggleDeleteCatalogModalIsVisible(false);
 							}
-							// await goto("/admin", {invalidateAll: true});
 						} else if (result.type === 'failure') {
 							if (result.data?.message) {
 								formMessage = result.data.message as string;
@@ -69,34 +67,46 @@
 					};
 				}}
 				enctype="multipart/form-data"
-				class="relative flex max-h-fit max-w-full flex-col gap-2 rounded-md border border-red-400 bg-stone-900 px-10 py-5"
+				class="modal-shell"
 			>
-				<div class="flex flex-col place-items-center gap-2 text-center">
-					<input type="hidden" name="id" value={!catalogSelected ? '' : catalogSelected.id} />
-					<label for="name">Nombre</label>
-					<span class="text-red-300">
+				<div class="modal-header">
+					<h3 class="modal-title">Eliminar catálogo</h3>
+					<button
+						type="button"
+						class="modal-close"
+						onclick={() => toggleDeleteCatalogModalIsVisible(false)}
+						onfocus={(e) => cancelFocus(e)}
+						aria-label="Cerrar"
+					>
+						<Icon icon="material-symbols:close-rounded" class="text-xl" />
+					</button>
+				</div>
+				<input type="hidden" name="id" value={catalogSelected?.id ?? ''} />
+
+				<div class="modal-field text-center">
+					<label for="name" class="modal-label">Nombre</label>
+					<span class="text-text-primary text-base font-medium">
 						{#if catalogSelected}
 							{catalogSelected.name}
 						{/if}
 					</span>
 				</div>
-				<div class="flex flex-col place-items-center gap-2 text-center">
-					<label for="price">Descripción</label>
-					<span class="text-red-300">
+
+				<div class="modal-field text-center">
+					<label for="price" class="modal-label">Descripción</label>
+					<span class="text-text-secondary text-sm">
 						{#if catalogSelected}
 							{catalogSelected.description}
 						{/if}
 					</span>
 				</div>
-				<div class="flex flex-col place-items-center gap-2">
-					<button
-						type="submit"
-						class="cursor-pointer rounded-md border p-2 hover:text-red-500 focus:text-red-500"
-						onfocus={(e) => cancelFocus(e)}
-					>
+
+				<div class="modal-actions">
+					<button type="submit" class="btn-primary" onfocus={(e) => cancelFocus(e)}>
 						Eliminar
 					</button>
 				</div>
+
 				{#if formMessage}
 					<div transition:scale>
 						<p class="text-center text-red-400">
@@ -104,15 +114,6 @@
 						</p>
 					</div>
 				{/if}
-				<div
-					role="button"
-					tabindex="0"
-					onkeydown={() => {}}
-					class="absolute top-2 right-2 cursor-pointer hover:text-red-500"
-					onclick={() => toggleDeleteCatalogModalIsVisible(false)}
-				>
-					<Icon icon="material-symbols:close-rounded" class="text-3xl" />
-				</div>
 			</form>
 		</ContainerModal>
 	</div>
