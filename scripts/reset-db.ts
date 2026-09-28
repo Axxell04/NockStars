@@ -33,8 +33,10 @@ async function resetDatabase() {
 		await client.unsafe(`DROP TABLE IF EXISTS "${tablename}" CASCADE`);
 	}
 
-	// 4. Borrar tabla de migraciones de drizzle
-	await client.unsafe(`DROP TABLE IF EXISTS "_drizzle_migrations" CASCADE`);
+	// 4. Borrar el schema de tracking de drizzle. migrate() decide por timestamp
+	// en drizzle.__drizzle_migrations, así que si sobrevive, la segunda corrida
+	// saltea todas las migraciones y queda una base vacía con "éxito".
+	await client.unsafe(`DROP SCHEMA IF EXISTS drizzle CASCADE`);
 
 	// 5. Borrar tipos enum personalizados
 	const enums = await client`
