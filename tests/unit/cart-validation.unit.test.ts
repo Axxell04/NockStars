@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { CartErrorCode, success, failure } from '$lib/actions';
+import { resolveSafeReturnTarget } from '$lib/route-back';
 
 // Mock the database
 vi.mock('$lib/server/db', () => ({
@@ -11,6 +12,81 @@ vi.mock('drizzle-orm', () => ({
 	and: vi.fn(),
 	sql: vi.fn()
 }));
+
+describe('Route back resolver', () => {
+	it('falls back to home when the referrer is the login page', () => {
+		expect(
+			resolveSafeReturnTarget({
+				currentOrigin: 'https://example.com',
+				referrer: 'https://example.com/login?redirect=%2Fadmin',
+				fallback: '/'
+			})
+		).toBe('/');
+	});
+
+	it('falls back to home when the referrer is login or an admin product edit route', () => {
+		expect(
+			resolveSafeReturnTarget({
+				currentOrigin: 'https://example.com',
+				referrer: 'https://example.com/login?redirect=%2Fadmin',
+				fallback: '/'
+			})
+		).toBe('/');
+		expect(
+			resolveSafeReturnTarget({
+				currentOrigin: 'https://example.com',
+				referrer: 'https://example.com/admin/producto/abc123?returnTo=%2F',
+				fallback: '/'
+			})
+		).toBe('/');
+	});
+
+	it('keeps valid admin pages as return targets while still ignoring stale admin product edit pages', () => {
+		expect(
+			resolveSafeReturnTarget({
+				currentOrigin: 'https://example.com',
+				referrer: 'https://example.com/admin',
+				fallback: '/'
+			})
+		).toBe('/admin');
+		expect(
+			resolveSafeReturnTarget({
+				currentOrigin: 'https://example.com',
+				referrer: 'https://example.com/admin/catalogo',
+				fallback: '/'
+			})
+		).toBe('/admin/catalogo');
+	});
+
+	it('prefers an explicit valid return target over stale login or admin-edit referrers', () => {
+		expect(
+			resolveSafeReturnTarget({
+				currentOrigin: 'https://example.com',
+				referrer: 'https://example.com/login?redirect=%2Fadmin',
+				returnTo: '/admin',
+				fallback: '/'
+			})
+		).toBe('/admin');
+		expect(
+			resolveSafeReturnTarget({
+				currentOrigin: 'https://example.com',
+				referrer: 'https://example.com/login?redirect=%2Fadmin',
+				returnTo: '/admin/producto/abc123',
+				fallback: '/'
+			})
+		).toBe('/');
+	});
+
+	it('keeps valid internal routes when they are not login or stale admin edit routes', () => {
+		expect(
+			resolveSafeReturnTarget({
+				currentOrigin: 'https://example.com',
+				referrer: 'https://example.com/catalogo?categoria=camisas',
+				fallback: '/'
+			})
+		).toBe('/catalogo?categoria=camisas');
+	});
+});
 
 describe('Cart Validation Logic', () => {
 	// Test the error codes and result helpers

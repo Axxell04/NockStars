@@ -226,68 +226,170 @@
 	}
 </script>
 
-<div in:fade class="flex flex-col gap-2 px-5 py-5">
+<div in:fade class="flex flex-col gap-3 px-3 py-4 sm:px-5 sm:py-5">
 	<!-- Tab Navigation -->
 	<section
-		class="glass relative sticky top-0 z-40 overflow-hidden rounded-2xl border border-white/4"
+		class="glass shadow-depth sticky top-0 z-40 overflow-hidden rounded-2xl border border-white/6 backdrop-blur-md"
 	>
 		<div
 			class="via-brand-400/20 absolute top-0 right-1/4 left-1/4 h-[1px] bg-gradient-to-r from-transparent to-transparent"
 		></div>
-		<div class="flex">
+		<div class="grid w-full grid-cols-3">
 			<button
-				class="flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all {activeTab ===
+				class="flex items-center justify-center gap-1 border-b-2 px-1.5 py-2.5 text-xs font-medium transition-all active:scale-[0.98] sm:gap-2 sm:px-4 sm:py-3 sm:text-sm {activeTab ===
 				'catalogs'
-					? 'text-brand-400 bg-brand-400/10 border-brand-400 border-b-2'
-					: 'text-text-secondary hover:text-text-primary hover:bg-surface-1'}"
+					? 'text-brand-400 bg-brand-400/10 border-brand-400 font-semibold'
+					: 'text-text-secondary hover:text-text-primary hover:bg-surface-1/60 border-transparent'}"
 				onclick={() => (activeTab = 'catalogs')}
 				onfocus={(e) => cancelFocus(e)}
 			>
-				<Icon icon="mdi:folder-outline" class="text-lg" />
-				Catálogos
+				<Icon icon="mdi:folder-outline" class="flex-shrink-0 text-base sm:text-lg" />
+				<span class="truncate">Catálogos</span>
 			</button>
 			<button
-				class="flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all {activeTab ===
+				class="flex items-center justify-center gap-1 border-b-2 px-1.5 py-2.5 text-xs font-medium transition-all active:scale-[0.98] sm:gap-2 sm:px-4 sm:py-3 sm:text-sm {activeTab ===
 				'products'
-					? 'text-brand-400 bg-brand-400/10 border-brand-400 border-b-2'
-					: 'text-text-secondary hover:text-text-primary hover:bg-surface-1'}"
+					? 'text-brand-400 bg-brand-400/10 border-brand-400 font-semibold'
+					: 'text-text-secondary hover:text-text-primary hover:bg-surface-1/60 border-transparent'} {catalogSelected
+					? ''
+					: 'opacity-80'}"
 				onclick={() => (activeTab = 'products')}
 				onfocus={(e) => cancelFocus(e)}
-				disabled={!catalogSelected}
 			>
-				<Icon icon="mdi:tshirt-crew-outline" class="text-lg" />
-				Productos
+				<Icon icon="mdi:tshirt-crew-outline" class="flex-shrink-0 text-base sm:text-lg" />
+				<span class="truncate">Productos</span>
+				{#if catalogSelected}
+					<span class="xs:inline-block bg-brand-400 hidden h-1.5 w-1.5 flex-shrink-0 rounded-full"
+					></span>
+				{/if}
 			</button>
 			<button
-				class="flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all {activeTab ===
+				class="flex items-center justify-center gap-1 border-b-2 px-1.5 py-2.5 text-xs font-medium transition-all active:scale-[0.98] sm:gap-2 sm:px-4 sm:py-3 sm:text-sm {activeTab ===
 				'variants'
-					? 'text-brand-400 bg-brand-400/10 border-brand-400 border-b-2'
-					: 'text-text-secondary hover:text-text-primary hover:bg-surface-1'}"
+					? 'text-brand-400 bg-brand-400/10 border-brand-400 font-semibold'
+					: 'text-text-secondary hover:text-text-primary hover:bg-surface-1/60 border-transparent'} {productSelected
+					? ''
+					: 'opacity-80'}"
 				onclick={() => (activeTab = 'variants')}
 				onfocus={(e) => cancelFocus(e)}
-				disabled={!productSelected}
 			>
-				<Icon icon="mdi:cube-outline" class="text-lg" />
-				Variantes
+				<Icon icon="mdi:cube-outline" class="flex-shrink-0 text-base sm:text-lg" />
+				<span class="truncate">Variantes</span>
+				{#if productSelected}
+					<span class="xs:inline-block bg-brand-400 hidden h-1.5 w-1.5 flex-shrink-0 rounded-full"
+					></span>
+				{/if}
 			</button>
 		</div>
 	</section>
 
+	<!-- Context indicator for selected catalog/product -->
+	{#if catalogSelected || productSelected}
+		<div
+			class="bg-surface-1/80 flex items-center justify-between gap-2 rounded-xl border border-white/6 px-3 py-1.5 text-xs"
+		>
+			<div class="flex items-center gap-1.5 truncate">
+				<span class="text-text-muted flex-shrink-0">Selección:</span>
+				{#if catalogSelected}
+					<span class="text-brand-400 flex items-center gap-1 truncate font-medium">
+						<Icon icon="mdi:folder-outline" class="flex-shrink-0 text-sm" />
+						<span class="truncate">{catalogSelected.name}</span>
+					</span>
+				{:else}
+					<span class="text-text-muted flex-shrink-0">Sin catálogo</span>
+				{/if}
+				{#if productSelected}
+					<span class="text-text-muted flex-shrink-0">›</span>
+					<span class="text-brand-400 flex items-center gap-1 truncate font-medium">
+						<Icon icon="mdi:tshirt-crew-outline" class="flex-shrink-0 text-sm" />
+						<span class="truncate">{productSelected.product.name}</span>
+					</span>
+				{/if}
+			</div>
+			<button
+				type="button"
+				class="text-text-muted hover:text-brand-400 ml-2 flex-shrink-0 text-xs underline"
+				onclick={() => {
+					catalogSelected = undefined;
+					productSelected = undefined;
+					variants = [];
+					products = [];
+				}}
+			>
+				Limpiar
+			</button>
+		</div>
+	{/if}
+
 	<!-- Catalogs Tab -->
 	{#if activeTab === 'catalogs'}
 		<section class="flex flex-1 flex-col gap-3">
-			<div class="flex justify-end">
+			<div
+				class="flex flex-col items-stretch justify-between gap-2.5 sm:flex-row sm:items-center sm:gap-3"
+			>
 				<button
-					class="btn-primary"
+					class="btn-primary w-full sm:w-auto"
 					onclick={() => toggleAddCatalogModalIsVisible(true)}
 					onfocus={(e) => cancelFocus(e)}
 				>
 					<Icon icon="material-symbols:add-rounded" class="text-xl" />
 					<span> Añadir Catálogo </span>
 				</button>
+				<button
+					type="button"
+					class="btn-secondary w-full sm:w-auto {catalogSelected ? '' : 'ring-brand-400/50 ring-2'}"
+					onclick={() => {
+						catalogSelected = undefined;
+						activeTab = 'products';
+					}}
+					onfocus={(e) => cancelFocus(e)}
+				>
+					<Icon icon="mdi:folder-open-outline" class="text-xl" />
+					<span>Sin catálogo</span>
+				</button>
 			</div>
 
 			<div class="flex grow flex-wrap justify-center gap-3 p-2">
+				<div
+					class="group relative flex w-full max-w-sm cursor-pointer flex-row gap-3 rounded-xl transition-all duration-400 ease-out {catalogSelected
+						? 'bg-surface-1/80 hover:bg-surface-2/60 border border-white/4'
+						: 'bg-surface-2/80 border-brand-400/25 shadow-glow-sm border'}"
+					onclick={() => {
+						catalogSelected = undefined;
+						// activeTab = 'products';
+					}}
+					role="button"
+					tabindex="0"
+					onkeydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault();
+							catalogSelected = undefined;
+							// activeTab = 'products';
+						}
+					}}
+				>
+					{#if !catalogSelected}
+						<div
+							class="from-brand-400/60 via-brand-400 to-brand-400/60 absolute top-2 bottom-2 left-0 w-[2px] rounded-full bg-gradient-to-b"
+						></div>
+					{/if}
+					<div class="flex min-w-0 grow flex-col gap-1.5 p-4">
+						<span
+							class="text-text-primary truncate font-semibold transition-colors duration-300 {catalogSelected
+								? 'group-hover:text-brand-400'
+								: 'text-brand-400'}"
+						>
+							Sin catálogo
+						</span>
+						<p class="text-text-muted line-clamp-2 text-sm font-light">
+							Se continuará la creación sin un catálogo preseleccionado.
+						</p>
+					</div>
+					<div class="flex items-center p-2 text-xl opacity-100">
+						<Icon icon="mdi:folder-open-outline" class="text-brand-400" />
+					</div>
+				</div>
+
 				{#each catalogs as catalog}
 					<CatalogCard
 						{catalog}
@@ -304,22 +406,54 @@
 	<!-- Products Tab -->
 	{#if activeTab === 'products'}
 		{#if !catalogSelected}
-			<div class="text-text-muted flex flex-1 flex-col items-center justify-center">
-				<Icon icon="mdi:folder-outline" class="mb-4 text-6xl opacity-20" />
-				<p class="text-lg">Selecciona un catálogo para gestionar sus productos</p>
+			<div class="text-text-muted flex flex-1 flex-col items-center justify-center gap-4 py-16">
+				<Icon icon="mdi:folder-outline" class="mb-2 text-6xl opacity-20" />
+				<p class="text-center text-lg">Sin catálogo seleccionado</p>
+				<p class="max-w-md text-center text-sm opacity-75">
+					Puedes gestionar el inventario general o elegir un catálogo concreto para filtrar la
+					vista.
+				</p>
+				<div class="flex flex-wrap items-center justify-center gap-3">
+					<a
+						href="/admin/producto/nuevo?returnTo=%2Fadmin%2Fcatalogo"
+						class="btn-primary"
+						onfocus={(e) => cancelFocus(e)}
+					>
+						<Icon icon="material-symbols:add-rounded" class="text-xl" />
+						<span>Agregar producto sin catálogo</span>
+					</a>
+					<!-- <button
+						type="button"
+						class="btn-secondary"
+						onclick={() => {
+							catalogSelected = undefined;
+							productSelected = undefined;
+							variants = [];
+							products = [];
+						}}
+						onfocus={(e) => cancelFocus(e)}
+					>
+						<Icon icon="mdi:folder-open-outline" class="text-xl" />
+						<span>Sin catálogo</span>
+					</button> -->
+				</div>
 			</div>
 		{:else}
 			<section class="flex flex-1 flex-col gap-3">
-				<div class="flex items-center justify-between">
-					<h3 class="text-text-primary text-lg font-semibold">{catalogSelected.name}</h3>
-					<button
-						class="btn-primary"
-						onclick={() => toggleAddProductModalIsVisible(true)}
+				<div
+					class="flex flex-col items-stretch justify-between gap-2.5 sm:flex-row sm:items-center"
+				>
+					<h3 class="text-text-primary truncate text-base font-semibold sm:text-lg">
+						{catalogSelected.name}
+					</h3>
+					<a
+						href="/admin/producto/nuevo"
+						class="btn-primary w-full justify-center text-center sm:w-auto"
 						onfocus={(e) => cancelFocus(e)}
 					>
 						<Icon icon="material-symbols:add-rounded" class="text-xl" />
 						<span> Añadir Producto </span>
-					</button>
+					</a>
 				</div>
 
 				<div class="flex grow flex-wrap justify-center gap-3 p-2">
@@ -404,13 +538,17 @@
 			</div>
 		{:else}
 			<section class="flex flex-1 flex-col gap-3">
-				<div class="flex items-center justify-between">
-					<div>
-						<h3 class="text-text-primary text-lg font-semibold">{productSelected.product.name}</h3>
-						<p class="text-text-muted text-sm">Gestión de variantes</p>
+				<div
+					class="flex flex-col items-stretch justify-between gap-2.5 sm:flex-row sm:items-center"
+				>
+					<div class="min-w-0">
+						<h3 class="text-text-primary truncate text-base font-semibold sm:text-lg">
+							{productSelected.product.name}
+						</h3>
+						<p class="text-text-muted text-xs sm:text-sm">Gestión de variantes</p>
 					</div>
 					<button
-						class="btn-primary"
+						class="btn-primary w-full justify-center sm:w-auto"
 						onclick={() => toggleAddVariantModalIsVisible(true)}
 						onfocus={(e) => cancelFocus(e)}
 					>

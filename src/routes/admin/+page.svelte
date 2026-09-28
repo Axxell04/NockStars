@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { fade, scale, slide } from 'svelte/transition';
+	import { fade, scale } from 'svelte/transition';
 	import type { PageProps } from './$types';
 	import ProductCard from '$lib/components/ProductCard.svelte';
 	import type { ProductComplete, ProductPagination } from '$lib/interfaces/product';
@@ -32,8 +32,6 @@
 	let editProductModalIsVisible = $state(false);
 	let gotoPageListIsVisible = $state(false);
 	let catalogListIsVisible = $state(false);
-
-	let optAddProductIsVisible = $state(false);
 
 	// Selected Product
 	let productSelected: ProductComplete | undefined = $state();
@@ -80,13 +78,6 @@
 			catalogListIsVisible = visible;
 		} else {
 			catalogListIsVisible = !catalogListIsVisible;
-		}
-	}
-	function toggleOptAddProductIsVisible(visible?: boolean) {
-		if (typeof visible !== 'undefined') {
-			optAddProductIsVisible = visible;
-		} else {
-			optAddProductIsVisible = !optAddProductIsVisible;
 		}
 	}
 	function toggleAddProductToCatalogModalIsVisible(visible?: boolean) {
@@ -136,38 +127,15 @@
 				class="via-brand-400/20 absolute top-0 right-1/4 left-1/4 h-[1px] bg-gradient-to-r from-transparent to-transparent"
 			></div>
 			<div class="flex flex-row place-items-center gap-2">
-				<button
-					class="btn-primary"
-					style="padding-inline: 10px;"
-					onclick={() => {
-						if (catalogId) {
-							toggleOptAddProductIsVisible();
-						} else {
-							toggleAddProductModalIsVisible(true);
-						}
-					}}
+				<a
+					href="/admin/catalogo"
+					class="btn-primary flex items-center justify-center gap-2 px-3 py-2.5"
 					onfocus={(e) => cancelFocus(e)}
+					aria-label="Abrir gestión de catálogo"
 				>
 					<Icon icon="lucide:package-plus" class="text-xl" />
-				</button>
-				{#if optAddProductIsVisible}
-					<div transition:slide={{ axis: 'x' }} class="flex flex-row items-center gap-1">
-						<button
-							class="bg-brand-500/15 text-brand-400 hover:bg-brand-500/25 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-300"
-							onclick={() => toggleAddProductModalIsVisible(true)}
-							onfocus={(e) => cancelFocus(e)}
-						>
-							<span> Nuevo </span>
-						</button>
-						<button
-							class="text-text-secondary hover:text-brand-400 hover:border-brand-400/25 hover:bg-brand-400/5 rounded-xl border border-white/6 px-3 py-2 text-sm font-medium transition-all duration-300"
-							onclick={() => toggleAddProductToCatalogModalIsVisible(true)}
-							onfocus={(e) => cancelFocus(e)}
-						>
-							<span> Existente </span>
-						</button>
-					</div>
-				{/if}
+					<span class="hidden sm:inline">Nuevo</span>
+				</a>
 			</div>
 
 			<div class="flex flex-row place-items-center gap-3">
@@ -369,6 +337,7 @@
 				<div class="animate-thread-appear" style="--stagger-delay: {60 * index}ms">
 					<ProductCard
 						{product}
+						{setProductSelected}
 						{toggleDeleteProductModalIsVisible}
 						{toggleEditProductModalIsVisible}
 					/>

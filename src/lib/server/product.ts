@@ -55,14 +55,32 @@ export async function createProduct(
 	return productId;
 }
 
+export function normalizeCloudinaryImageUrl(url: string): string {
+	if (typeof url !== 'string' || !url.trim()) {
+		throw new Error('Cloudinary image URL is required');
+	}
+
+	try {
+		const parsed = new URL(url);
+		const isCloudinaryHost = parsed.hostname.includes('cloudinary.com');
+		if (parsed.protocol !== 'https:' || !isCloudinaryHost) {
+			throw new Error('Only valid Cloudinary URLs are allowed');
+		}
+		return url;
+	} catch {
+		throw new Error('Only valid Cloudinary URLs are allowed');
+	}
+}
+
 export async function bindImg(productId: string, url: string) {
+	const normalizedUrl = normalizeCloudinaryImageUrl(url);
 	const imgId = generateId();
 
 	await getDb()
 		.insert(table.img)
 		.values({
 			id: imgId,
-			url: url,
+			url: normalizedUrl,
 			productId: productId
 		})
 		.execute();
@@ -85,13 +103,14 @@ export async function getProducts(options: GetProductsOptions = {}) {
 					.orderBy(desc(table.product.createdAt))
 					.execute()
 			: await getDb()
-					.select({
-						id: table.product.id,
-						name: table.product.name,
-						price: table.product.price,
-						stock: table.product.stock,
-						createdAt: table.product.createdAt
-					})
+				.select({
+					id: table.product.id,
+					name: table.product.name,
+					price: table.product.price,
+					stock: table.product.stock,
+					createdAt: table.product.createdAt
+				})
+
 					.from(table.product)
 					.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
 					.where(
@@ -114,13 +133,14 @@ export async function getProducts(options: GetProductsOptions = {}) {
 					.orderBy(desc(table.product.createdAt))
 					.execute()
 			: await getDb()
-					.select({
-						id: table.product.id,
-						name: table.product.name,
-						price: table.product.price,
-						stock: table.product.stock,
-						createdAt: table.product.createdAt
-					})
+				.select({
+					id: table.product.id,
+					name: table.product.name,
+					price: table.product.price,
+					stock: table.product.stock,
+					createdAt: table.product.createdAt
+				})
+
 					.from(table.product)
 					.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
 					.where(eq(table.productCatalog.catalogId, catalogId ?? ''))
@@ -233,7 +253,12 @@ export async function deleteProduct(id: string) {
 	for (const img of imgs) {
 		await deleteImg(img.id);
 	}
-	// await getDb().delete(table.img).where(eq(table.img.productId, id)).execute();
+
+	await getDb()
+		.delete(table.productCatalog)
+		.where(eq(table.productCatalog.productId, id))
+		.execute();
+
 	await getDb().delete(table.product).where(eq(table.product.id, id)).execute();
 }
 

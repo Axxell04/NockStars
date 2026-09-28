@@ -76,12 +76,13 @@
 	{#if actualRoute?.includes('/admin')}
 		<div
 			transition:scale={{ duration: 150, start: 0.9 }}
-			class="flex items-center gap-1 p-2 text-xl opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+			class="flex items-center gap-1 p-2 text-xl opacity-100 transition-opacity duration-200"
 		>
 			<button
 				class="text-text-muted hover:text-brand-400 hover:bg-surface-3 rounded-lg p-1.5 transition-colors"
 				onclick={(e) => {
 					e.stopPropagation();
+					selectThisCatalog(catalog);
 					toggleDeleteCatalogModalIsVisible(true);
 				}}
 				onfocus={(e) => cancelFocus(e)}
@@ -93,6 +94,7 @@
 				class="text-text-muted hover:text-brand-400 hover:bg-surface-3 rounded-lg p-1.5 transition-colors"
 				onclick={(e) => {
 					e.stopPropagation();
+					selectThisCatalog(catalog);
 					toggleEditCatalogModalIsVisible(true);
 				}}
 				onfocus={(e) => cancelFocus(e)}

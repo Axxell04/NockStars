@@ -8,12 +8,17 @@
 
 	interface Props {
 		product: ProductComplete;
+		setProductSelected?: (product: ProductComplete) => void;
 		toggleDeleteProductModalIsVisible?: (visible?: boolean) => void;
 		toggleEditProductModalIsVisible?: (visible?: boolean) => void;
 	}
 
-	let { product, toggleDeleteProductModalIsVisible, toggleEditProductModalIsVisible }: Props =
-		$props();
+	let {
+		product,
+		setProductSelected,
+		toggleDeleteProductModalIsVisible,
+		toggleEditProductModalIsVisible
+	}: Props = $props();
 
 	let actualRoute = $derived(page.route.id);
 	let isAdminRoute = $derived(actualRoute?.includes('/admin'));
@@ -23,6 +28,9 @@
 	}
 	if (!toggleEditProductModalIsVisible) {
 		toggleEditProductModalIsVisible = () => {};
+	}
+	if (!setProductSelected) {
+		setProductSelected = () => {};
 	}
 
 	function cancelFocus(e: FocusEvent) {
@@ -42,7 +50,22 @@
 	}
 
 	function navigateToProduct() {
-		goto(`/producto/${product.product.id}`);
+		const returnTo = isAdminRoute ? page.url.pathname + page.url.search : undefined;
+		const target = returnTo
+			? `/producto/${product.product.id}?returnTo=${encodeURIComponent(returnTo)}`
+			: `/producto/${product.product.id}`;
+		goto(target);
+	}
+
+	function goToEditProduct() {
+		const returnTo = isAdminRoute ? `/producto/${product.product.id}` : '/admin/catalogo';
+		goto(`/admin/producto/${product.product.id}?returnTo=${encodeURIComponent(returnTo)}`);
+	}
+
+	function onEditButtonClick(e: MouseEvent) {
+		e.stopPropagation();
+		setProductSelected?.(product);
+		goToEditProduct();
 	}
 
 	// Auto-carousel
@@ -194,6 +217,7 @@
 				class="text-text-muted hover:text-brand-400 hover:bg-surface-2 rounded-lg p-1.5 transition-colors"
 				onclick={(e) => {
 					e.stopPropagation();
+					setProductSelected(product);
 					toggleDeleteProductModalIsVisible(true);
 				}}
 				onfocus={(e) => cancelFocus(e)}
@@ -203,10 +227,7 @@
 			</button>
 			<button
 				class="text-text-muted hover:text-brand-400 hover:bg-surface-2 rounded-lg p-1.5 transition-colors"
-				onclick={(e) => {
-					e.stopPropagation();
-					toggleEditProductModalIsVisible(true);
-				}}
+				onclick={(e) => onEditButtonClick(e)}
 				onfocus={(e) => cancelFocus(e)}
 				aria-label="Editar producto"
 			>
