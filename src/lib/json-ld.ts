@@ -1,6 +1,7 @@
 import { dev } from '$app/environment';
 import type { Product, ProductVariant } from '$lib/server/db/schema';
 import type { VariantComplete } from '$lib/actions';
+import { specEntries } from '$lib/product-specs';
 
 /**
  * Renders a schema.org payload as a complete `<script type="application/ld+json">`
@@ -65,13 +66,21 @@ export interface ProductWithVariantsJsonLdInput {
 export function buildProductWithVariantsJsonLd(input: ProductWithVariantsJsonLdInput): object {
 	const { product, variants, selectedVariant, baseUrl } = input;
 
-	// Use selected variant images if available, otherwise fall back to product images
+	// Use selected variant images if available. Product-level images are not
+	// available to this builder (its input carries no `productImages`), so a
+	// variant with no images yields no `image` key rather than an empty one.
 	const selectedVariantImages = selectedVariant?.images?.map((img) => `${baseUrl}${img.url}`) ?? [];
-	const productImages: string[] = []; // Product images would need to be passed separately if needed
 
-	const mainImages = selectedVariantImages.length > 0 ? selectedVariantImages : productImages;
+	const mainDescription = selectedVariant?.description ?? product.description ?? product.name;
 
-	const mainDescription = selectedVariant?.description ?? product.name;
+	// The "ficha técnica" attributes, as schema.org PropertyValue pairs. Reusing
+	// `specEntries` keeps the labels and the ordering identical to the sheet the
+	// visitor actually sees.
+	const specProperties = specEntries(product.specs).map((entry) => ({
+		'@type': 'PropertyValue',
+		name: entry.label,
+		value: entry.value
+	}));
 
 	// Build offers array - one per variant plus implicit if no explicit variants
 	const offers = variants.map((variant) => {
@@ -119,7 +128,8 @@ export function buildProductWithVariantsJsonLd(input: ProductWithVariantsJsonLdI
 		'@type': 'Product',
 		name: product.name,
 		description: mainDescription,
-		image: mainImages.length > 0 ? mainImages : undefined,
+		image: selectedVariantImages.length > 0 ? selectedVariantImages : undefined,
+		additionalProperty: specProperties.length > 0 ? specProperties : undefined,
 		offers,
 		sku: selectedVariant?.id && selectedVariant.id !== 'implicit' ? selectedVariant.id : product.id
 	};

@@ -16,8 +16,10 @@ describe('Variant Utilities', () => {
 	const mockProduct: Product = {
 		id: 'prod-1',
 		name: 'Test Product',
+		description: null,
 		price: 29.99,
 		stock: 10,
+		specs: {},
 		createdAt: new Date()
 	};
 

@@ -11,6 +11,9 @@ import {
 	pgEnum,
 	uniqueIndex
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+// Relative (not `$lib`) so drizzle-kit can resolve it when generating migrations.
+import type { ProductSpecs } from '../../product-specs';
 
 // USUARIO
 
@@ -43,8 +46,17 @@ export const cutTypeEnum = pgEnum('cut_type', ['oversize', 'recto']);
 export const product = pgTable('product', {
 	id: text('id').primaryKey(),
 	name: text('name').notNull(),
+	description: text('description'),
 	price: doublePrecision('price').notNull(),
 	stock: integer('stock').notNull().default(0),
+	// Arbitrary admin-defined attributes for the "ficha técnica". The default is
+	// explicit SQL rather than `.default({})` because `createProduct` builds a
+	// full `Product` literal: an implicit default would let a row land without
+	// specs and the sheet would render silently empty.
+	specs: jsonb('specs')
+		.$type<ProductSpecs>()
+		.notNull()
+		.default(sql`'{}'::jsonb`),
 	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
 });
 

@@ -1,5 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
-import { createProduct, bindImg } from '$lib/server/product';
+import { createProduct, bindImg, prepareProductWrite } from '$lib/server/product';
+import { parseSpecRows } from '$lib/product-specs';
 import { getCatalogs } from '$lib/server/catalog';
 import { redirect, fail } from '@sveltejs/kit';
 
@@ -36,7 +37,23 @@ export const actions: Actions = {
 			return fail(400, { message: 'Nombre y precio son obligatorios' });
 		}
 
-		const productId = await createProduct(name, price, catalogId || undefined, stock);
+		// The description textarea and the spec rows used to be submitted and
+		// then discarded, silently losing whatever the admin typed.
+		const productWrite = prepareProductWrite({
+			description: formData.get('description') as string | null,
+			specRows: parseSpecRows(formData)
+		});
+		if (!productWrite.success) {
+			return fail(400, { message: productWrite.error.message });
+		}
+
+		const productId = await createProduct(
+			name,
+			price,
+			catalogId || undefined,
+			stock,
+			productWrite.data
+		);
 
 		if (Array.isArray(imageUrls)) {
 			for (const url of imageUrls) {

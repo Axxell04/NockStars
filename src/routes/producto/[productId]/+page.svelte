@@ -5,7 +5,13 @@
 	import { fade } from 'svelte/transition';
 	import Icon from '@iconify/svelte';
 	import { renderProductWithVariantsJsonLd } from '$lib/json-ld';
-	import { effectivePrice, effectiveStock, isVariantAvailable } from '$lib/variant';
+	import {
+		effectivePrice,
+		effectiveStock,
+		getVariantDisplayName,
+		isVariantAvailable
+	} from '$lib/variant';
+	import { specEntries } from '$lib/product-specs';
 	import VariantSelector from '$lib/components/VariantSelector.svelte';
 	import { resolveSafeReturnTarget } from '$lib/route-back';
 	import type { PageProps } from './$types';
@@ -57,6 +63,20 @@
 	);
 	const showCrossedPrice = $derived(variantPrice !== null && variantPrice !== basePrice);
 
+	// Ficha técnica: product-level attributes plus the live variant detail block.
+	const productDescription = $derived((product.description ?? '').trim());
+	const productSpecEntries = $derived(specEntries(product.specs));
+	// The implicit variant is synthesized in `resolveImplicitVariant` with a
+	// "Único" size/color and a hardcoded "recto" cut, none of which is a real
+	// attribute — so it contributes no rows and the whole group stays hidden.
+	const isExplicitVariant = $derived(selectedVariant !== null && selectedVariant.id !== 'implicit');
+	const variantStockDiffers = $derived(
+		isExplicitVariant && (selectedVariant?.stock ?? 0) !== product.stock
+	);
+	const showFichaTecnica = $derived(
+		productDescription !== '' || productSpecEntries.length > 0 || isExplicitVariant
+	);
+
 	// Variant selection handler
 	function handleVariantSelect(variantId: string) {
 		if (variantId === 'implicit') {
@@ -68,6 +88,7 @@
 			}
 		}
 		price = effectivePrice(selectedVariant, product);
+		imgIndex = 0;
 	}
 
 	// Image gallery
@@ -354,6 +375,90 @@
 		</form>
 	</section>
 </div>
+
+<!-- Ficha técnica: full-width sibling of the two-column grid, not a third grid child -->
+{#if showFichaTecnica}
+	<section in:fade class="mt-6 flex flex-col gap-4" aria-labelledby="ficha-tecnica-heading">
+		<h2 id="ficha-tecnica-heading" class="text-text-primary text-xl font-semibold">
+			Ficha técnica
+		</h2>
+
+		{#if productDescription}
+			<p class="text-text-secondary text-sm leading-relaxed whitespace-pre-line">
+				{productDescription}
+			</p>
+		{/if}
+
+		{#if productSpecEntries.length > 0}
+			<dl class="flex flex-col gap-2">
+				{#each productSpecEntries as entry (entry.key)}
+					<div class="glass flex items-center gap-3 rounded-xl border border-white/4 p-3">
+						<dt class="text-text-secondary text-sm font-medium">{entry.label}</dt>
+						<dd class="text-text-primary ml-auto text-right font-medium">{entry.value}</dd>
+					</div>
+				{/each}
+			</dl>
+		{/if}
+
+		{#if isExplicitVariant && selectedVariant}
+			<div class="flex flex-col gap-2">
+				<h3 class="text-text-secondary text-sm font-medium">Variante seleccionada</h3>
+				<div
+					class="glass border-brand-400/30 bg-brand-400/5 rounded-xl border p-3"
+					aria-live="polite"
+				>
+					<div class="flex items-center gap-3">
+						<Icon icon="mdi:cube-outline" class="text-brand-400 text-xl" />
+						<p class="text-text-primary min-w-0 flex-1 font-medium">
+							{getVariantDisplayName(selectedVariant)}
+						</p>
+					</div>
+
+					<dl class="mt-2 flex flex-col gap-2 border-t border-white/4 pt-2">
+						<div class="flex items-center gap-3">
+							<dt class="text-text-secondary text-sm font-medium">Talla</dt>
+							<dd class="text-text-primary ml-auto font-medium">{selectedVariant.size}</dd>
+						</div>
+						<div class="flex items-center gap-3">
+							<dt class="text-text-secondary text-sm font-medium">Color</dt>
+							<dd class="text-text-primary ml-auto font-medium">{selectedVariant.color}</dd>
+						</div>
+						<div class="flex items-center gap-3">
+							<dt class="text-text-secondary text-sm font-medium">Corte</dt>
+							<dd class="text-text-primary ml-auto font-medium capitalize">
+								{selectedVariant.cut}
+							</dd>
+						</div>
+						{#if showCrossedPrice}
+							<div class="flex items-center gap-3">
+								<dt class="text-text-secondary text-sm font-medium">Precio de la variante</dt>
+								<dd class="ml-auto text-right font-medium">
+									<span class="text-brand-400 font-bold tabular-nums">
+										{variantPrice?.toFixed(2)} $
+									</span>
+									<span class="text-text-muted block text-xs">
+										Base {basePrice.toFixed(2)} $
+									</span>
+								</dd>
+							</div>
+						{/if}
+						{#if variantStockDiffers}
+							<div class="flex items-center gap-3">
+								<dt class="text-text-secondary text-sm font-medium">Stock de la variante</dt>
+								<dd class="ml-auto text-right font-medium">
+									<span class="text-text-primary tabular-nums">{selectedVariant.stock}</span>
+									<span class="text-text-muted block text-xs">
+										Base {product.stock}
+									</span>
+								</dd>
+							</div>
+						{/if}
+					</dl>
+				</div>
+			</div>
+		{/if}
+	</section>
+{/if}
 
 <!-- Toast -->
 {#if toastMessage}

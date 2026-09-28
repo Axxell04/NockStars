@@ -18,6 +18,14 @@ import type {
 } from '$lib/actions';
 import { ProductErrorCode, success, failure } from '$lib/actions';
 import { resolveImplicitVariant } from '$lib/variant';
+import {
+	MAX_PRODUCT_DESCRIPTION_LENGTH,
+	MAX_SPEC_KEY_LENGTH,
+	MAX_SPEC_ROWS,
+	MAX_SPEC_VALUE_LENGTH,
+	normalizeSpecs,
+	type ProductSpecs
+} from '$lib/product-specs';
 
 cloudinary.config({
 	cloud_name: CLOUDINARY_CLOUD_NAME,
@@ -32,18 +40,26 @@ type GetProductsOptions = {
 	catalogId?: string;
 };
 
+export type CreateProductOptions = {
+	description?: string | null;
+	specs?: ProductSpecs;
+};
+
 export async function createProduct(
 	name: string,
 	price: number,
 	catalogId?: string,
-	stock: number = 0
+	stock: number = 0,
+	options: CreateProductOptions = {}
 ) {
 	const productId = generateId();
 	const product: table.Product = {
 		id: productId,
 		name: name,
+		description: options.description ?? null,
 		price: price,
 		stock: stock,
+		specs: options.specs ?? {},
 		createdAt: new Date()
 	};
 
@@ -53,6 +69,64 @@ export async function createProduct(
 		await addProductToCatalog(productId, catalogId);
 	}
 	return productId;
+}
+
+export type ProductWrite = {
+	description: string | null;
+	specs: ProductSpecs;
+};
+
+/**
+ * Validation boundary for the product description and the "ficha técnica" spec
+ * rows submitted by the admin forms.
+ *
+ * The caps are rejected rather than applied silently: an admin who types a
+ * 400-character value and gets a truncated sheet with no message has lost data,
+ * and data loss that only shows up as a short cell is the exact failure mode the
+ * sheet is meant to eliminate. `normalizeSpecs` still clamps, as a backstop for
+ * any caller that bypasses this function.
+ */
+export function prepareProductWrite(input: {
+	description?: string | null;
+	specRows?: Array<[string, string]>;
+}): ProductActionResult<ProductWrite> {
+	const description = (input.description ?? '').trim();
+
+	if (description.length > MAX_PRODUCT_DESCRIPTION_LENGTH) {
+		return failure(
+			ProductErrorCode.INVALID_PRODUCT_DATA,
+			`La descripción no puede superar ${MAX_PRODUCT_DESCRIPTION_LENGTH} caracteres`
+		);
+	}
+
+	const specRows = input.specRows ?? [];
+	const filledRows = specRows.filter(([key, value]) => key.trim() !== '' || value.trim() !== '');
+
+	if (filledRows.length > MAX_SPEC_ROWS) {
+		return failure(
+			ProductErrorCode.INVALID_PRODUCT_DATA,
+			`La ficha técnica admite hasta ${MAX_SPEC_ROWS} atributos`
+		);
+	}
+
+	if (specRows.some(([key]) => key.trim().length > MAX_SPEC_KEY_LENGTH)) {
+		return failure(
+			ProductErrorCode.INVALID_PRODUCT_DATA,
+			`Los nombres de atributo no pueden superar ${MAX_SPEC_KEY_LENGTH} caracteres`
+		);
+	}
+
+	if (specRows.some(([, value]) => value.trim().length > MAX_SPEC_VALUE_LENGTH)) {
+		return failure(
+			ProductErrorCode.INVALID_PRODUCT_DATA,
+			`Los valores de atributo no pueden superar ${MAX_SPEC_VALUE_LENGTH} caracteres`
+		);
+	}
+
+	return success({
+		description: description === '' ? null : description,
+		specs: normalizeSpecs(specRows)
+	});
 }
 
 export function normalizeCloudinaryImageUrl(url: string): string {
@@ -103,14 +177,15 @@ export async function getProducts(options: GetProductsOptions = {}) {
 					.orderBy(desc(table.product.createdAt))
 					.execute()
 			: await getDb()
-				.select({
-					id: table.product.id,
-					name: table.product.name,
-					price: table.product.price,
-					stock: table.product.stock,
-					createdAt: table.product.createdAt
-				})
-
+					.select({
+						id: table.product.id,
+						name: table.product.name,
+						description: table.product.description,
+						price: table.product.price,
+						stock: table.product.stock,
+						specs: table.product.specs,
+						createdAt: table.product.createdAt
+					})
 					.from(table.product)
 					.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
 					.where(
@@ -133,14 +208,15 @@ export async function getProducts(options: GetProductsOptions = {}) {
 					.orderBy(desc(table.product.createdAt))
 					.execute()
 			: await getDb()
-				.select({
-					id: table.product.id,
-					name: table.product.name,
-					price: table.product.price,
-					stock: table.product.stock,
-					createdAt: table.product.createdAt
-				})
-
+					.select({
+						id: table.product.id,
+						name: table.product.name,
+						description: table.product.description,
+						price: table.product.price,
+						stock: table.product.stock,
+						specs: table.product.specs,
+						createdAt: table.product.createdAt
+					})
 					.from(table.product)
 					.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
 					.where(eq(table.productCatalog.catalogId, catalogId ?? ''))
@@ -221,15 +297,19 @@ type UpdateProductOptions = {
 	name?: string;
 	price?: number;
 	stock?: number;
+	description?: string | null;
+	specs?: ProductSpecs;
 	imgsDelete?: string[];
 };
 
 export async function updateProduct(options: UpdateProductOptions) {
-	const { product_id, name, price, stock, imgsDelete } = options;
+	const { product_id, name, price, stock, description, specs, imgsDelete } = options;
 	const updates: Partial<table.Product> = {};
 	if (typeof name !== 'undefined') updates.name = name;
 	if (typeof price !== 'undefined') updates.price = price;
 	if (typeof stock !== 'undefined') updates.stock = stock;
+	if (typeof description !== 'undefined') updates.description = description;
+	if (typeof specs !== 'undefined') updates.specs = specs;
 
 	if (Object.keys(updates).length > 0) {
 		await getDb()

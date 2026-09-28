@@ -4,8 +4,10 @@ import {
 	getImgs,
 	bindImg,
 	deleteProduct as deleteProductRecord,
+	prepareProductWrite,
 	updateProduct as updateProductRecord
 } from '$lib/server/product';
+import { parseSpecRows } from '$lib/product-specs';
 import { redirect, fail } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -43,7 +45,15 @@ export const actions: Actions = {
 			return fail(400, { message: 'Nombre y precio son obligatorios' });
 		}
 
-		await updateProductRecord({ product_id: productId, name, price, stock });
+		const productWrite = prepareProductWrite({
+			description: formData.get('description') as string | null,
+			specRows: parseSpecRows(formData)
+		});
+		if (!productWrite.success) {
+			return fail(400, { message: productWrite.error.message });
+		}
+
+		await updateProductRecord({ product_id: productId, name, price, stock, ...productWrite.data });
 
 		return { success: true };
 	},

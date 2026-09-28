@@ -5,6 +5,14 @@
 	import Icon from '@iconify/svelte';
 	import { fade } from 'svelte/transition';
 	import ContainerModal from '$lib/components/modals/ContainerModal.svelte';
+	import {
+		MAX_SPEC_KEY_LENGTH,
+		MAX_SPEC_ROWS,
+		MAX_SPEC_VALUE_LENGTH,
+		SPEC_LABELS,
+		toSpecRows,
+		type ProductSpecs
+	} from '$lib/product-specs';
 
 	interface ProductData {
 		id: string;
@@ -12,6 +20,7 @@
 		price: number;
 		stock: number;
 		description: string | null;
+		specs: ProductSpecs;
 		createdAt: Date;
 		productImages: Array<{ id: string; url: string }>;
 		variants: Array<{
@@ -71,6 +80,33 @@
 	let price = $state(data.product.price.toString());
 	let stock = $state(data.product.stock.toString());
 	let description = $state(data.product.description || '');
+
+	type SpecRow = { id: string; key: string; value: string };
+
+	// Seeded once from the stored sheet, the same way the rest of the form is
+	// seeded. Keys carry stable ids so removing a row cannot shift another row's
+	// DOM node out from under its input.
+	let specRows = $state<SpecRow[]>(seedSpecRows(data.product.specs));
+
+	function createSpecRow(key = '', value = ''): SpecRow {
+		return { id: crypto.randomUUID(), key, value };
+	}
+
+	function seedSpecRows(specs: ProductSpecs | null | undefined): SpecRow[] {
+		const stored = toSpecRows(specs);
+		return stored.length > 0
+			? stored.map(({ key, value }) => createSpecRow(key, value))
+			: [createSpecRow()];
+	}
+
+	function addSpecRow() {
+		if (specRows.length >= MAX_SPEC_ROWS) return;
+		specRows = [...specRows, createSpecRow()];
+	}
+
+	function removeSpecRow(id: string) {
+		specRows = specRows.filter((row) => row.id !== id);
+	}
 
 	let savingProduct = $state(false);
 	let uploadingImages = $state(false);
@@ -176,6 +212,10 @@
 		formData.append('price', parseFloat(price).toString());
 		formData.append('stock', parseInt(stock).toString());
 		formData.append('description', description);
+		for (const row of specRows) {
+			formData.append('specKey', row.key);
+			formData.append('specValue', row.value);
+		}
 
 		try {
 			const res = await fetch(`/admin/producto/${data.product.id}?/updateProduct`, {
@@ -329,6 +369,76 @@
 							placeholder="Descripción del producto (materiales, cuidados, etc.)"
 						></textarea>
 					</div>
+				</fieldset>
+
+				<!-- Ficha Técnica -->
+				<fieldset class="bg-surface-1 space-y-4 rounded-xl border border-white/10 p-6">
+					<legend class="text-text-primary mb-4 text-lg font-semibold">Ficha técnica</legend>
+					<p class="text-text-secondary text-sm">
+						Atributos libres del producto. Se muestran en la ficha técnica de su página y en los
+						datos estructurados. Los nombres sugeridos son solo una ayuda: puedes escribir los que
+						quieras.
+					</p>
+
+					<datalist id="spec-key-options">
+						{#each Object.keys(SPEC_LABELS) as specKey (specKey)}
+							<option value={specKey}>{SPEC_LABELS[specKey]}</option>
+						{/each}
+					</datalist>
+
+					<div class="space-y-3">
+						{#each specRows as row, index (row.id)}
+							<div class="grid gap-2 sm:grid-cols-[1fr_2fr_auto] sm:items-end">
+								<div class="space-y-1">
+									<label
+										for="specKey-{row.id}"
+										class="text-text-secondary block text-sm font-medium">Atributo</label
+									>
+									<input
+										type="text"
+										id="specKey-{row.id}"
+										list="spec-key-options"
+										bind:value={row.key}
+										maxlength={MAX_SPEC_KEY_LENGTH}
+										class="bg-surface-2 text-text-primary placeholder:text-text-muted/50 focus:border-brand-400 w-full rounded-lg border border-white/10 px-3 py-2 transition-colors focus:outline-none"
+										placeholder="material"
+									/>
+								</div>
+								<div class="space-y-1">
+									<label
+										for="specValue-{row.id}"
+										class="text-text-secondary block text-sm font-medium">Valor</label
+									>
+									<input
+										type="text"
+										id="specValue-{row.id}"
+										bind:value={row.value}
+										maxlength={MAX_SPEC_VALUE_LENGTH}
+										class="bg-surface-2 text-text-primary placeholder:text-text-muted/50 focus:border-brand-400 w-full rounded-lg border border-white/10 px-3 py-2 transition-colors focus:outline-none"
+										placeholder="Algodón peinado"
+									/>
+								</div>
+								<button
+									type="button"
+									onclick={() => removeSpecRow(row.id)}
+									class="text-text-secondary hover:bg-surface-2 hover:text-text-primary flex h-[42px] items-center justify-center rounded-lg border border-white/10 px-3 transition-colors"
+									aria-label="Eliminar atributo {index + 1}"
+								>
+									<Icon icon="mdi:delete-outline" class="text-lg" />
+								</button>
+							</div>
+						{/each}
+					</div>
+
+					<button
+						type="button"
+						onclick={addSpecRow}
+						disabled={specRows.length >= MAX_SPEC_ROWS}
+						class="text-text-secondary hover:bg-surface-2 hover:text-text-primary rounded-lg border border-white/10 px-4 py-2 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						<Icon icon="mdi:plus" class="mr-1 inline" />
+						Añadir atributo
+					</button>
 				</fieldset>
 
 				<!-- Product Images -->
