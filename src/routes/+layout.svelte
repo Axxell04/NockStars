@@ -3,6 +3,7 @@
 	import Icon from '@iconify/svelte';
 	import '../app.css';
 	import NavItem from '$lib/components/NavItem.svelte';
+	import Toaster from '$lib/components/Toaster.svelte';
 	import { goto } from '$app/navigation';
 	import { renderJsonLdScript } from '$lib/json-ld';
 	import type { LayoutProps } from './$types';
@@ -334,6 +335,9 @@
 <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
 	{@render children()}
 </main>
+
+<!-- Global toast container — stacks above modals (z-[60] over z-50) -->
+<Toaster />
 
 <style>
 	:global(body) {

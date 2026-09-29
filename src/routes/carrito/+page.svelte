@@ -8,7 +8,9 @@
 	import ClearCartModal from '$lib/components/modals/carrito/ClearCartModal.svelte';
 	import SendCartModal from '$lib/components/modals/carrito/SendCartModal.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
-	import { getVariantDisplayName } from '$lib/variant';
+	import { getVariantDisplayName, stockLimitMessage } from '$lib/variant';
+	import { toast } from '$lib/toast.svelte.js';
+	import { CartErrorCode } from '$lib/actions';
 	import type { CartItemWithProduct } from '$lib/actions';
 
 	let { data }: PageProps = $props();
@@ -254,6 +256,17 @@
 								beginPending(key);
 								return async ({ result }) => {
 									try {
+										// An over-stock rejection carries the machine-readable
+										// code plus the available count — surface it as a
+										// toast; applyCartResult stays responsible for
+										// re-seeding the list and clearing the spinner.
+										if (
+											result.type === 'failure' &&
+											result.data?.code === CartErrorCode.OUT_OF_STOCK
+										) {
+											const details = result.data.details as { available?: number } | undefined;
+											toast(stockLimitMessage(details?.available));
+										}
 										await applyCartResult(result);
 									} finally {
 										endPending(key);

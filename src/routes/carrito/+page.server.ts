@@ -47,7 +47,14 @@ export const actions: Actions = {
 		const result = await updateCartItem(cartItemId, { cartItemId, quantity, version });
 
 		if (!result.success) {
-			return fail(400, { message: result.error.message, details: result.error.details });
+			// Surface the machine-readable code alongside details so the
+			// client can tell an over-stock rejection (OUT_OF_STOCK + the
+			// available count) from a version conflict or a generic failure.
+			return fail(400, {
+				message: result.error.message,
+				code: result.error.code,
+				details: result.error.details
+			});
 		}
 
 		return {
