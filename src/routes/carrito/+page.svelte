@@ -7,6 +7,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import ClearCartModal from '$lib/components/modals/carrito/ClearCartModal.svelte';
 	import SendCartModal from '$lib/components/modals/carrito/SendCartModal.svelte';
+	import Spinner from '$lib/components/Spinner.svelte';
 	import { getVariantDisplayName } from '$lib/variant';
 	import type { CartItemWithProduct } from '$lib/actions';
 
@@ -59,6 +60,58 @@
 		}
 	}
 
+	// Presentation-only busy keys for cart controls (e.g. `${lineId}:qty:inc`).
+	// Set the moment a form action is submitted, cleared in `finally` AFTER
+	// applyCartResult resolves — including failure branches — so no control can
+	// ever stay stuck disabled. This is UI state, never re-seeded from the server.
+	let pendingControls = $state<string[]>([]);
+
+	function isPending(key: string): boolean {
+		return pendingControls.includes(key);
+	}
+
+	function beginPending(key: string): void {
+		pendingControls = [...pendingControls, key];
+	}
+
+	function endPending(key: string): void {
+		pendingControls = pendingControls.filter((pending) => pending !== key);
+	}
+
+	function qtyPendingKey(lineId: string, direction: 'inc' | 'dec'): string {
+		return `${lineId}:qty:${direction}`;
+	}
+
+	function removePendingKey(lineId: string): string {
+		return `${lineId}:remove`;
+	}
+
+	/**
+	 * A line's controls all write the same row (the quantity actions carry its
+	 * optimistic-lock version), so the whole group goes non-interactive while
+	 * any of them is in flight. Other lines stay usable — their versions are
+	 * independent.
+	 */
+	function lineBusy(lineId: string): boolean {
+		return (
+			isPending(qtyPendingKey(lineId, 'inc')) ||
+			isPending(qtyPendingKey(lineId, 'dec')) ||
+			isPending(removePendingKey(lineId))
+		);
+	}
+
+	/**
+	 * Class fragment for one control: the control that is mid-flight keeps full
+	 * opacity with a wait cursor so its spinner reads clearly; controls blocked
+	 * behind it dim like any other disabled control in this app.
+	 */
+	function busyClass(key: string, blocked: boolean): string {
+		if (isPending(key)) {
+			return 'cursor-wait';
+		}
+		return blocked ? 'cursor-not-allowed opacity-50' : '';
+	}
+
 	// Toggle Visible Elements
 	function toggleClearCartModalIsVisible(visible?: boolean) {
 		if (typeof visible === 'undefined') {
@@ -78,11 +131,15 @@
 
 	function cancelFocus(e: FocusEvent) {
 		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
+		// Pointer focus loses its outline after a beat (the original intent), but
+		// keyboard focus must keep both the focus and the focus-visible ring —
+		// otherwise tabbing through these controls is impossible.
+		if (!target || target.matches(':focus-visible')) {
+			return;
 		}
+		setTimeout(() => {
+			target.blur();
+		}, 200);
 	}
 </script>
 
@@ -130,6 +187,10 @@
 	<!-- Cart items — Thread-woven list -->
 	<section class="flex flex-col gap-4">
 		{#each cartItems as item, index (item.id)}
+			{@const lineIsBusy = lineBusy(item.id)}
+			{@const decKey = qtyPendingKey(item.id, 'dec')}
+			{@const incKey = qtyPendingKey(item.id, 'inc')}
+			{@const removeKey = removePendingKey(item.id)}
 			<div
 				class="bg-surface-1/80 hover:bg-surface-2/50 hover:shadow-glow-sm animate-thread-appear flex gap-4 rounded-2xl border border-white/4 p-4 transition-all duration-400 hover:border-white/8"
 				style="--stagger-delay: {60 * index}ms"
@@ -184,9 +245,19 @@
 						<form
 							action="?/updateQuantity"
 							method="post"
-							use:enhance={() => {
+							use:enhance={({ formData }) => {
+								// Direction comes from the submitted value: the quantity buttons
+								// always post current ± 1, so the larger one is the increment.
+								const quantity = Number(formData.get('quantity'));
+								const direction: 'inc' | 'dec' = quantity > item.quantity ? 'inc' : 'dec';
+								const key = qtyPendingKey(item.id, direction);
+								beginPending(key);
 								return async ({ result }) => {
-									await applyCartResult(result);
+									try {
+										await applyCartResult(result);
+									} finally {
+										endPending(key);
+									}
 								};
 							}}
 						>
@@ -197,14 +268,20 @@
 									type="submit"
 									name="quantity"
 									value={Math.max(0, item.quantity - 1)}
-									class="text-text-secondary hover:border-brand-400/25 hover:text-brand-400 hover:bg-brand-400/5 flex h-9 w-9 items-center justify-center rounded-full border border-white/8 transition-all duration-300 {item.quantity <=
-									1
-										? 'cursor-not-allowed opacity-50'
-										: ''}"
-									disabled={item.quantity <= 1}
+									class="text-text-secondary hover:border-brand-400/25 hover:text-brand-400 hover:bg-brand-400/5 flex h-9 w-9 items-center justify-center rounded-full border border-white/8 transition-all duration-200 active:scale-95 {busyClass(
+										decKey,
+										lineIsBusy || item.quantity <= 1
+									)}"
+									disabled={lineIsBusy || item.quantity <= 1}
+									aria-busy={isPending(decKey)}
+									aria-label="Disminuir cantidad"
 									onfocus={(e) => cancelFocus(e)}
 								>
-									<Icon icon="mdi:minus" class="text-sm" />
+									{#if isPending(decKey)}
+										<Spinner />
+									{:else}
+										<Icon icon="mdi:minus" class="text-sm" />
+									{/if}
 								</button>
 								<span class="text-text-primary w-8 text-center font-semibold tabular-nums">
 									{item.quantity}
@@ -213,10 +290,20 @@
 									type="submit"
 									name="quantity"
 									value={item.quantity + 1}
-									class="text-text-secondary hover:border-brand-400/25 hover:text-brand-400 hover:bg-brand-400/5 flex h-9 w-9 items-center justify-center rounded-full border border-white/8 transition-all duration-300"
+									class="text-text-secondary hover:border-brand-400/25 hover:text-brand-400 hover:bg-brand-400/5 flex h-9 w-9 items-center justify-center rounded-full border border-white/8 transition-all duration-200 active:scale-95 {busyClass(
+										incKey,
+										lineIsBusy
+									)}"
+									disabled={lineIsBusy}
+									aria-busy={isPending(incKey)}
+									aria-label="Aumentar cantidad"
 									onfocus={(e) => cancelFocus(e)}
 								>
-									<Icon icon="mdi:plus" class="text-sm" />
+									{#if isPending(incKey)}
+										<Spinner />
+									{:else}
+										<Icon icon="mdi:plus" class="text-sm" />
+									{/if}
 								</button>
 							</div>
 						</form>
@@ -241,8 +328,13 @@
 						action="?/removeFromCart"
 						method="post"
 						use:enhance={() => {
+							beginPending(removeKey);
 							return async ({ result }) => {
-								await applyCartResult(result);
+								try {
+									await applyCartResult(result);
+								} finally {
+									endPending(removeKey);
+								}
 							};
 						}}
 						class="mt-2"
@@ -250,9 +342,17 @@
 						<input type="hidden" name="cartItemId" value={item.id} />
 						<button
 							type="submit"
-							class="text-text-muted hover:text-text-error text-xs font-medium transition-colors"
+							class="text-text-muted hover:text-text-error inline-flex items-center gap-1.5 text-xs font-medium transition-all duration-200 active:scale-95 {busyClass(
+								removeKey,
+								lineIsBusy
+							)}"
+							disabled={lineIsBusy}
+							aria-busy={isPending(removeKey)}
 							onfocus={(e) => cancelFocus(e)}
 						>
+							{#if isPending(removeKey)}
+								<Spinner />
+							{/if}
 							Eliminar
 						</button>
 					</form>
