@@ -221,7 +221,9 @@ export async function addCartItem(
 	// Check stock
 	const availableStock = effectiveStock(variant, product);
 	if (quantity > availableStock) {
-		return failure(CartErrorCode.OUT_OF_STOCK, `Only ${availableStock} items available`);
+		return failure(CartErrorCode.OUT_OF_STOCK, `Only ${availableStock} items available`, {
+			available: availableStock
+		});
 	}
 
 	// Snapshot price
@@ -252,7 +254,8 @@ export async function addCartItem(
 		if (newQuantity > availableStock) {
 			return failure(
 				CartErrorCode.OUT_OF_STOCK,
-				`Only ${availableStock} items available (already have ${existingItem.quantity} in cart)`
+				`Only ${availableStock} items available (already have ${existingItem.quantity} in cart)`,
+				{ available: availableStock }
 			);
 		}
 
@@ -371,7 +374,9 @@ export async function updateCartItem(
 	// Check stock
 	const availableStock = effectiveStock(variant, product);
 	if (quantity > availableStock) {
-		return failure(CartErrorCode.OUT_OF_STOCK, `Only ${availableStock} items available`);
+		return failure(CartErrorCode.OUT_OF_STOCK, `Only ${availableStock} items available`, {
+			available: availableStock
+		});
 	}
 
 	if (quantity === 0) {

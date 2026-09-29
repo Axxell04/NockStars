@@ -6,6 +6,7 @@
 	import type { CartItemWithProduct } from '$lib/actions';
 	import { page } from '$app/state';
 	import Icon from '@iconify/svelte';
+	import Spinner from '$lib/components/Spinner.svelte';
 
 	interface Props {
 		sendCartModalIsVisible: boolean;
@@ -18,6 +19,11 @@
 		$props();
 
 	let formMessage = $state('');
+
+	// In-flight state for the confirm action: set on submission, cleared in
+	// `finally` after the result lands — including failure branches — so the
+	// button always becomes usable again and the modal stays open on failure.
+	let submitting = $state(false);
 
 	let totalValue = $derived(
 		cart.reduce((pv, cv) => {
@@ -55,19 +61,24 @@
 				action="?/send_cart"
 				method="post"
 				use:enhance={() => {
+					submitting = true;
 					return async ({ result }) => {
-						if (result.type === 'failure') {
-							// Retain the pre-existing formMessage behavior — no new UI.
-							if (result.data?.message) {
-								formMessage = result.data.message as string;
+						try {
+							if (result.type === 'failure') {
+								// Retain the pre-existing formMessage behavior — no new UI.
+								if (result.data?.message) {
+									formMessage = result.data.message as string;
+								}
+								await onCartResult(result);
+							} else if (result.type === 'success') {
+								await onCartResult(result);
+								if (result.data?.cod) {
+									sendWhatsApp(result.data?.cod as string);
+								}
+								toggleSendCartModalIsVisible(false);
 							}
-							await onCartResult(result);
-						} else if (result.type === 'success') {
-							await onCartResult(result);
-							if (result.data?.cod) {
-								sendWhatsApp(result.data?.cod as string);
-							}
-							toggleSendCartModalIsVisible(false);
+						} finally {
+							submitting = false;
 						}
 					};
 				}}
@@ -113,12 +124,18 @@
 				<div class="modal-actions">
 					<button
 						type="button"
-						class="btn-secondary"
+						class="btn-secondary {submitting ? 'cursor-not-allowed opacity-50' : ''}"
+						disabled={submitting}
 						onclick={() => toggleSendCartModalIsVisible(false)}
 					>
 						Cancelar
 					</button>
-					<button type="submit" class="btn-primary"> Realizar pedido </button>
+					<button type="submit" class="btn-primary" disabled={submitting} aria-busy={submitting}>
+						{#if submitting}
+							<Spinner />
+						{/if}
+						Realizar pedido
+					</button>
 				</div>
 
 				{#if formMessage}

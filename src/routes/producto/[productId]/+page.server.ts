@@ -95,7 +95,14 @@ export const actions: Actions = {
 		});
 
 		if (!result.success) {
-			return fail(400, { message: result.error.message });
+			// Surface the machine-readable code and details (e.g. available
+			// stock) so the client can distinguish an over-stock rejection
+			// from a generic failure.
+			return fail(400, {
+				message: result.error.message,
+				code: result.error.code,
+				details: result.error.details
+			});
 		}
 
 		return {

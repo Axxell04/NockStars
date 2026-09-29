@@ -9,12 +9,15 @@
 		effectivePrice,
 		effectiveStock,
 		getVariantDisplayName,
-		isVariantAvailable
+		isVariantAvailable,
+		stockLimitMessage
 	} from '$lib/variant';
 	import { specEntries } from '$lib/product-specs';
 	import VariantSelector from '$lib/components/VariantSelector.svelte';
 	import { resolveSafeReturnTarget } from '$lib/route-back';
+	import { toast } from '$lib/toast.svelte.js';
 	import type { PageProps } from './$types';
+	import { CartErrorCode } from '$lib/actions';
 	import type { VariantComplete, ProductWithVariants } from '$lib/actions';
 
 	let { data }: PageProps = $props();
@@ -344,14 +347,29 @@
 			method="post"
 			use:enhance={() => {
 				return async (input: {
-					result: { type: string; data?: { success?: boolean; message?: string } };
+					result: {
+						type: string;
+						data?: {
+							success?: boolean;
+							message?: string;
+							code?: string;
+							details?: { available?: number };
+						};
+					};
 				}) => {
 					const { result } = input;
 					if (result.type === 'success' && result.data?.success) {
 						showToast('Producto añadido al carrito');
 						await invalidateAll();
 					} else if (result.type === 'failure') {
-						showToast(result.data?.message ?? 'Error al añadir al carrito');
+						if (result.data?.code === CartErrorCode.OUT_OF_STOCK) {
+							// Over-stock rejections go to the global toast with a
+							// clear Spanish message; the inline toast keeps
+							// displaying every other failure.
+							toast(stockLimitMessage(result.data.details?.available));
+						} else {
+							showToast(result.data?.message ?? 'Error al añadir al carrito');
+						}
 					}
 				};
 			}}

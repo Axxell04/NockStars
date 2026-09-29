@@ -63,6 +63,22 @@ export function effectiveStock(variant: VariantComplete | null, product: Product
 }
 
 /**
+ * User-facing copy for stock-limit rejections, shared by every cart entry
+ * point so the wording stays identical. `available` is the stock left for the
+ * exact variant (or implicit variant) that was rejected; when the server does
+ * not report a count, the message stays deliberately vague.
+ */
+export function stockLimitMessage(available?: number): string {
+	if (available === undefined || available <= 0) {
+		return 'No hay más unidades disponibles';
+	}
+	if (available === 1) {
+		return 'Solo queda 1 unidad disponible';
+	}
+	return `Solo quedan ${available} unidades disponibles`;
+}
+
+/**
  * Checks if a product/variant combination is available (stock > 0)
  */
 export function isVariantAvailable(variant: VariantComplete | null, product: Product): boolean {
