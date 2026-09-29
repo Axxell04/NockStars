@@ -26,8 +26,33 @@ import { effectivePrice, effectiveStock, resolveImplicitVariant } from '$lib/var
 // Cart Creation & Retrieval
 // ============================================================================
 
+/** Mirrors Postgres' uuid textual form closely enough to reject tampered cookies. */
+const UUID_SESSION_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
- * Creates a new cart for a session
+ * Returns the total item quantity for a session cart (SUM of cart_item.quantity),
+ * or 0 when the session has no cart or the cookie value is not a valid UUID.
+ *
+ * The UUID guard matters because this runs on every route via the layout load:
+ * a tampered non-UUID cookie would otherwise blow up the uuid cast in the query.
+ */
+export async function getCartItemCount(sessionId: string | undefined): Promise<number> {
+	if (!sessionId || !UUID_SESSION_PATTERN.test(sessionId)) {
+		return 0;
+	}
+
+	const [row] = await getDb()
+		.select({ total: sql<number>`coalesce(sum(${table.cartItem.quantity}), 0)` })
+		.from(table.cartItem)
+		.innerJoin(table.cart, eq(table.cartItem.cartId, table.cart.id))
+		.where(eq(table.cart.sessionId, sessionId))
+		.execute();
+
+	return Number(row?.total ?? 0);
+}
+
+/**
+ * Gets a cart by session ID with all items and product/variant details
  */
 export async function createCart(sessionId: string): Promise<Cart> {
 	const cartId = crypto.randomUUID();
