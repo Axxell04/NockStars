@@ -157,10 +157,12 @@ export const actions: Actions = {
 			secure: event.url.protocol === 'https:'
 		});
 
-		// Return order code for WhatsApp redirect
+		// Return order code for WhatsApp redirect; checkout emptied cart_item,
+		// so the action reports the now-empty list like the other cart actions.
 		return {
 			success: true,
-			cod: orderId
+			cod: orderId,
+			cartItems: []
 		};
 	}
 };
