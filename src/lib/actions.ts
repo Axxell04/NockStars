@@ -50,6 +50,7 @@ export interface CartWithItems extends Cart {
 
 export interface CartItemWithProduct extends CartItem {
 	product: Product;
+	productImages: Img[];
 	variant: (ProductVariant & { images: VariantImg[] }) | null;
 }
 

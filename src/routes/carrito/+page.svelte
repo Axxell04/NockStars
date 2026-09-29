@@ -114,6 +114,12 @@
 							alt={item.variant.images[0].alt ?? item.product.name}
 							class="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
 						/>
+					{:else if item.productImages?.length > 0}
+						<img
+							src={item.productImages[0].url}
+							alt={item.product.name}
+							class="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
+						/>
 					{:else}
 						<div class="flex h-full w-full items-center justify-center">
 							<Icon icon="mdi:tshirt-crew" class="text-text-muted/30 text-4xl" />

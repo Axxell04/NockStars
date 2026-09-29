@@ -1,6 +1,6 @@
 import * as table from '$lib/server/db/schema';
 import { getDb } from '$lib/server/db';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 import type {
 	Cart,
 	CartWithItems,
@@ -98,6 +98,25 @@ async function getCartItemsWithDetails(cartId: string): Promise<CartItemWithProd
 
 	const enrichedItems: CartItemWithProduct[] = [];
 
+	// Product-level images for every line in one batched query (no per-line N+1).
+	const productIds = [...new Set(items.map((item) => item.productId))];
+	const productImagesByProductId = new Map<string, table.Img[]>();
+	if (productIds.length > 0) {
+		const productImages = await getDb()
+			.select()
+			.from(table.img)
+			.where(inArray(table.img.productId, productIds))
+			.execute();
+		for (const image of productImages) {
+			const list = productImagesByProductId.get(image.productId);
+			if (list) {
+				list.push(image);
+			} else {
+				productImagesByProductId.set(image.productId, [image]);
+			}
+		}
+	}
+
 	for (const item of items) {
 		const [product] = await getDb()
 			.select()
@@ -134,6 +153,7 @@ async function getCartItemsWithDetails(cartId: string): Promise<CartItemWithProd
 		enrichedItems.push({
 			...item,
 			product,
+			productImages: productImagesByProductId.get(item.productId) ?? [],
 			variant
 		});
 	}
