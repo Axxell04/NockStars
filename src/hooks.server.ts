@@ -35,23 +35,6 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		event.locals.catalogId = '';
 	}
 
-	const cart = event.cookies.get('cart');
-	if (cart) {
-		try {
-			event.locals.cart = JSON.parse(cart);
-		} catch {
-			event.locals.cart = [];
-			event.cookies.delete('cart', {
-				path: '/',
-				httpOnly: true,
-				sameSite: 'lax',
-				secure: event.url.protocol === 'https:'
-			});
-		}
-	} else {
-		event.locals.cart = [];
-	}
-
 	const sessionToken = event.cookies.get(auth.sessionCookieName);
 	if (!sessionToken) {
 		event.locals.user = null;

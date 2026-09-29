@@ -5,22 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1790461871782,
-      "tag": "0001_add_product_variants_and_cart",
+      "when": 1790632003072,
+      "tag": "0000_bright_mandroid",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1790470284964,
-      "tag": "0001_conscious_gorilla_man",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1790568948506,
-      "tag": "0002_cool_hellion",
+      "when": 1790634071000,
+      "tag": "0001_pg_cron_abandoned_cart_cleanup",
       "breakpoints": true
     }
   ]

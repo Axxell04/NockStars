@@ -2,15 +2,16 @@
 	import { fade } from 'svelte/transition';
 	import ContainerModal from '../ContainerModal.svelte';
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import type { ActionResult } from '@sveltejs/kit';
 	import Icon from '@iconify/svelte';
 
 	interface Props {
 		clearCartModalIsVisible: boolean;
 		toggleClearCartModalIsVisible: (visible?: boolean) => void;
+		onCartResult: (result: ActionResult) => Promise<void>;
 	}
 
-	let { clearCartModalIsVisible, toggleClearCartModalIsVisible }: Props = $props();
+	let { clearCartModalIsVisible, toggleClearCartModalIsVisible, onCartResult }: Props = $props();
 </script>
 
 {#if clearCartModalIsVisible}
@@ -21,8 +22,8 @@
 				method="post"
 				use:enhance={() => {
 					return async ({ result }) => {
+						await onCartResult(result);
 						if (result.type === 'success') {
-							await invalidateAll();
 							toggleClearCartModalIsVisible(false);
 						}
 					};

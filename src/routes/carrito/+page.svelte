@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
 	import type { PageProps } from './$types';
+	import type { ActionResult } from '@sveltejs/kit';
 	import Icon from '@iconify/svelte';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
@@ -28,6 +29,35 @@
 			return acc + price * item.quantity;
 		}, 0)
 	);
+
+	function extractCartItems(payload: unknown): CartItemWithProduct[] | null {
+		if (payload && typeof payload === 'object' && 'cartItems' in payload) {
+			const items = (payload as { cartItems?: unknown }).cartItems;
+			if (Array.isArray(items)) {
+				return items as CartItemWithProduct[];
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Single entry point for every cart action result: re-seeds the local list
+	 * from the action's RETURNED payload (never a hard-coded literal) and
+	 * invalidates so the header badge recomputes. On failure it invalidates
+	 * first, then re-seeds from the refreshed load payload (server truth).
+	 */
+	async function applyCartResult(result: ActionResult): Promise<void> {
+		if (result.type === 'success') {
+			const items = extractCartItems(result.data);
+			if (items) {
+				cartItems = items;
+			}
+			await invalidateAll();
+		} else {
+			await invalidateAll();
+			cartItems = data.cartItems;
+		}
+	}
 
 	// Toggle Visible Elements
 	function toggleClearCartModalIsVisible(visible?: boolean) {
@@ -114,6 +144,12 @@
 							alt={item.variant.images[0].alt ?? item.product.name}
 							class="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
 						/>
+					{:else if item.productImages?.length > 0}
+						<img
+							src={item.productImages[0].url}
+							alt={item.product.name}
+							class="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
+						/>
 					{:else}
 						<div class="flex h-full w-full items-center justify-center">
 							<Icon icon="mdi:tshirt-crew" class="text-text-muted/30 text-4xl" />
@@ -150,9 +186,7 @@
 							method="post"
 							use:enhance={() => {
 								return async ({ result }) => {
-									if (result.type === 'success') {
-										await invalidateAll();
-									}
+									await applyCartResult(result);
 								};
 							}}
 						>
@@ -208,9 +242,7 @@
 						method="post"
 						use:enhance={() => {
 							return async ({ result }) => {
-								if (result.type === 'success') {
-									await invalidateAll();
-								}
+								await applyCartResult(result);
 							};
 						}}
 						class="mt-2"
@@ -271,5 +303,14 @@
 	{/if}
 </div>
 
-<ClearCartModal {toggleClearCartModalIsVisible} {clearCartModalIsVisible} />
-<SendCartModal {toggleSendCartModalIsVisible} cart={cartItems} {sendCartModalIsVisible} />
+<ClearCartModal
+	{toggleClearCartModalIsVisible}
+	{clearCartModalIsVisible}
+	onCartResult={applyCartResult}
+/>
+<SendCartModal
+	{toggleSendCartModalIsVisible}
+	cart={cartItems}
+	{sendCartModalIsVisible}
+	onCartResult={applyCartResult}
+/>

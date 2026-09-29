@@ -2,7 +2,7 @@
 	import { fade, scale } from 'svelte/transition';
 	import ContainerModal from '../ContainerModal.svelte';
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import type { ActionResult } from '@sveltejs/kit';
 	import type { CartItemWithProduct } from '$lib/actions';
 	import { page } from '$app/state';
 	import Icon from '@iconify/svelte';
@@ -11,9 +11,11 @@
 		sendCartModalIsVisible: boolean;
 		toggleSendCartModalIsVisible: (visible?: boolean) => void;
 		cart: CartItemWithProduct[];
+		onCartResult: (result: ActionResult) => Promise<void>;
 	}
 
-	let { sendCartModalIsVisible, toggleSendCartModalIsVisible, cart }: Props = $props();
+	let { sendCartModalIsVisible, toggleSendCartModalIsVisible, cart, onCartResult }: Props =
+		$props();
 
 	let formMessage = $state('');
 
@@ -55,11 +57,13 @@
 				use:enhance={() => {
 					return async ({ result }) => {
 						if (result.type === 'failure') {
+							// Retain the pre-existing formMessage behavior — no new UI.
 							if (result.data?.message) {
 								formMessage = result.data.message as string;
 							}
+							await onCartResult(result);
 						} else if (result.type === 'success') {
-							await invalidateAll();
+							await onCartResult(result);
 							if (result.data?.cod) {
 								sendWhatsApp(result.data?.cod as string);
 							}

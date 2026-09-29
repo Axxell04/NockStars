@@ -1,6 +1,6 @@
 {
-  "id": "89773467-0248-4980-934e-bcf75572bf00",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "b4f17c02-9e3a-4d6f-8a15-2c7de5f90b41",
+  "prevId": "ce648ded-4081-4759-b225-46c008c3e74b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -552,6 +552,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "price": {
           "name": "price",
           "type": "double precision",
@@ -564,6 +570,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "specs": {
+          "name": "specs",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
         },
         "created_at": {
           "name": "created_at",

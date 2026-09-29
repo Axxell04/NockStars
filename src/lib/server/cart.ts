@@ -1,6 +1,6 @@
 import * as table from '$lib/server/db/schema';
 import { getDb } from '$lib/server/db';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 import type {
 	Cart,
 	CartWithItems,
@@ -26,8 +26,33 @@ import { effectivePrice, effectiveStock, resolveImplicitVariant } from '$lib/var
 // Cart Creation & Retrieval
 // ============================================================================
 
+/** Mirrors Postgres' uuid textual form closely enough to reject tampered cookies. */
+const UUID_SESSION_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
- * Creates a new cart for a session
+ * Returns the total item quantity for a session cart (SUM of cart_item.quantity),
+ * or 0 when the session has no cart or the cookie value is not a valid UUID.
+ *
+ * The UUID guard matters because this runs on every route via the layout load:
+ * a tampered non-UUID cookie would otherwise blow up the uuid cast in the query.
+ */
+export async function getCartItemCount(sessionId: string | undefined): Promise<number> {
+	if (!sessionId || !UUID_SESSION_PATTERN.test(sessionId)) {
+		return 0;
+	}
+
+	const [row] = await getDb()
+		.select({ total: sql<number>`coalesce(sum(${table.cartItem.quantity}), 0)` })
+		.from(table.cartItem)
+		.innerJoin(table.cart, eq(table.cartItem.cartId, table.cart.id))
+		.where(eq(table.cart.sessionId, sessionId))
+		.execute();
+
+	return Number(row?.total ?? 0);
+}
+
+/**
+ * Gets a cart by session ID with all items and product/variant details
  */
 export async function createCart(sessionId: string): Promise<Cart> {
 	const cartId = crypto.randomUUID();
@@ -73,6 +98,25 @@ async function getCartItemsWithDetails(cartId: string): Promise<CartItemWithProd
 
 	const enrichedItems: CartItemWithProduct[] = [];
 
+	// Product-level images for every line in one batched query (no per-line N+1).
+	const productIds = [...new Set(items.map((item) => item.productId))];
+	const productImagesByProductId = new Map<string, table.Img[]>();
+	if (productIds.length > 0) {
+		const productImages = await getDb()
+			.select()
+			.from(table.img)
+			.where(inArray(table.img.productId, productIds))
+			.execute();
+		for (const image of productImages) {
+			const list = productImagesByProductId.get(image.productId);
+			if (list) {
+				list.push(image);
+			} else {
+				productImagesByProductId.set(image.productId, [image]);
+			}
+		}
+	}
+
 	for (const item of items) {
 		const [product] = await getDb()
 			.select()
@@ -109,6 +153,7 @@ async function getCartItemsWithDetails(cartId: string): Promise<CartItemWithProd
 		enrichedItems.push({
 			...item,
 			product,
+			productImages: productImagesByProductId.get(item.productId) ?? [],
 			variant
 		});
 	}

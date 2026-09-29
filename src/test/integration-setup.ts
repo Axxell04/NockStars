@@ -47,9 +47,10 @@ beforeEach(async () => {
 	await db.delete(schema.variantImg);
 	await db.delete(schema.productVariant);
 	await db.delete(schema.productCatalog);
+	// img before product: img.product_id references product.id.
+	await db.delete(schema.img);
 	await db.delete(schema.product);
 	await db.delete(schema.catalog);
-	await db.delete(schema.img);
 });
 
 // Mock SvelteKit modules for integration tests

@@ -78,8 +78,10 @@ CREATE TABLE "order_item" (
 CREATE TABLE "product" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
+	"description" text,
 	"price" double precision NOT NULL,
 	"stock" integer DEFAULT 0 NOT NULL,
+	"specs" jsonb DEFAULT '{}'::jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
