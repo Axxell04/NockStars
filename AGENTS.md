@@ -69,9 +69,11 @@ the `pre-commit` hook). It rejects both bare markers and
 ## Storefront state is cookie-backed — do not "fix" it into `$derived`
 
 `src/routes/+page.server.ts` keeps state in **httpOnly cookies**
-(`event.locals.catalogId`, `event.locals.cart`) and never reads
-`url.searchParams`. Its `load` therefore returns a **bootstrap payload, not a
-live source**.
+(`event.locals.catalogId`) and never reads `url.searchParams`. The cart lives in
+the `cart_session_id` cookie and is DB-backed: the header badge count comes from
+`getCartItemCount` (SUM of `cart_item.quantity`), never from a
+`event.locals.cart` value — that plumbing was removed. Its `load` therefore
+returns a **bootstrap payload, not a live source**.
 
 `productPagination`, `catalogId` and `cart` in `src/routes/+page.svelte` are
 deliberately seeded once with `$state(data.x)` and re-seeded explicitly by their
