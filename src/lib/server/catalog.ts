@@ -1,7 +1,7 @@
 import * as table from '$lib/server/db/schema';
 import { encodeBase32LowerCase } from '@oslojs/encoding';
 import { getDb } from '$lib/server/db';
-import { and, eq, desc } from 'drizzle-orm';
+import { and, eq, desc, isNull } from 'drizzle-orm';
 
 export async function createCatalog(name: string, description?: string) {
 	const productId = generateId();
@@ -81,6 +81,41 @@ export async function getProductsByCatalog(catalogId: string) {
 		.from(table.product)
 		.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
 		.where(eq(table.productCatalog.catalogId, catalogId))
+		.orderBy(desc(table.product.createdAt))
+		.execute();
+
+	const listProducts: { product: (typeof products)[0]; imgs: table.Img[] }[] = [];
+
+	for (const product of products) {
+		const imgs = await getDb()
+			.select()
+			.from(table.img)
+			.where(eq(table.img.productId, product.id))
+			.execute();
+
+		listProducts.push({
+			product,
+			imgs
+		});
+	}
+
+	return listProducts;
+}
+
+export async function getProductsWithoutCatalog() {
+	// LEFT JOIN + IS NULL selects products that have no row in product_catalog,
+	// i.e. products with no catalog membership at all.
+	const products = await getDb()
+		.select({
+			id: table.product.id,
+			name: table.product.name,
+			price: table.product.price,
+			stock: table.product.stock,
+			createdAt: table.product.createdAt
+		})
+		.from(table.product)
+		.leftJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
+		.where(isNull(table.productCatalog.catalogId))
 		.orderBy(desc(table.product.createdAt))
 		.execute();
 

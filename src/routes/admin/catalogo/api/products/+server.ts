@@ -1,18 +1,15 @@
-import { getProductsByCatalog } from '$lib/server/catalog';
+import { getProductsByCatalog, getProductsWithoutCatalog } from '$lib/server/catalog';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async (event) => {
 	const catalogId = event.url.searchParams.get('catalogId');
 
-	if (!catalogId) {
-		return new Response(JSON.stringify({ error: 'catalogId required' }), {
-			status: 400,
-			headers: { 'Content-Type': 'application/json' }
-		});
-	}
-
 	try {
-		const products = await getProductsByCatalog(catalogId);
+		// Absent catalogId is a valid request on this admin-only endpoint:
+		// it means "products with no catalog membership" (the Sin catálogo view).
+		const products = catalogId
+			? await getProductsByCatalog(catalogId)
+			: await getProductsWithoutCatalog();
 		return new Response(JSON.stringify({ products }), {
 			status: 200,
 			headers: { 'Content-Type': 'application/json' }

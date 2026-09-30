@@ -12,6 +12,7 @@
 	import EditCatalogModal from '$lib/components/modals/admin/catalogo/EditCatalogModal.svelte';
 	import VariantModal from '$lib/components/modals/admin/VariantModal.svelte';
 	import DeleteVariantModal from '$lib/components/modals/admin/catalogo/DeleteVariantModal.svelte';
+	import Skeleton from '$lib/components/Skeleton.svelte';
 
 	let { data }: PageProps = $props();
 
@@ -30,6 +31,16 @@
 	let variants: VariantComplete[] = $state([]);
 	let variantToEdit: VariantComplete | null = $state(null);
 	let variantToDelete: VariantComplete | null = $state(null);
+
+	// True while a subview's own fetch is in flight. Drives the skeleton, so a
+	// slow response never leaves a false empty state on screen.
+	let productsLoading = $state(false);
+	let variantsLoading = $state(false);
+
+	// Fixed placeholder counts — they communicate "loading", they do not predict
+	// the real list length.
+	const PRODUCT_SKELETONS = Array.from({ length: 6 }, (_, i) => i);
+	const VARIANT_SKELETONS = Array.from({ length: 4 }, (_, i) => i);
 
 	// Modals visibility
 	let addCatalogModalIsVisible = $state(false);
@@ -50,10 +61,16 @@
 	let deleteProductForm: HTMLFormElement | undefined = $state();
 
 	// Selection functions
+	// The product selection belongs to a catalog: changing the catalog (or clearing
+	// it) invalidates it, otherwise Variantes keeps showing the previous product.
+	function clearProductSelection() {
+		productSelected = undefined;
+		variants = [];
+	}
+
 	function selectThisCatalog(catalog: Catalog) {
 		catalogSelected = catalog;
-		// Load products for this catalog
-		loadProducts(catalog.id);
+		clearProductSelection();
 	}
 
 	function selectThisProduct(product: ProductComplete) {
@@ -156,21 +173,35 @@
 		}
 	}
 
-	// Load products for selected catalog
-	async function loadProducts(catalogId: string) {
+	// Load products for the selected catalog, or the catalog-less ones when none is selected
+	async function loadProducts(catalogId?: string) {
+		productsLoading = true;
 		try {
-			const response = await fetch(`/admin/catalogo/api/products?catalogId=${catalogId}`);
+			const url = catalogId
+				? `/admin/catalogo/api/products?catalogId=${catalogId}`
+				: '/admin/catalogo/api/products';
+			const response = await fetch(url);
 			if (response.ok) {
 				const data = await response.json();
 				setProducts(data.products);
 			}
 		} catch (error) {
 			console.error('Failed to load products:', error);
+		} finally {
+			productsLoading = false;
 		}
+	}
+
+	// Single entry point for the Productos tab: loads the product list for the
+	// current selection (with or without a catalog) exactly once per entry.
+	function openProductsTab() {
+		activeTab = 'products';
+		void loadProducts(catalogSelected?.id);
 	}
 
 	// Load variants for selected product
 	async function loadVariants(productId: string) {
+		variantsLoading = true;
 		try {
 			const response = await fetch(`/admin/catalogo/api/variants?productId=${productId}`);
 			if (response.ok) {
@@ -179,6 +210,8 @@
 			}
 		} catch (error) {
 			console.error('Failed to load variants:', error);
+		} finally {
+			variantsLoading = false;
 		}
 	}
 
@@ -188,9 +221,7 @@
 			const { result } = input as { result: { type: string; data?: { success?: boolean } } };
 			if (result.type === 'success' && result.data?.success) {
 				toggleAddProductModalIsVisible(false);
-				if (catalogSelected) {
-					await loadProducts(catalogSelected.id);
-				}
+				await loadProducts(catalogSelected?.id);
 			}
 		};
 	}
@@ -200,9 +231,7 @@
 			const { result } = input as { result: { type: string; data?: { success?: boolean } } };
 			if (result.type === 'success' && result.data?.success) {
 				toggleEditProductModalIsVisible(false);
-				if (catalogSelected) {
-					await loadProducts(catalogSelected.id);
-				}
+				await loadProducts(catalogSelected?.id);
 			}
 		};
 	}
@@ -212,8 +241,12 @@
 			const { result } = input as { result: { type: string; data?: { success?: boolean } } };
 			if (result.type === 'success' && result.data?.success) {
 				toggleDeleteProductModalIsVisible(false);
-				if (catalogSelected) {
-					await loadProducts(catalogSelected.id);
+				// Capture the deleted product before awaiting: the selection may change meanwhile.
+				const deletedProductId = productSelected?.product.id;
+				await loadProducts(catalogSelected?.id);
+				if (deletedProductId && productSelected?.product.id === deletedProductId) {
+					productSelected = undefined;
+					variants = [];
 				}
 			}
 		};
@@ -250,10 +283,8 @@
 				class="flex items-center justify-center gap-1 border-b-2 px-1.5 py-2.5 text-xs font-medium transition-all active:scale-[0.98] sm:gap-2 sm:px-4 sm:py-3 sm:text-sm {activeTab ===
 				'products'
 					? 'text-brand-400 bg-brand-400/10 border-brand-400 font-semibold'
-					: 'text-text-secondary hover:text-text-primary hover:bg-surface-1/60 border-transparent'} {catalogSelected
-					? ''
-					: 'opacity-80'}"
-				onclick={() => (activeTab = 'products')}
+					: 'text-text-secondary hover:text-text-primary hover:bg-surface-1/60 border-transparent'}"
+				onclick={() => openProductsTab()}
 				onfocus={(e) => cancelFocus(e)}
 			>
 				<Icon icon="mdi:tshirt-crew-outline" class="flex-shrink-0 text-base sm:text-lg" />
@@ -314,6 +345,9 @@
 					productSelected = undefined;
 					variants = [];
 					products = [];
+					if (activeTab === 'products') {
+						void loadProducts();
+					}
 				}}
 			>
 				Limpiar
@@ -340,7 +374,8 @@
 					class="btn-secondary w-full sm:w-auto {catalogSelected ? '' : 'ring-brand-400/50 ring-2'}"
 					onclick={() => {
 						catalogSelected = undefined;
-						activeTab = 'products';
+						clearProductSelection();
+						openProductsTab();
 					}}
 					onfocus={(e) => cancelFocus(e)}
 				>
@@ -356,6 +391,7 @@
 						: 'bg-surface-2/80 border-brand-400/25 shadow-glow-sm border'}"
 					onclick={() => {
 						catalogSelected = undefined;
+						clearProductSelection();
 						// activeTab = 'products';
 					}}
 					role="button"
@@ -364,6 +400,7 @@
 						if (e.key === 'Enter' || e.key === ' ') {
 							e.preventDefault();
 							catalogSelected = undefined;
+							clearProductSelection();
 							// activeTab = 'products';
 						}
 					}}
@@ -403,130 +440,144 @@
 		</section>
 	{/if}
 
+	{#snippet productCard(product: ProductComplete, index: number)}
+		<div
+			class="bg-surface-1/80 hover:bg-surface-2/50 hover:shadow-glow-sm animate-thread-appear stagger-thread flex gap-4 rounded-2xl border border-white/4 p-4 text-left transition-all duration-400 hover:border-white/8 {productSelected
+				?.product.id === product.product.id
+				? 'ring-brand-400/50 ring-2'
+				: ''}"
+			style="--stagger-delay: {60 * index}ms"
+			role="button"
+			tabindex="0"
+			onclick={() => selectThisProduct(product)}
+			onkeydown={(e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					selectThisProduct(product);
+				}
+			}}
+		>
+			<div class="bg-surface-2 h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl">
+				{#if product.imgs.length > 0}
+					<img
+						src={product.imgs[0].url}
+						alt={product.product.name}
+						class="h-full w-full object-cover"
+					/>
+				{:else}
+					<div class="flex h-full w-full items-center justify-center">
+						<Icon icon="mdi:tshirt-crew" class="text-text-muted/30 text-4xl" />
+					</div>
+				{/if}
+			</div>
+			<div class="min-w-0 flex-1">
+				<h4 class="text-text-primary truncate font-semibold">{product.product.name}</h4>
+				<p class="text-brand-400 mt-1 font-semibold">
+					{product.product.price.toFixed(2)} $
+				</p>
+				<p class="text-text-muted text-xs">Stock: {product.product.stock}</p>
+			</div>
+			<div class="flex flex-col gap-2">
+				<button
+					class="text-text-muted hover:text-brand-400 text-sm transition-colors"
+					onclick={(e) => {
+						e.stopPropagation();
+						productSelected = product;
+						toggleEditProductModalIsVisible(true);
+					}}
+					onfocus={(e) => cancelFocus(e)}
+				>
+					<Icon icon="mdi:pencil-outline" class="text-xl" />
+				</button>
+				<button
+					class="text-text-muted hover:text-text-error text-sm transition-colors"
+					onclick={(e) => {
+						e.stopPropagation();
+						productSelected = product;
+						toggleDeleteProductModalIsVisible(true);
+					}}
+					onfocus={(e) => cancelFocus(e)}
+				>
+					<Icon icon="mdi:delete-outline" class="text-xl" />
+				</button>
+			</div>
+		</div>
+	{/snippet}
+
 	<!-- Products Tab -->
 	{#if activeTab === 'products'}
-		{#if !catalogSelected}
-			<div class="text-text-muted flex flex-1 flex-col items-center justify-center gap-4 py-16">
-				<Icon icon="mdi:folder-outline" class="mb-2 text-6xl opacity-20" />
-				<p class="text-center text-lg">Sin catálogo seleccionado</p>
-				<p class="max-w-md text-center text-sm opacity-75">
-					Puedes gestionar el inventario general o elegir un catálogo concreto para filtrar la
-					vista.
-				</p>
-				<div class="flex flex-wrap items-center justify-center gap-3">
-					<a
-						href="/admin/producto/nuevo?returnTo=%2Fadmin%2Fcatalogo"
-						class="btn-primary"
-						onfocus={(e) => cancelFocus(e)}
-					>
-						<Icon icon="material-symbols:add-rounded" class="text-xl" />
-						<span>Agregar producto sin catálogo</span>
-					</a>
-					<!-- <button
-						type="button"
-						class="btn-secondary"
-						onclick={() => {
-							catalogSelected = undefined;
-							productSelected = undefined;
-							variants = [];
-							products = [];
-						}}
-						onfocus={(e) => cancelFocus(e)}
-					>
-						<Icon icon="mdi:folder-open-outline" class="text-xl" />
-						<span>Sin catálogo</span>
-					</button> -->
-				</div>
-			</div>
-		{:else}
-			<section class="flex flex-1 flex-col gap-3">
-				<div
-					class="flex flex-col items-stretch justify-between gap-2.5 sm:flex-row sm:items-center"
+		<section class="flex flex-1 flex-col gap-3">
+			<div class="flex flex-col items-stretch justify-between gap-2.5 sm:flex-row sm:items-center">
+				<h3 class="text-text-primary truncate text-base font-semibold sm:text-lg">
+					{catalogSelected ? catalogSelected.name : 'Sin catálogo'}
+				</h3>
+				<a
+					href={catalogSelected
+						? '/admin/producto/nuevo'
+						: '/admin/producto/nuevo?returnTo=%2Fadmin%2Fcatalogo'}
+					class="btn-primary w-full justify-center text-center sm:w-auto"
+					onfocus={(e) => cancelFocus(e)}
 				>
-					<h3 class="text-text-primary truncate text-base font-semibold sm:text-lg">
-						{catalogSelected.name}
-					</h3>
-					<a
-						href="/admin/producto/nuevo"
-						class="btn-primary w-full justify-center text-center sm:w-auto"
-						onfocus={(e) => cancelFocus(e)}
-					>
-						<Icon icon="material-symbols:add-rounded" class="text-xl" />
-						<span> Añadir Producto </span>
-					</a>
-				</div>
+					<Icon icon="material-symbols:add-rounded" class="text-xl" />
+					<span>
+						{catalogSelected ? 'Añadir Producto' : 'Agregar producto sin catálogo'}
+					</span>
+				</a>
+			</div>
 
-				<div class="flex grow flex-wrap justify-center gap-3 p-2">
-					{#each products as product}
-						<div
-							class="bg-surface-1/80 hover:bg-surface-2/50 hover:shadow-glow-sm animate-thread-appear flex gap-4 rounded-2xl border border-white/4 p-4 text-left transition-all duration-400 hover:border-white/8 {productSelected
-								?.product.id === product.product.id
-								? 'ring-brand-400/50 ring-2'
-								: ''}"
-							role="button"
-							tabindex="0"
-							onclick={() => selectThisProduct(product)}
-							onkeydown={(e) => {
-								if (e.key === 'Enter' || e.key === ' ') {
-									e.preventDefault();
-									selectThisProduct(product);
-								}
-							}}
-						>
-							<div class="bg-surface-2 h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl">
-								{#if product.imgs.length > 0}
-									<img
-										src={product.imgs[0].url}
-										alt={product.product.name}
-										class="h-full w-full object-cover"
-									/>
-								{:else}
-									<div class="flex h-full w-full items-center justify-center">
-										<Icon icon="mdi:tshirt-crew" class="text-text-muted/30 text-4xl" />
+			<div class="flex grow flex-wrap justify-center gap-3 p-2">
+				{#if productsLoading}
+					<div class="flex w-full flex-wrap justify-center gap-3" role="status">
+						<span class="sr-only">Cargando productos…</span>
+						{#each PRODUCT_SKELETONS as i (i)}
+							<div class="bg-surface-1/80 flex gap-4 rounded-2xl border border-white/4 p-4">
+								<Skeleton class="h-24 w-24 flex-shrink-0 rounded-xl" />
+								<div class="min-w-0 flex-1 py-1">
+									<div class="flex flex-col gap-2">
+										<Skeleton class="h-4 w-3/5 rounded" />
+										<Skeleton class="h-4 w-1/4 rounded" />
+										<Skeleton class="h-3 w-1/3 rounded" />
 									</div>
-								{/if}
+								</div>
+								<div class="flex flex-col gap-2">
+									<Skeleton class="h-6 w-6 rounded" />
+									<Skeleton class="h-6 w-6 rounded" />
+								</div>
 							</div>
-							<div class="min-w-0 flex-1">
-								<h4 class="text-text-primary truncate font-semibold">{product.product.name}</h4>
-								<p class="text-brand-400 mt-1 font-semibold">
-									{product.product.price.toFixed(2)} $
-								</p>
-								<p class="text-text-muted text-xs">Stock: {product.product.stock}</p>
-							</div>
-							<div class="flex flex-col gap-2">
-								<button
-									class="text-text-muted hover:text-brand-400 text-sm transition-colors"
-									onclick={(e) => {
-										e.stopPropagation();
-										toggleEditProductModalIsVisible(true);
-									}}
-									onfocus={(e) => cancelFocus(e)}
-								>
-									<Icon icon="mdi:pencil-outline" class="text-xl" />
-								</button>
-								<button
-									class="text-text-muted hover:text-text-error text-sm transition-colors"
-									onclick={(e) => {
-										e.stopPropagation();
-										toggleDeleteProductModalIsVisible(true);
-									}}
-									onfocus={(e) => cancelFocus(e)}
-								>
-									<Icon icon="mdi:delete-outline" class="text-xl" />
-								</button>
-							</div>
-						</div>
+						{/each}
+					</div>
+				{:else}
+					{#each products as product, index (product.product.id)}
+						{@render productCard(product, index)}
 					{/each}
 
 					{#if products.length === 0}
-						<div class="text-text-muted flex w-full flex-col items-center justify-center py-20">
+						<div
+							class="text-text-muted flex w-full flex-col items-center justify-center gap-4 py-20"
+						>
 							<Icon icon="mdi:tshirt-crew-outline" class="mb-4 text-6xl opacity-20" />
-							<p class="text-lg">No hay productos en este catálogo</p>
+							<p class="text-lg">
+								{catalogSelected
+									? 'No hay productos en este catálogo'
+									: 'No hay productos sin catálogo'}
+							</p>
+							<a
+								href={catalogSelected
+									? '/admin/producto/nuevo'
+									: '/admin/producto/nuevo?returnTo=%2Fadmin%2Fcatalogo'}
+								class="btn-primary"
+								onfocus={(e) => cancelFocus(e)}
+							>
+								<Icon icon="material-symbols:add-rounded" class="text-xl" />
+								<span>
+									{catalogSelected ? 'Añadir Producto' : 'Agregar producto sin catálogo'}
+								</span>
+							</a>
 						</div>
 					{/if}
-				</div>
-			</section>
-		{/if}
+				{/if}
+			</div>
+		</section>
 	{/if}
 
 	<!-- Variants Tab -->
@@ -558,7 +609,10 @@
 				</div>
 
 				<div class="flex-1 overflow-auto">
-					{#if variants.length > 0}
+					{#if variantsLoading}
+						<span class="sr-only" role="status">Cargando variantes…</span>
+					{/if}
+					{#if variantsLoading || variants.length > 0}
 						<table class="w-full text-sm">
 							<thead>
 								<tr class="text-text-muted border-b border-white/4 text-left">
@@ -573,59 +627,82 @@
 								</tr>
 							</thead>
 							<tbody>
-								{#each variants as variant}
-									<tr class="hover:bg-surface-1/50 border-b border-white/4 transition-colors">
-										<td class="px-2 py-3">
-											{#if variant.images.length > 0}
-												<img
-													src={variant.images[0].url}
-													alt={variant.images[0].alt}
-													class="h-12 w-12 rounded-lg object-cover"
-												/>
-											{:else}
-												<div
-													class="bg-surface-2 flex h-12 w-12 items-center justify-center rounded-lg"
-												>
-													<Icon icon="mdi:tshirt-crew" class="text-text-muted/30 text-xl" />
+								{#if variantsLoading}
+									{#each VARIANT_SKELETONS as i (i)}
+										<tr class="border-b border-white/4">
+											<td class="px-2 py-3">
+												<Skeleton class="h-12 w-12 rounded-lg" />
+											</td>
+											<td class="px-2 py-3"><Skeleton class="h-4 w-10 rounded" /></td>
+											<td class="px-2 py-3"><Skeleton class="h-4 w-16 rounded" /></td>
+											<td class="px-2 py-3"><Skeleton class="h-4 w-14 rounded" /></td>
+											<td class="px-2 py-3"><Skeleton class="h-4 w-6 rounded" /></td>
+											<td class="px-2 py-3"><Skeleton class="h-4 w-16 rounded" /></td>
+											<td class="px-2 py-3"><Skeleton class="h-4 w-6 rounded" /></td>
+											<td class="px-2 py-3"><Skeleton class="h-4 w-12 rounded" /></td>
+										</tr>
+									{/each}
+								{:else}
+									{#each variants as variant}
+										<tr class="hover:bg-surface-1/50 border-b border-white/4 transition-colors">
+											<td class="px-2 py-3">
+												{#if variant.images.length > 0}
+													<img
+														src={variant.images[0].url}
+														alt={variant.images[0].alt}
+														class="h-12 w-12 rounded-lg object-cover"
+													/>
+												{:else if productSelected.imgs.length > 0}
+													<img
+														src={productSelected.imgs[0].url}
+														alt={productSelected.product.name}
+														class="h-12 w-12 rounded-lg object-cover"
+													/>
+												{:else}
+													<div
+														class="bg-surface-2 flex h-12 w-12 items-center justify-center rounded-lg"
+													>
+														<Icon icon="mdi:tshirt-crew" class="text-text-muted/30 text-xl" />
+													</div>
+												{/if}
+											</td>
+											<td class="text-text-primary px-2 py-3 font-medium">{variant.size}</td>
+											<td class="text-text-primary px-2 py-3">{variant.color}</td>
+											<td class="text-text-primary px-2 py-3 capitalize">{variant.cut}</td>
+											<td class="text-text-primary px-2 py-3 tabular-nums">{variant.stock}</td>
+											<td class="text-brand-400 px-2 py-3 font-medium tabular-nums">
+												{variant.priceOverride !== null && variant.priceOverride !== undefined
+													? Number(variant.priceOverride).toFixed(2) + ' $'
+													: productSelected.product.price.toFixed(2) + ' $ (base)'}
+											</td>
+											<td class="text-text-muted px-2 py-3 tabular-nums">{variant.sortOrder}</td>
+											<td class="px-2 py-3">
+												<div class="flex items-center gap-2">
+													<button
+														class="text-text-muted hover:text-brand-400 transition-colors"
+														onclick={() => {
+															variantToEdit = variant;
+															toggleEditVariantModalIsVisible(true);
+														}}
+														onfocus={(e) => cancelFocus(e)}
+													>
+														<Icon icon="mdi:pencil-outline" class="text-xl" />
+													</button>
+													<button
+														class="text-text-muted hover:text-text-error transition-colors"
+														onclick={() => {
+															variantToDelete = variant;
+															toggleDeleteVariantModalIsVisible(true);
+														}}
+														onfocus={(e) => cancelFocus(e)}
+													>
+														<Icon icon="mdi:delete-outline" class="text-xl" />
+													</button>
 												</div>
-											{/if}
-										</td>
-										<td class="text-text-primary px-2 py-3 font-medium">{variant.size}</td>
-										<td class="text-text-primary px-2 py-3">{variant.color}</td>
-										<td class="text-text-primary px-2 py-3 capitalize">{variant.cut}</td>
-										<td class="text-text-primary px-2 py-3 tabular-nums">{variant.stock}</td>
-										<td class="text-brand-400 px-2 py-3 font-medium tabular-nums">
-											{variant.priceOverride !== null && variant.priceOverride !== undefined
-												? Number(variant.priceOverride).toFixed(2) + ' $'
-												: '— (base)'}
-										</td>
-										<td class="text-text-muted px-2 py-3 tabular-nums">{variant.sortOrder}</td>
-										<td class="px-2 py-3">
-											<div class="flex items-center gap-2">
-												<button
-													class="text-text-muted hover:text-brand-400 transition-colors"
-													onclick={() => {
-														variantToEdit = variant;
-														toggleEditVariantModalIsVisible(true);
-													}}
-													onfocus={(e) => cancelFocus(e)}
-												>
-													<Icon icon="mdi:pencil-outline" class="text-xl" />
-												</button>
-												<button
-													class="text-text-muted hover:text-text-error transition-colors"
-													onclick={() => {
-														variantToDelete = variant;
-														toggleDeleteVariantModalIsVisible(true);
-													}}
-													onfocus={(e) => cancelFocus(e)}
-												>
-													<Icon icon="mdi:delete-outline" class="text-xl" />
-												</button>
-											</div>
-										</td>
-									</tr>
-								{/each}
+											</td>
+										</tr>
+									{/each}
+								{/if}
 							</tbody>
 						</table>
 					{:else}
