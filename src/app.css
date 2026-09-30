@@ -539,6 +539,9 @@ textarea:focus-visible {
 
 .animate-thread-appear {
 	animation: thread-appear 0.8s var(--ease-out-expo) both;
+	/* List pages set --stagger-delay inline; without this read the delay was
+	   assigned but never consumed, so every item revealed at once. */
+	animation-delay: var(--stagger-delay, 0ms);
 }
 
 /* Stagger helper */
