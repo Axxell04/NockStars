@@ -88,6 +88,19 @@
 		return data.secure_url;
 	}
 
+	/**
+	 * A cleared `<input type="number">` binds to null — Svelte maps an empty
+	 * value with to_number('') — and String(null) would reach the server as the
+	 * literal "null", which fails its numeric guard as NaN. An empty string is
+	 * what both endpoints already read as "not set" (update) or 0 / undefined
+	 * (create).
+	 */
+	function numberField(value: number | string | null | undefined): string {
+		if (value === null || value === undefined || value === '') return '';
+		const n = Number(value);
+		return Number.isFinite(n) ? String(n) : '';
+	}
+
 	async function sendVariant() {
 		if (!name || !color || !cut) return;
 		uploading = true;
@@ -105,9 +118,9 @@
 				formDataPhase1.append('color', color);
 				formDataPhase1.append('cut', cut);
 				formDataPhase1.append('description', description);
-				formDataPhase1.append('stock', String(stock));
-				if (priceOverride) formDataPhase1.append('priceOverride', priceOverride);
-				formDataPhase1.append('sortOrder', String(sortOrder));
+				formDataPhase1.append('stock', numberField(stock));
+				formDataPhase1.append('priceOverride', numberField(priceOverride));
+				formDataPhase1.append('sortOrder', numberField(sortOrder));
 
 				const resPhase1 = await fetch('/admin/api/variant/upload', {
 					method: 'POST',
@@ -146,9 +159,9 @@
 				if (color) formData.append('color', color);
 				if (cut) formData.append('cut', cut);
 				formData.append('description', description);
-				if (stock !== undefined) formData.append('stock', String(stock));
-				formData.append('priceOverride', priceOverride);
-				if (sortOrder !== undefined) formData.append('sortOrder', String(sortOrder));
+				formData.append('stock', numberField(stock));
+				formData.append('priceOverride', numberField(priceOverride));
+				formData.append('sortOrder', numberField(sortOrder));
 
 				const res = await fetch('?/update_variant', {
 					method: 'POST',
