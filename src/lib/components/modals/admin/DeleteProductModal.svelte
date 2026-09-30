@@ -44,11 +44,7 @@
 
 {#if deleteProductModalIsVisible}
 	<div transition:fade={{ duration: 200 }}>
-		<ContainerModal
-			toggleModal={toggleDeleteProductModalIsVisible}
-			visible={deleteProductModalIsVisible}
-			cancelClick={true}
-		>
+		<ContainerModal toggleModal={toggleDeleteProductModalIsVisible} cancelClick={true}>
 			<form
 				id="delete-product"
 				action="?/delete_product"

@@ -6,18 +6,21 @@
 	interface Props {
 		children: Snippet;
 		toggleModal: (visible?: boolean) => void;
-		visible?: boolean;
 		cancelClick?: boolean;
 		class?: string;
 	}
 
-	let { children, toggleModal, class: className = '' }: Props = $props();
+	let { children, toggleModal, cancelClick = true, class: className = '' }: Props = $props();
 
 	$effect(() => {
+		// Read synchronously so a changing `cancelClick` re-registers the listener
+		// with a fresh closure instead of capturing a stale value.
+		const allowsCancel = cancelClick;
+
 		document.body.classList.add('overflow-hidden');
 
 		function handleKeyDown(event: KeyboardEvent) {
-			if (event.key === 'Escape') {
+			if (event.key === 'Escape' && allowsCancel) {
 				event.stopPropagation();
 				toggleModal(false);
 			}
@@ -33,26 +36,32 @@
 </script>
 
 <div
-	class="fixed inset-0 z-50 flex items-center justify-center overflow-hidden p-3 sm:p-4"
+	class="fixed inset-0 z-50 overflow-x-hidden overflow-y-auto overscroll-contain p-3 sm:p-4"
 	role="presentation"
 >
 	<!-- Backdrop overlay with blur and fade -->
 	<div
 		class="bg-surface-0/80 fixed inset-0 backdrop-blur-md"
 		transition:fade={{ duration: 200 }}
-		onclick={() => toggleModal(false)}
+		onclick={() => {
+			if (cancelClick) toggleModal(false);
+		}}
 		aria-hidden="true"
 	></div>
 
-	<!-- Modal dialog surface with Emil Kowalski scale-in from 0.95 and custom expoOut easing -->
-	<div
-		role="dialog"
-		aria-modal="true"
-		tabindex="-1"
-		in:scale={{ start: 0.95, duration: 220, easing: expoOut }}
-		out:scale={{ start: 0.95, duration: 160, easing: expoOut }}
-		class="relative z-10 flex max-h-[90vh] w-full max-w-xl origin-center items-center justify-center overflow-y-auto outline-none {className}"
-	>
-		{@render children()}
+	<!-- Centering track: grows with the dialog so a tall modal scrolls from the top
+	     instead of overflowing above a capped scroll box -->
+	<div class="relative z-10 flex min-h-full items-center justify-center">
+		<!-- Modal dialog surface with Emil Kowalski scale-in from 0.95 and custom expoOut easing -->
+		<div
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+			in:scale={{ start: 0.95, duration: 220, easing: expoOut }}
+			out:scale={{ start: 0.95, duration: 160, easing: expoOut }}
+			class="relative flex w-full max-w-xl origin-center items-center justify-center outline-none {className}"
+		>
+			{@render children()}
+		</div>
 	</div>
 </div>

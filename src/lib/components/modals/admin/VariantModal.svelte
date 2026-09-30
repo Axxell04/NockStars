@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { ProductComplete } from '$lib/interfaces/product';
-	import type { VariantComplete } from '$lib/actions';
+	import type { VariantComplete, VariantImg } from '$lib/actions';
+	import type { ActionResult } from '@sveltejs/kit';
+	import { deserialize } from '$app/forms';
 	import { fade, scale } from 'svelte/transition';
 	import ContainerModal from '../ContainerModal.svelte';
 	import Icon from '@iconify/svelte';
@@ -31,6 +33,7 @@
 	);
 	let sortOrder = $state(variantToEdit?.sortOrder ?? 0);
 	let imgsList: File[] = $state([]);
+	let existingImages: VariantImg[] = $state([]);
 	let uploading = $state(false);
 	let variantId = $state(variantToEdit?.id ?? '');
 
@@ -87,12 +90,10 @@
 
 	async function sendVariant() {
 		if (!name || !color || !cut) return;
-		if (isAdd && !imgsList.length) {
-			formMessage = 'Debes subir al menos una imagen';
-			return;
-		}
 		uploading = true;
 		formMessage = '';
+		let createdVariantId = '';
+		let success = false;
 
 		try {
 			if (isAdd) {
@@ -118,6 +119,7 @@
 					return;
 				}
 				variantId = jsonPhase1.variantId as string;
+				createdVariantId = variantId;
 
 				// Phase 2: Upload images
 				for (const img of imgsList) {
@@ -136,17 +138,6 @@
 						return;
 					}
 				}
-
-				// Phase 3: Finalize
-				const formDataPhase3 = new FormData();
-				formDataPhase3.append('phase', '3');
-				formDataPhase3.append('productId', productSelected.product.id);
-				const resPhase3 = await fetch('/admin/api/variant/upload', {
-					method: 'POST',
-					body: formDataPhase3
-				});
-				const jsonPhase3 = await resPhase3.json();
-				if (!jsonPhase3.success) return;
 			} else {
 				// Edit variant
 				const formData = new FormData();
@@ -154,18 +145,26 @@
 				if (name) formData.append('size', name);
 				if (color) formData.append('color', color);
 				if (cut) formData.append('cut', cut);
-				if (description) formData.append('description', description);
+				formData.append('description', description);
 				if (stock !== undefined) formData.append('stock', String(stock));
-				if (priceOverride !== undefined) formData.append('priceOverride', priceOverride);
+				formData.append('priceOverride', priceOverride);
 				if (sortOrder !== undefined) formData.append('sortOrder', String(sortOrder));
 
 				const res = await fetch('?/update_variant', {
 					method: 'POST',
 					body: formData
 				});
-				const json = await res.json();
-				if (!json.success) {
-					formMessage = json.message || 'Error al actualizar la variante';
+				const result = deserialize(await res.text()) as ActionResult<
+					{ success: boolean; variants?: VariantComplete[] },
+					{ message?: string }
+				>;
+
+				if (result.type === 'failure') {
+					formMessage = result.data?.message || 'Error al actualizar la variante';
+					return;
+				}
+				if (result.type !== 'success' || !result.data?.success) {
+					formMessage = 'Error al actualizar la variante';
 					return;
 				}
 
@@ -188,12 +187,19 @@
 				}
 			}
 
+			success = true;
 			clearForm();
 			onSuccess();
 			toggleModal(false);
 		} catch {
 			formMessage = 'Error al procesar la variante';
 		} finally {
+			// Phase 1 commits the variant before phase 2 uploads images, so a failure
+			// past this point would leave an orphaned row that the unique index then
+			// blocks on the next attempt. Roll it back so the form can be retried.
+			if (isAdd && createdVariantId && !success) {
+				await rollbackVariant(createdVariantId);
+			}
 			uploading = false;
 		}
 	}
@@ -207,8 +213,39 @@
 		priceOverride = '';
 		sortOrder = 0;
 		imgsList = [];
+		existingImages = [];
 		variantId = '';
 		if (inputImgs) inputImgs.value = '';
+	}
+
+	async function rollbackVariant(id: string) {
+		try {
+			const formData = new FormData();
+			formData.append('variantId', id);
+			formData.append('productId', productSelected.product.id);
+			await fetch('?/delete_variant', { method: 'POST', body: formData });
+		} catch {
+			// Best effort — a leftover row surfaces as the duplicate-name message.
+		}
+		variantId = '';
+	}
+
+	async function removeExistingImage(img: VariantImg) {
+		try {
+			const formData = new FormData();
+			formData.append('phase', '4');
+			formData.append('variant-img-id', img.id);
+			const res = await fetch('/admin/api/variant/upload', { method: 'POST', body: formData });
+			const json = await res.json();
+			if (!json.success) {
+				formMessage = json.message || 'Error al eliminar la imagen';
+				return;
+			}
+			existingImages = existingImages.filter((entry) => entry.id !== img.id);
+			onSuccess();
+		} catch {
+			formMessage = 'Error al eliminar la imagen';
+		}
 	}
 
 	$effect(() => {
@@ -219,14 +256,42 @@
 			return () => clearTimeout(timeout);
 		}
 	});
+
+	// Reseed on every open: the form state is seeded at mount, but this instance
+	// stays mounted while `variantToEdit` arrives later from the variants table.
+	// The add instance resets too — it shares `variantToEdit` with the edit
+	// instance, so a cancelled create must not leak into the next open.
+	$effect(() => {
+		if (!isVisible) return;
+		if (isAdd) {
+			clearForm();
+			formMessage = '';
+			return;
+		}
+		name = variantToEdit?.size ?? '';
+		color = variantToEdit?.color ?? '';
+		cut = variantToEdit?.cut ?? 'oversize';
+		description = variantToEdit?.description ?? '';
+		stock = variantToEdit?.stock ?? 0;
+		priceOverride =
+			variantToEdit?.priceOverride !== null && variantToEdit?.priceOverride !== undefined
+				? String(Number(variantToEdit.priceOverride))
+				: '';
+		sortOrder = variantToEdit?.sortOrder ?? 0;
+		variantId = variantToEdit?.id ?? '';
+		existingImages = variantToEdit?.images ?? [];
+		imgsList = [];
+		formMessage = '';
+		if (inputImgs) inputImgs.value = '';
+	});
 </script>
 
 {#if isVisible}
 	<div transition:fade={{ duration: 200 }}>
-		<ContainerModal {toggleModal} visible={isVisible} cancelClick={true}>
+		<ContainerModal {toggleModal} cancelClick={!uploading}>
 			<form
 				method="post"
-				class="border-brand-400/50 bg-surface-0/95 relative flex max-h-fit max-w-full flex-col gap-2 rounded-md border px-4 py-4"
+				class="border-brand-400/50 bg-surface-0/95 relative flex max-w-full flex-col gap-2 rounded-md border px-4 py-4"
 			>
 				<div class="flex flex-col place-items-center gap-2">
 					<label for="variantSize" class="text-text-secondary mb-1 block w-full text-sm"
@@ -336,6 +401,32 @@
 						class="text-text-secondary mb-1 block w-full text-center text-sm"
 						>Imágenes de la variante</label
 					>
+					{#if !isAdd && existingImages.length}
+						<div class="flex flex-col place-items-center gap-2">
+							<span class="text-text-secondary mb-1 block w-full text-sm">Imágenes actuales</span>
+							<div class="grid w-full grid-cols-3 gap-2">
+								{#each existingImages as img (img.id)}
+									<div
+										class="relative aspect-square overflow-hidden rounded-lg border border-white/4"
+									>
+										<img
+											src={img.url}
+											alt={img.alt || `${name} ${color}`}
+											class="h-full w-full object-cover"
+										/>
+										<button
+											type="button"
+											aria-label="Eliminar imagen"
+											class="bg-surface-0/80 text-text-error hover:text-brand-400 absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full transition-colors"
+											onclick={() => removeExistingImage(img)}
+										>
+											<Icon icon="material-symbols:close-rounded" class="text-base" />
+										</button>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
 					<input
 						id="variantImages"
 						type="file"
@@ -346,7 +437,6 @@
 						style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;"
 						onchange={handleFile}
 						bind:this={inputImgs}
-						required={isAdd}
 					/>
 					{#if imgsList.length > 0}
 						<div class="flex w-full flex-wrap justify-center gap-2">
@@ -372,15 +462,15 @@
 					{/if}
 				</div>
 
+				<p class="text-text-muted w-full text-xs">
+					Las imágenes son opcionales: sin ellas la variante usa las imágenes base del producto.
+				</p>
+
 				<div class="flex w-full flex-col place-items-center gap-2">
 					<button
 						type="button"
-						disabled={uploading || !name || !color || !cut || (isAdd && imgsList.length === 0)}
-						class="btn-primary w-full sm:w-auto {uploading ||
-						!name ||
-						!color ||
-						!cut ||
-						(isAdd && imgsList.length === 0)
+						disabled={uploading || !name || !color || !cut}
+						class="btn-primary w-full sm:w-auto {uploading || !name || !color || !cut
 							? 'cursor-not-allowed opacity-50'
 							: ''}"
 						onclick={() => sendVariant()}
@@ -394,15 +484,15 @@
 						<p class="text-text-error text-center">{formMessage}</p>
 					</div>
 				{/if}
-				<div
-					role="button"
-					tabindex="0"
-					onkeydown={() => {}}
-					class="hover:text-brand-400 absolute top-2 right-2 cursor-pointer"
+				<button
+					type="button"
+					aria-label="Cerrar"
+					disabled={uploading}
+					class="hover:text-brand-400 absolute top-2 right-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
 					onclick={() => toggleModal(false)}
 				>
 					<Icon icon="material-symbols:close-rounded" class="text-3xl" />
-				</div>
+				</button>
 			</form>
 		</ContainerModal>
 	</div>

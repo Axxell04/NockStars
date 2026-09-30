@@ -42,11 +42,7 @@
 
 {#if deleteCatalogModalIsVisible}
 	<div transition:fade={{ duration: 200 }}>
-		<ContainerModal
-			toggleModal={toggleDeleteCatalogModalIsVisible}
-			visible={deleteCatalogModalIsVisible}
-			cancelClick={true}
-		>
+		<ContainerModal toggleModal={toggleDeleteCatalogModalIsVisible} cancelClick={true}>
 			<form
 				id="delete-catalog"
 				action="?/delete_catalog"

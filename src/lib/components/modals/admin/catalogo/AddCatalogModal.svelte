@@ -36,11 +36,7 @@
 
 {#if addCatalogModalIsVisible}
 	<div transition:fade={{ duration: 200 }}>
-		<ContainerModal
-			toggleModal={toggleAddCatalogModalIsVisible}
-			visible={addCatalogModalIsVisible}
-			cancelClick={true}
-		>
+		<ContainerModal toggleModal={toggleAddCatalogModalIsVisible} cancelClick={true}>
 			<form
 				id="add-catalog"
 				action="?/add_catalog"

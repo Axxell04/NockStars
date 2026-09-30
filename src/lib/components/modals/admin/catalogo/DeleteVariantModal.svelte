@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { ProductComplete } from '$lib/interfaces/product';
 	import type { VariantComplete } from '$lib/actions';
+	import type { ActionResult } from '@sveltejs/kit';
+	import { deserialize } from '$app/forms';
 	import { fade } from 'svelte/transition';
 	import ContainerModal from '../../ContainerModal.svelte';
 	import Icon from '@iconify/svelte';
@@ -38,15 +40,26 @@
 				method: 'POST',
 				body: formData
 			});
-			const json = await res.json();
+			const result = deserialize(await res.text()) as ActionResult<
+				{ success: boolean; variants: VariantComplete[] },
+				{ message?: string }
+			>;
 
-			if (!json.success) {
-				formMessage = json.message || 'Error al eliminar la variante';
+			if (result.type === 'failure') {
+				formMessage = result.data?.message || 'Error al eliminar la variante';
+				return;
+			}
+			if (result.type !== 'success') {
+				formMessage = 'Error al eliminar la variante';
+				return;
+			}
+			if (!result.data?.success) {
+				formMessage = 'Error al eliminar la variante';
 				return;
 			}
 
-			if (json.variants) {
-				setVariants(json.variants);
+			if (result.data.variants) {
+				setVariants(result.data.variants);
 			}
 
 			toggleModal(false);
@@ -67,7 +80,7 @@
 
 {#if isVisible && variantToDelete}
 	<div transition:fade={{ duration: 200 }}>
-		<ContainerModal {toggleModal} visible={isVisible} cancelClick={true}>
+		<ContainerModal {toggleModal} cancelClick={true}>
 			<div
 				class="glass mx-4 flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/4"
 			>

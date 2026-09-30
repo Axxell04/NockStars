@@ -138,8 +138,8 @@
                         class="border border-red-400 rounded-md px-1 outline-none max-w-full" 
                         />
                     </div> -->
-				<div class="relative flex max-h-72 flex-col place-items-center gap-2">
-					<div class="flex max-h-full flex-col overflow-y-auto">
+				<div class="relative flex flex-col place-items-center gap-2">
+					<div class="flex max-h-72 w-full flex-col overflow-y-auto">
 						<ul>
 							{#each totalProductsList as product}
 								<li>
@@ -180,15 +180,14 @@
 						</p>
 					</div>
 				{/if}
-				<div
-					role="button"
-					tabindex="0"
-					onkeydown={() => {}}
+				<button
+					type="button"
+					aria-label="Cerrar"
 					class="absolute top-2 right-2 cursor-pointer hover:text-red-500"
 					onclick={() => toggleAddProductToCatalogModalIsVisible(false)}
 				>
 					<Icon icon="material-symbols:close-rounded" class="text-3xl" />
-				</div>
+				</button>
 			</form>
 		</ContainerModal>
 	</div>

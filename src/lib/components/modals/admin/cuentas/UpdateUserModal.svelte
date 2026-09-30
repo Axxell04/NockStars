@@ -38,11 +38,7 @@
 
 {#if updateUserModalIsVisible}
 	<div transition:fade={{ duration: 200 }}>
-		<ContainerModal
-			toggleModal={toggleUpdateUserModalIsVisible}
-			visible={updateUserModalIsVisible}
-			cancelClick={true}
-		>
+		<ContainerModal toggleModal={toggleUpdateUserModalIsVisible} cancelClick={true}>
 			<form
 				action="?/update_user"
 				method="post"
@@ -101,15 +97,14 @@
 						</p>
 					</div>
 				{/if}
-				<div
-					role="button"
-					tabindex="0"
-					onkeydown={() => {}}
+				<button
+					type="button"
+					aria-label="Cerrar"
 					class="absolute top-2 right-2 cursor-pointer hover:text-red-500"
 					onclick={() => toggleUpdateUserModalIsVisible(false)}
 				>
 					<Icon icon="material-symbols:close-rounded" class="text-3xl" />
-				</div>
+				</button>
 			</form>
 		</ContainerModal>
 	</div>

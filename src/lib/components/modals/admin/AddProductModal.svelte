@@ -146,11 +146,7 @@
 
 {#if addProductModalIsVisible}
 	<div transition:fade={{ duration: 200 }}>
-		<ContainerModal
-			toggleModal={toggleAddProductModalIsVisible}
-			visible={addProductModalIsVisible}
-			cancelClick={true}
-		>
+		<ContainerModal toggleModal={toggleAddProductModalIsVisible} cancelClick={true}>
 			<form id="add-product" method="post" class="modal-shell">
 				<div class="modal-header">
 					<h3 class="modal-title">Nuevo producto</h3>

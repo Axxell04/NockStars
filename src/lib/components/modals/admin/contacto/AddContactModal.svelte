@@ -36,11 +36,7 @@
 
 {#if addContactModalIsVisible}
 	<div transition:fade={{ duration: 200 }}>
-		<ContainerModal
-			toggleModal={toggleAddContactModalIsVisible}
-			visible={addContactModalIsVisible}
-			cancelClick={true}
-		>
+		<ContainerModal toggleModal={toggleAddContactModalIsVisible} cancelClick={true}>
 			<form
 				action="?/create_contact"
 				method="post"
@@ -109,15 +105,14 @@
 						</p>
 					</div>
 				{/if}
-				<div
-					role="button"
-					tabindex="0"
-					onkeydown={() => {}}
+				<button
+					type="button"
+					aria-label="Cerrar"
 					class="absolute top-2 right-2 cursor-pointer hover:text-red-500"
 					onclick={() => toggleAddContactModalIsVisible(false)}
 				>
 					<Icon icon="material-symbols:close-rounded" class="text-3xl" />
-				</div>
+				</button>
 			</form>
 		</ContainerModal>
 	</div>

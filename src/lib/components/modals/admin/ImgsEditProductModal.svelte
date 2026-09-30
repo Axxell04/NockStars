@@ -94,14 +94,10 @@
 
 {#if imgsEditProductModalIsVisible}
 	<div transition:fade={{ duration: 200 }}>
-		<ContainerModal
-			toggleModal={toggleImgsEditProductModalIsVisible}
-			visible={imgsEditProductModalIsVisible}
-			cancelClick={true}
-		>
+		<ContainerModal toggleModal={toggleImgsEditProductModalIsVisible} cancelClick={true}>
 			<div class="relative flex max-h-full flex-col gap-6">
 				<!-- Image area — caja estable: no salta entre fotos con distinto aspect ratio -->
-				<div class="relative flex items-center justify-center" style="height: 80%;">
+				<div class="relative flex h-[min(60vh,26rem)] w-full items-center justify-center">
 					<div
 						in:scale={{ duration: 300, start: 0.95 }}
 						class="bg-surface-2/40 relative h-full max-h-[26rem] w-full max-w-[28rem] overflow-hidden rounded-2xl"

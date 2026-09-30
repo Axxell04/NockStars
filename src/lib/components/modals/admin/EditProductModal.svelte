@@ -229,11 +229,7 @@
 
 {#if editProductModalIsVisible}
 	<div transition:fade={{ duration: 200 }}>
-		<ContainerModal
-			toggleModal={toggleEditProductModalIsVisible}
-			visible={editProductModalIsVisible}
-			cancelClick={true}
-		>
+		<ContainerModal toggleModal={toggleEditProductModalIsVisible} cancelClick={true}>
 			<form
 				id="edit-product"
 				class="relative flex max-h-fit max-w-full flex-col gap-2 rounded-md border border-red-400 bg-stone-900 px-10 py-5"
@@ -319,15 +315,14 @@
 						</p>
 					</div>
 				{/if}
-				<div
-					role="button"
-					tabindex="0"
-					onkeydown={() => {}}
+				<button
+					type="button"
+					aria-label="Cerrar"
 					class="absolute top-2 right-2 cursor-pointer hover:text-red-500"
 					onclick={() => toggleEditProductModalIsVisible(false)}
 				>
 					<Icon icon="material-symbols:close-rounded" class="text-3xl" />
-				</div>
+				</button>
 			</form>
 		</ContainerModal>
 		<ImgsEditProductModal

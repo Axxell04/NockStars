@@ -34,11 +34,7 @@
 
 {#if editCatalogModalIsVisible}
 	<div transition:fade={{ duration: 200 }}>
-		<ContainerModal
-			toggleModal={toggleEditCatalogModalIsVisible}
-			visible={editCatalogModalIsVisible}
-			cancelClick={true}
-		>
+		<ContainerModal toggleModal={toggleEditCatalogModalIsVisible} cancelClick={true}>
 			<form
 				id="edit-catalog"
 				action="?/edit_catalog"

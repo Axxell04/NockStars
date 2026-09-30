@@ -572,11 +572,7 @@
 <!-- Delete Product Confirmation Modal -->
 {#if deleteProductModalIsVisible}
 	<div transition:fade={{ duration: 200 }}>
-		<ContainerModal
-			toggleModal={toggleDeleteProductModalIsVisible}
-			visible={deleteProductModalIsVisible}
-			cancelClick={true}
-		>
+		<ContainerModal toggleModal={toggleDeleteProductModalIsVisible} cancelClick={true}>
 			<div class="bg-surface-1 max-w-md space-y-4 rounded-xl border border-white/10 p-6">
 				<h2 class="text-text-primary text-lg font-semibold">Eliminar producto</h2>
 				<p class="text-text-secondary">

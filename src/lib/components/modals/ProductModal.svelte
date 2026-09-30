@@ -15,7 +15,7 @@
 
 {#if productModalIsVisible}
 	<div transition:fade={{ duration: 200 }}>
-		<ContainerModal toggleModal={toggleProductModalIsVisible} visible={productModalIsVisible}>
+		<ContainerModal toggleModal={toggleProductModalIsVisible}>
 			<div
 				class="bg-surface-1/95 relative flex flex-col items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-white/10 p-2 shadow-[var(--shadow-depth)]"
 			>
