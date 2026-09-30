@@ -7,11 +7,10 @@ import {
 	updateProduct,
 	deleteProduct,
 	getVariantsByProduct,
-	createVariant,
 	updateVariant,
 	deleteVariant
 } from '$lib/server/product';
-import type { CreateVariantInput, UpdateVariantInput } from '$lib/actions';
+import type { UpdateVariantInput } from '$lib/actions';
 
 export const load: PageServerLoad = async (event) => {
 	if (!event.locals.user) {
@@ -42,14 +41,14 @@ export const actions: Actions = {
 		const description = formData.get('description') as string;
 
 		if (!name) {
-			return fail(400, { message: 'Invalid name' });
+			return fail(400, { message: 'Nombre inválido' });
 		}
 
 		try {
 			await createCatalog(name, description);
 		} catch (error) {
 			console.log(error);
-			return fail(500, { message: 'Internal server error' });
+			return fail(500, { message: 'Error interno del servidor' });
 		}
 
 		const catalogs = await getCatalogs();
@@ -63,14 +62,14 @@ export const actions: Actions = {
 		const id = formData.get('id') as string;
 
 		if (!id) {
-			return fail(400, { message: 'Invalid id' });
+			return fail(400, { message: 'Identificador inválido' });
 		}
 
 		try {
 			await deleteCatalog(id);
 		} catch (error) {
 			console.log(error);
-			return fail(500, { message: 'Internal server error' });
+			return fail(500, { message: 'Error interno del servidor' });
 		}
 
 		const catalogs = await getCatalogs();
@@ -85,17 +84,17 @@ export const actions: Actions = {
 		const description = formData.get('description') as string;
 
 		if (!id) {
-			return fail(400, { message: 'Invalid id' });
+			return fail(400, { message: 'Identificador inválido' });
 		}
 		if (!name) {
-			return fail(400, { message: 'Invalid name' });
+			return fail(400, { message: 'Nombre inválido' });
 		}
 
 		try {
 			await updateCatalog(id, name, description);
 		} catch (error) {
 			console.log(error);
-			return fail(500, { message: 'Internal server error' });
+			return fail(500, { message: 'Error interno del servidor' });
 		}
 
 		const catalogs = await getCatalogs();
@@ -112,7 +111,7 @@ export const actions: Actions = {
 		const stock = parseInt(formData.get('stock') as string) || 0;
 
 		if (!name || isNaN(price)) {
-			return fail(400, { message: 'Invalid product data' });
+			return fail(400, { message: 'Datos de producto inválidos' });
 		}
 
 		try {
@@ -120,7 +119,7 @@ export const actions: Actions = {
 			return { success: true, productId };
 		} catch (error) {
 			console.log(error);
-			return fail(500, { message: 'Internal server error' });
+			return fail(500, { message: 'Error interno del servidor' });
 		}
 	},
 	update_product: async (event) => {
@@ -131,7 +130,7 @@ export const actions: Actions = {
 		const stock = parseInt(formData.get('stock') as string) || 0;
 
 		if (!productId || !name || isNaN(price)) {
-			return fail(400, { message: 'Invalid product data' });
+			return fail(400, { message: 'Datos de producto inválidos' });
 		}
 
 		try {
@@ -139,7 +138,7 @@ export const actions: Actions = {
 			return { success: true };
 		} catch (error) {
 			console.log(error);
-			return fail(500, { message: 'Internal server error' });
+			return fail(500, { message: 'Error interno del servidor' });
 		}
 	},
 	delete_product: async (event) => {
@@ -147,7 +146,7 @@ export const actions: Actions = {
 		const productId = formData.get('productId') as string;
 
 		if (!productId) {
-			return fail(400, { message: 'Invalid product id' });
+			return fail(400, { message: 'Identificador de producto inválido' });
 		}
 
 		try {
@@ -155,70 +154,43 @@ export const actions: Actions = {
 			return { success: true };
 		} catch (error) {
 			console.log(error);
-			return fail(500, { message: 'Internal server error' });
+			return fail(500, { message: 'Error interno del servidor' });
 		}
 	},
 	// Variant actions
-	add_variant: async (event) => {
-		const formData = await event.request.formData();
-		const productId = formData.get('productId') as string;
-		const size = formData.get('size') as string;
-		const color = formData.get('color') as string;
-		const cut = formData.get('cut') as 'oversize' | 'recto';
-		const description = formData.get('description') as string;
-		const stock = parseInt(formData.get('stock') as string) || 0;
-		const priceOverride = formData.get('priceOverride') as string;
-		const sortOrder = parseInt(formData.get('sortOrder') as string) || 0;
-
-		if (!productId || !size || !color || !cut) {
-			return fail(400, { message: 'Invalid variant data' });
-		}
-
-		const input: CreateVariantInput = {
-			productId,
-			size,
-			color,
-			cut,
-			description: description || undefined,
-			stock,
-			priceOverride: priceOverride ? parseFloat(priceOverride) : undefined,
-			sortOrder
-		};
-
-		const result = await createVariant(input);
-
-		if (!result.success) {
-			return fail(400, { message: result.error.message });
-		}
-
-		// Return updated variants list
-		const variants = await getVariantsByProduct(productId);
-		return { success: true, variants };
-	},
 	update_variant: async (event) => {
 		const formData = await event.request.formData();
 		const variantId = formData.get('variantId') as string;
 		const size = formData.get('size') as string;
 		const color = formData.get('color') as string;
 		const cut = formData.get('cut') as 'oversize' | 'recto';
-		const description = formData.get('description') as string;
-		const stock = formData.get('stock') ? parseInt(formData.get('stock') as string) : undefined;
-		const priceOverride = formData.get('priceOverride')
-			? parseFloat(formData.get('priceOverride') as string)
-			: undefined;
-		const sortOrder = formData.get('sortOrder')
-			? parseInt(formData.get('sortOrder') as string)
-			: undefined;
+		const descriptionRaw = formData.get('description') as string | null;
+		const description =
+			descriptionRaw === null ? undefined : descriptionRaw.trim() === '' ? null : descriptionRaw;
+		const priceRaw = formData.get('priceOverride') as string | null;
+		const priceOverride =
+			priceRaw === null ? undefined : priceRaw.trim() === '' ? null : Number(priceRaw);
+		const stockRaw = formData.get('stock') as string | null;
+		const stock = stockRaw === null || stockRaw.trim() === '' ? undefined : Number(stockRaw);
+		const sortRaw = formData.get('sortOrder') as string | null;
+		const sortOrder = sortRaw === null || sortRaw.trim() === '' ? undefined : Number(sortRaw);
 
 		if (!variantId) {
-			return fail(400, { message: 'Invalid variant id' });
+			return fail(400, { message: 'Identificador de variante inválido' });
+		}
+		if (
+			(stock !== undefined && !Number.isInteger(stock)) ||
+			(sortOrder !== undefined && !Number.isInteger(sortOrder)) ||
+			(priceOverride !== undefined && !Number.isFinite(priceOverride))
+		) {
+			return fail(400, { message: 'Valores numéricos inválidos' });
 		}
 
 		const input: UpdateVariantInput = {};
 		if (size) input.size = size;
 		if (color) input.color = color;
 		if (cut) input.cut = cut;
-		if (description) input.description = description;
+		if (description !== undefined) input.description = description;
 		if (stock !== undefined) input.stock = stock;
 		if (priceOverride !== undefined) input.priceOverride = priceOverride;
 		if (sortOrder !== undefined) input.sortOrder = sortOrder;
@@ -239,7 +211,7 @@ export const actions: Actions = {
 		const productId = formData.get('productId') as string;
 
 		if (!variantId || !productId) {
-			return fail(400, { message: 'Invalid variant or product id' });
+			return fail(400, { message: 'Identificador de variante o producto inválido' });
 		}
 
 		const result = await deleteVariant(variantId);

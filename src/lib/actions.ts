@@ -163,7 +163,7 @@ export interface UpdateVariantInput {
 	size?: string;
 	color?: string;
 	cut?: 'oversize' | 'recto';
-	description?: string;
+	description?: string | null;
 	stock?: number;
 	priceOverride?: number | null;
 	sortOrder?: number;

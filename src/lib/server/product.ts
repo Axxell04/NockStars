@@ -334,6 +334,17 @@ export async function deleteProduct(id: string) {
 		await deleteImg(img.id);
 	}
 
+	// Variant rows cascade away with the product, but their Cloudinary assets do
+	// not — resolve them before the delete below removes the ids we need.
+	const variants = await getDb()
+		.select({ id: table.productVariant.id })
+		.from(table.productVariant)
+		.where(eq(table.productVariant.productId, id))
+		.execute();
+	for (const v of variants) {
+		await destroyVariantImgs(v.id);
+	}
+
 	await getDb()
 		.delete(table.productCatalog)
 		.where(eq(table.productCatalog.productId, id))
@@ -468,7 +479,7 @@ export async function createVariant(
 		.execute();
 
 	if (!product) {
-		return failure(ProductErrorCode.NOT_FOUND, 'Product not found');
+		return failure(ProductErrorCode.NOT_FOUND, 'Producto no encontrado');
 	}
 
 	// Check for duplicate variant (unique constraint on productId+size+color+cut)
@@ -488,7 +499,7 @@ export async function createVariant(
 	if (existing) {
 		return failure(
 			ProductErrorCode.INVALID_VARIANT_DATA,
-			'Variant with this size/color/cut already exists'
+			'Ya existe una variante con esta talla, color y corte'
 		);
 	}
 
@@ -535,7 +546,7 @@ export async function updateVariant(
 		.execute();
 
 	if (!existingVariant) {
-		return failure(ProductErrorCode.VARIANT_NOT_FOUND, 'Variant not found');
+		return failure(ProductErrorCode.VARIANT_NOT_FOUND, 'Variante no encontrada');
 	}
 
 	// Check for duplicate if size/color/cut are being changed
@@ -561,7 +572,7 @@ export async function updateVariant(
 		if (duplicate) {
 			return failure(
 				ProductErrorCode.INVALID_VARIANT_DATA,
-				'Variant with this size/color/cut already exists'
+				'Ya existe una variante con esta talla, color y corte'
 			);
 		}
 	}
@@ -603,6 +614,45 @@ export async function updateVariant(
 }
 
 /**
+ * Destroys the Cloudinary assets behind a variant's images.
+ *
+ * Best-effort by design: a failed destroy must never block the DB delete, so the
+ * failure is swallowed here exactly like `deleteImg` does (REQ-IMG-011).
+ */
+async function destroyVariantImgs(variantId: string) {
+	const imgs = await getVariantImgs(variantId);
+	for (const img of imgs) {
+		try {
+			await cloudinary.uploader.destroy(extractPublicId(img.url));
+		} catch {
+			// Cloudinary destroy failed — DB records still deleted (REQ-IMG-011)
+		}
+	}
+}
+
+/**
+ * Removes a single variant image row and its Cloudinary asset.
+ *
+ * Same contract as `deleteImg`: the asset destroy is best-effort, so a failed
+ * destroy must never block the DB delete (REQ-IMG-011).
+ */
+export async function deleteVariantImg(id: string) {
+	const [img] = await getDb()
+		.select()
+		.from(table.variantImg)
+		.where(eq(table.variantImg.id, id))
+		.execute();
+	if (!img) return;
+
+	try {
+		await cloudinary.uploader.destroy(extractPublicId(img.url));
+	} catch {
+		// Cloudinary destroy failed — DB record still deleted (REQ-IMG-011)
+	}
+	await getDb().delete(table.variantImg).where(eq(table.variantImg.id, id)).execute();
+}
+
+/**
  * Deletes a product variant (checks referential integrity)
  */
 export async function deleteVariant(variantId: string): Promise<ProductActionResult<void>> {
@@ -613,7 +663,7 @@ export async function deleteVariant(variantId: string): Promise<ProductActionRes
 		.execute();
 
 	if (!variant) {
-		return failure(ProductErrorCode.VARIANT_NOT_FOUND, 'Variant not found');
+		return failure(ProductErrorCode.VARIANT_NOT_FOUND, 'Variante no encontrada');
 	}
 
 	// Check referential integrity: cart_items
@@ -627,7 +677,7 @@ export async function deleteVariant(variantId: string): Promise<ProductActionRes
 	if (cartItemRef) {
 		return failure(
 			ProductErrorCode.REFERENTIAL_INTEGRITY,
-			'Cannot delete variant: referenced by cart items'
+			'No se puede eliminar la variante: está referenciada en un carrito'
 		);
 	}
 
@@ -642,11 +692,12 @@ export async function deleteVariant(variantId: string): Promise<ProductActionRes
 	if (orderItemRef) {
 		return failure(
 			ProductErrorCode.REFERENTIAL_INTEGRITY,
-			'Cannot delete variant: referenced by order items'
+			'No se puede eliminar la variante: está referenciada en un pedido'
 		);
 	}
 
 	// Delete variant images first (cascade should handle this, but explicit is safer)
+	await destroyVariantImgs(variantId);
 	await getDb().delete(table.variantImg).where(eq(table.variantImg.variantId, variantId)).execute();
 
 	// Delete variant
@@ -677,8 +728,17 @@ export async function bindVariantImg(
 	variantId: string,
 	url: string,
 	alt: string = '',
-	sortOrder: number = 0
+	sortOrder?: number
 ) {
+	// When omitted, append after the last image: sort_order must stay unique per
+	// variant (unique index variant_img_unique_variant_sort_order), so reusing 0
+	// would collide on the second insert.
+	let order = sortOrder;
+	if (order === undefined) {
+		const existing = await getVariantImgs(variantId);
+		order = existing.reduce((max, img) => Math.max(max, img.sortOrder), -1) + 1;
+	}
+
 	const imgId = crypto.randomUUID();
 	const now = new Date();
 
@@ -687,7 +747,7 @@ export async function bindVariantImg(
 		variantId,
 		url,
 		alt,
-		sortOrder,
+		sortOrder: order,
 		createdAt: now
 	};
 

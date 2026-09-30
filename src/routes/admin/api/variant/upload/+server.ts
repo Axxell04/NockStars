@@ -1,7 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createVariant, getVariantsByProduct } from '$lib/server/product';
+import { createVariant } from '$lib/server/product';
 import { bindVariantImg } from '$lib/server/product';
+import { deleteVariantImg } from '$lib/server/product';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) {
@@ -19,12 +20,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const color = formData.get('color') as string;
 		const cut = formData.get('cut') as 'oversize' | 'recto';
 		const description = formData.get('description') as string | null;
-		const stock = parseInt(formData.get('stock') as string) || 0;
-		const priceOverride = formData.get('priceOverride') as string;
-		const sortOrder = parseInt(formData.get('sortOrder') as string) || 0;
+		const stock = Number(formData.get('stock'));
+		const priceRaw = (formData.get('priceOverride') as string) ?? '';
+		const priceOverride = priceRaw.trim() === '' ? undefined : Number(priceRaw);
+		const sortOrder = Number(formData.get('sortOrder'));
 
 		if (!productId || !size || !color || !cut) {
 			return json({ success: false, message: 'Faltan campos obligatorios' });
+		}
+		if (
+			!Number.isInteger(stock) ||
+			stock < 0 ||
+			!Number.isInteger(sortOrder) ||
+			(priceOverride !== undefined && !Number.isFinite(priceOverride))
+		) {
+			return json({ success: false, message: 'Valores numéricos inválidos' });
 		}
 
 		try {
@@ -35,7 +45,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				cut,
 				description: description ?? undefined,
 				stock,
-				priceOverride: priceOverride ? parseFloat(priceOverride) : undefined,
+				priceOverride,
 				sortOrder
 			});
 
@@ -63,17 +73,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			console.error('Variant image bind error:', e);
 			return json({ success: false, message: 'Error al guardar la imagen' });
 		}
-	} else if (phase === '3') {
-		// Finalize - return updated variants list
-		const productId = formData.get('productId') as string;
-		if (!productId) return json({ success: false, message: "Parámetro 'productId' no encontrado" });
+	} else if (phase === '4') {
+		// Remove one existing image from a variant
+		const variantImgId = formData.get('variant-img-id') as string;
+		if (!variantImgId) {
+			return json({ success: false, message: "Parámetro 'variant-img-id' no encontrado" });
+		}
 
 		try {
-			const variants = await getVariantsByProduct(productId);
-			return json({ success: true, variants });
+			await deleteVariantImg(variantImgId);
+			return json({ success: true });
 		} catch (e) {
-			console.error('Variant list fetch error:', e);
-			return json({ success: false, message: 'Error al cargar variantes' });
+			console.error('Variant image delete error:', e);
+			return json({ success: false, message: 'Error al eliminar la imagen' });
 		}
 	}
 
