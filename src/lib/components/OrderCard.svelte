@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { PurchaseDetail } from '$lib/interfaces/cart';
 	import Icon from '@iconify/svelte';
 	import type { Order, OrderPagination } from '$lib/interfaces/order';
+	import { toOrderLines, type OrderLine } from '$lib/order-content';
 	import { scale, slide } from 'svelte/transition';
 	import { enhance } from '$app/forms';
 
@@ -10,7 +10,7 @@
 		orderSelected?: Order;
 		selectThisOrder: (order: Order | undefined) => void;
 		setOrderPagination: (newOrderPagination: OrderPagination) => void;
-		updateOrderPaginationContent: (orderId: string, newContent: PurchaseDetail[]) => void;
+		updateOrderPaginationContent: (orderId: string, newLines: OrderLine[]) => void;
 	}
 
 	let {
@@ -22,13 +22,17 @@
 	}: Props = $props();
 
 	let isSelected = $derived(order.id === orderSelected?.id);
-	let purchaseDetails = $derived(order.content as PurchaseDetail[]);
-	let previousPurchaseDetails = $state(order.content as PurchaseDetail[]);
-	let totalValue = $derived(
-		purchaseDetails.reduce((pv, cv) => pv + cv.amount * cv.product.product.price, 0)
-	);
+	let orderLines = $derived(toOrderLines(order.content));
+	// `$state.raw`, not `$state`: toOrderLines() returns a raw array, and a plain
+	// `$state` would re-proxy it on every assignment so `previous !== orderLines`
+	// could never become false — the auto-submit effect below would loop until
+	// `effect_update_depth_exceeded`. Referencing `orderLines` here would also
+	// trigger `state_referenced_locally`, so previous starts empty and the effect
+	// syncs it on its first run.
+	let previousOrderLines = $state.raw<OrderLine[]>([]);
+	let totalValue = $derived(orderLines.reduce((pv, cv) => pv + cv.amount * cv.unitPrice, 0));
 
-	let purchaseDetailSelected: PurchaseDetail | undefined = $state();
+	let selectedLine: OrderLine | undefined = $state();
 
 	// HTML Elements
 	let btnEditOrder: HTMLButtonElement | undefined = $state();
@@ -56,30 +60,30 @@
 	}
 
 	// Seletion Functions
-	function selectThisPurchaseDetail(purchaseDetail: PurchaseDetail | undefined) {
-		if (typeof purchaseDetail !== 'undefined') {
-			purchaseDetailSelected = { ...purchaseDetail };
+	function selectThisLine(line: OrderLine | undefined) {
+		if (typeof line !== 'undefined') {
+			selectedLine = { ...line };
 		} else {
-			purchaseDetailSelected = undefined;
+			selectedLine = undefined;
 		}
 	}
 
 	// Operation Functions
-	function addAmountPDSelected() {
-		if (typeof purchaseDetailSelected !== 'undefined') {
-			purchaseDetailSelected = {
-				...purchaseDetailSelected,
-				amount: purchaseDetailSelected.amount + 1
+	function addSelectedLineAmount() {
+		if (typeof selectedLine !== 'undefined') {
+			selectedLine = {
+				...selectedLine,
+				amount: selectedLine.amount + 1
 			};
 		}
 	}
 
-	function subtractAmountPDSelected() {
-		if (typeof purchaseDetailSelected !== 'undefined') {
-			if (purchaseDetailSelected.amount > 0) {
-				purchaseDetailSelected = {
-					...purchaseDetailSelected,
-					amount: purchaseDetailSelected.amount - 1
+	function subtractSelectedLineAmount() {
+		if (typeof selectedLine !== 'undefined') {
+			if (selectedLine.amount > 0) {
+				selectedLine = {
+					...selectedLine,
+					amount: selectedLine.amount - 1
 				};
 			}
 		}
@@ -87,23 +91,23 @@
 
 	// Request Functions
 	function sendEditOrder() {
-		if (typeof btnEditOrder !== 'undefined' && typeof purchaseDetailSelected !== 'undefined') {
-			let updatedPurchaseDetails = purchaseDetails.map((pd) => {
-				if (pd.product.product.id === purchaseDetailSelected?.product.product.id) {
-					return { ...purchaseDetailSelected };
+		if (typeof btnEditOrder !== 'undefined' && typeof selectedLine !== 'undefined') {
+			let updatedLines = orderLines.map((line) => {
+				if (line.productId === selectedLine?.productId) {
+					return { ...selectedLine };
 				}
-				return pd;
+				return line;
 			});
 
 			if (
-				updatedPurchaseDetails.length === 1 &&
-				updatedPurchaseDetails[0].amount === 0 &&
+				updatedLines.length === 1 &&
+				updatedLines[0].amount === 0 &&
 				typeof btnDeleteOrder !== 'undefined'
 			) {
 				btnDeleteOrder.click();
 			} else {
-				previousPurchaseDetails = [...purchaseDetails];
-				updateOrderPaginationContent(order.id, updatedPurchaseDetails);
+				previousOrderLines = [...orderLines];
+				updateOrderPaginationContent(order.id, updatedLines);
 			}
 		}
 	}
@@ -121,14 +125,14 @@
 		if (!isSelected && (confirmationDeleteIsVisible || confirmationEditIsVisible)) {
 			toggleConfirmationDeleteIsVisible(false);
 			toggleConfirmationEditIsVisible(false);
-			selectThisPurchaseDetail(undefined);
+			selectThisLine(undefined);
 		}
 	});
 
 	$effect(() => {
 		if (confirmationDeleteIsVisible) {
 			toggleConfirmationEditIsVisible(false);
-			selectThisPurchaseDetail(undefined);
+			selectThisLine(undefined);
 		}
 	});
 
@@ -139,14 +143,14 @@
 	});
 
 	$effect(() => {
-		if (!confirmationEditIsVisible && typeof purchaseDetailSelected !== 'undefined') {
-			selectThisPurchaseDetail(undefined);
+		if (!confirmationEditIsVisible && typeof selectedLine !== 'undefined') {
+			selectThisLine(undefined);
 		}
 	});
 
 	$effect(() => {
-		if (previousPurchaseDetails !== purchaseDetails) {
-			previousPurchaseDetails = purchaseDetails;
+		if (previousOrderLines !== orderLines) {
+			previousOrderLines = orderLines;
 			if (confirmationEditIsVisible && typeof btnEditOrder !== 'undefined') {
 				btnEditOrder.click();
 			}
@@ -167,7 +171,7 @@
 			<div class="flex flex-row place-content-between place-items-center gap-2 px-1 text-xl">
 				<Icon icon="akar-icons:shopping-bag" class="text-3xl" />
 				<span class="translate-y-1">
-					{(order.content as PurchaseDetail[]).length}
+					{orderLines.length}
 				</span>
 			</div>
 			<div class="flex min-w-0 flex-row place-items-center gap-2 text-xl">
@@ -179,15 +183,14 @@
 		</div>
 		<div class="">
 			<div class="flex flex-col gap-2">
-				{#each purchaseDetails as purchaseDetail}
+				{#each orderLines as line}
 					<div
-						class="flex flex-row gap-1 {purchaseDetailSelected?.product.product.id ===
-						purchaseDetail.product.product.id
+						class="flex flex-row gap-1 {selectedLine?.productId === line.productId
 							? 'bg-stone-700/60'
 							: 'bg-stone-700/20'} min-w-0 place-content-between place-items-center rounded-sm px-2"
 						onclick={() => {
 							if (confirmationEditIsVisible) {
-								selectThisPurchaseDetail(purchaseDetail);
+								selectThisLine(line);
 							}
 						}}
 						role="button"
@@ -196,14 +199,14 @@
 					>
 						<div class="flex min-w-0 flex-row place-items-center gap-2">
 							<span class="truncate">
-								{purchaseDetail.product.product.name}
+								{line.name}
 							</span>
 							<span class="flex-shrink-0">
-								({purchaseDetail.amount})
+								({line.amount})
 							</span>
 						</div>
 						<span class="flex-shrink-0 font-semibold">
-							$ {(purchaseDetail.product.product.price * purchaseDetail.amount).toFixed(2)}
+							$ {(line.unitPrice * line.amount).toFixed(2)}
 						</span>
 					</div>
 				{/each}
@@ -339,7 +342,7 @@
 						</button>
 
 						{#if confirmationEditIsVisible}
-							<input type="hidden" name="content" value={JSON.stringify(purchaseDetails)} />
+							<input type="hidden" name="content" value={JSON.stringify(order.content)} />
 						{/if}
 					</div>
 				{/if}
@@ -354,7 +357,7 @@
 		{/if}
 	</div>
 
-	{#if confirmationEditIsVisible && purchaseDetailSelected}
+	{#if confirmationEditIsVisible && selectedLine}
 		<div
 			transition:slide={{ axis: 'x' }}
 			class="card flex flex-col gap-4 self-start rounded-r-md bg-stone-800 p-2"
@@ -363,24 +366,24 @@
 			role="button"
 		>
 			<span>
-				{purchaseDetailSelected.product.product.name}
+				{selectedLine.name}
 			</span>
 			<div class="flex flex-col place-items-center gap-3">
 				<span> Cantidad </span>
 				<div class="flex flex-row place-items-center gap-2 text-lg">
 					<button
 						class="rounded-full border p-1 hover:text-red-500 focus:text-red-500"
-						onclick={() => subtractAmountPDSelected()}
+						onclick={() => subtractSelectedLineAmount()}
 						onfocus={(e) => cancelFocus(e)}
 					>
 						<Icon icon="octicon:dash-16" />
 					</button>
 					<span>
-						{purchaseDetailSelected.amount}
+						{selectedLine.amount}
 					</span>
 					<button
 						class="rounded-full border p-1 hover:text-red-500 focus:text-red-500"
-						onclick={() => addAmountPDSelected()}
+						onclick={() => addSelectedLineAmount()}
 						onfocus={(e) => cancelFocus(e)}
 					>
 						<Icon icon="ic:round-plus" />

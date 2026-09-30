@@ -6,7 +6,7 @@
 	import { enhance } from '$app/forms';
 	import Toast from '$lib/components/Toast.svelte';
 	import type { Order, OrderPagination } from '$lib/interfaces/order';
-	import type { PurchaseDetail } from '$lib/interfaces/cart';
+	import { setLineAmounts, type OrderLine } from '$lib/order-content';
 	import OrderCard from '$lib/components/OrderCard.svelte';
 	import { page } from '$app/state';
 
@@ -71,18 +71,15 @@
 		orderPagination = newOrderPagination;
 	}
 
-	function updateOrderPaginationContent(orderId: string, newContent: PurchaseDetail[]) {
+	function updateOrderPaginationContent(orderId: string, newLines: OrderLine[]) {
+		const kept = newLines.filter((line) => line.amount > 0);
 		orderPagination = {
 			...orderPagination,
 			orders: orderPagination.orders
-				.map((order) => {
-					if (order.id === orderId) {
-						newContent = newContent.filter((pd) => pd.amount > 0);
-						return { ...order, content: newContent };
-					}
-					return order;
-				})
-				.filter((order) => (order.content as PurchaseDetail[]).length > 0)
+				.filter((order) => order.id !== orderId || kept.length > 0)
+				.map((order) =>
+					order.id === orderId ? { ...order, content: setLineAmounts(order.content, kept) } : order
+				)
 		};
 	}
 
