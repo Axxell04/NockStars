@@ -386,7 +386,7 @@
 							step="0.01"
 							min="0"
 							class="bg-surface-2 text-text-primary focus:border-brand-400/50 w-full rounded-lg border border-white/4 px-4 py-2 focus:outline-none"
-							placeholder="Dejar vacío para usar precio base"
+							placeholder={`Precio base: ${productSelected.product.price.toFixed(2)} $`}
 							bind:value={priceOverride}
 						/>
 					</div>
