@@ -228,7 +228,7 @@
 	<div class="flex flex-col gap-4" role="radiogroup" aria-label="Seleccionar variante">
 		<!-- Size Selection -->
 		{#if availableSizes.length > 0}
-			<fieldset class="flex flex-col gap-2">
+			<fieldset class="flex flex-col gap-3">
 				<legend class="text-text-secondary text-sm font-medium">Talla</legend>
 				<div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Seleccionar talla">
 					{#each availableSizes as size}
@@ -270,14 +270,14 @@
 
 		<!-- Color Selection -->
 		{#if availableColors.length > 0}
-			<fieldset class="flex flex-col gap-2">
+			<fieldset class="flex flex-col gap-3">
 				<legend class="text-text-secondary text-sm font-medium">Color</legend>
 				<div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Seleccionar color">
 					{#each availableColors as color}
 						<button
 							type="button"
 							class="swatch {selectedColor === color
-								? 'swatch-selected ring-brand-400 ring-offset-surface-0 ring-2 ring-offset-2'
+								? 'swatch-selected'
 								: 'swatch-unselected border-white/4 hover:border-white/8'} {!isColorAvailable(color)
 								? 'cursor-not-allowed opacity-40'
 								: ''}"
@@ -304,9 +304,7 @@
 								aria-hidden="true"
 							></span>
 							<span>{color}</span>
-							{#if selectedColor === color}
-								<Icon icon="mdi:check" class="text-brand-400 text-sm" aria-hidden="true" />
-							{:else if !isColorAvailable(color)}
+							{#if !isColorAvailable(color)}
 								<Icon icon="mdi:cancel" class="text-text-error text-sm" aria-hidden="true" />
 							{/if}
 						</button>
@@ -439,11 +437,11 @@
 			0 0 0 4px var(--color-surface-0);
 	}
 
+	/* Selection is signalled by colour only: a transform or an extra box-shadow
+	   would paint past the pill's box and reach the legend above it. */
 	.swatch-selected {
-		transform: scale(1.1);
-		box-shadow:
-			0 0 0 2px var(--color-brand-400),
-			0 0 0 4px var(--color-surface-0);
+		border-color: var(--color-brand-400);
+		color: var(--color-brand-400);
 	}
 
 	.swatch-unselected {
