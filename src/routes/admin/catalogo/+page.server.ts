@@ -178,10 +178,12 @@ export const actions: Actions = {
 		if (!variantId) {
 			return fail(400, { message: 'Identificador de variante inválido' });
 		}
+		// priceOverride is undefined (leave it), null (clear it) or a number —
+		// Number.isFinite(null) is false, so null must be allowed explicitly.
 		if (
 			(stock !== undefined && !Number.isInteger(stock)) ||
 			(sortOrder !== undefined && !Number.isInteger(sortOrder)) ||
-			(priceOverride !== undefined && !Number.isFinite(priceOverride))
+			(priceOverride !== null && priceOverride !== undefined && !Number.isFinite(priceOverride))
 		) {
 			return fail(400, { message: 'Valores numéricos inválidos' });
 		}
