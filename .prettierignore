@@ -19,3 +19,7 @@ drizzle/meta
 
 # SDD artifacts — generated and archived as immutable history
 openspec
+
+# Playwright run artifacts — regenerated on every test run
+playwright-report
+test-results

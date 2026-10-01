@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Cookie Migration', () => {
+// Both suites below are marked fixme (see variant-selector.spec.ts): they seed
+// fixture ids (`prod-1`, `var-1`, `Test Product`) that only exist in the
+// original dev seed, and the checkout flow settles a real order against the live
+// database. Neither can run until there is a seed/fixture harness in front of
+// the suite. Nothing is deleted here — flip them back to `test.describe` once
+// that harness exists.
+test.describe.fixme('Cookie Migration', () => {
 	test('v1 cookie should migrate to v2 on first visit', async ({ page }) => {
 		await page.goto('/');
 
@@ -30,7 +36,7 @@ test.describe('Cookie Migration', () => {
 	});
 });
 
-test.describe('Checkout Flow', () => {
+test.describe.fixme('Checkout Flow', () => {
 	test('complete checkout with variant', async ({ page }) => {
 		// Visit product with variant
 		await page.goto('/producto/prod-1?variant=var-1');

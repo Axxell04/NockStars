@@ -14,8 +14,11 @@ export default defineConfig({
 	},
 	projects: [
 		{
+			// `channel: 'chromium'` launches the full Chromium build instead of the
+			// headless shell Playwright defaults to in headless mode, so the suite
+			// runs against the browser the project installs.
 			name: 'chromium',
-			use: { ...devices['Desktop Chrome'] }
+			use: { ...devices['Desktop Chrome'], channel: 'chromium' }
 		},
 		{
 			name: 'firefox',
