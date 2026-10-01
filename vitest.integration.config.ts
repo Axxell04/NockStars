@@ -5,6 +5,22 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
+// Integration tests must never run against the development database.
+//
+// The setup file deletes the whole cart/order/catalog set before every test,
+// and the suites themselves write through getDb(), which reads DATABASE_URL.
+// Redirecting DATABASE_URL here makes both sides agree on one target and keeps
+// the destructive cleanup away from development data. Fail closed instead of
+// falling back: a missing test database is a configuration error, not a
+// licence to use the real one.
+if (!process.env.TEST_DATABASE_URL) {
+	throw new Error(
+		'TEST_DATABASE_URL is not set. Integration tests refuse to run against DATABASE_URL. ' +
+			'Point TEST_DATABASE_URL at a disposable database (see .env.example).'
+	);
+}
+process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
+
 export default defineConfig({
 	plugins: [sveltekit()],
 	test: {

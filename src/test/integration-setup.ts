@@ -10,9 +10,13 @@ let sql: ReturnType<typeof postgres> | null = null;
 
 export async function getTestDb() {
 	if (!testDb) {
-		const databaseUrl = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
+		// TEST_DATABASE_URL is required on purpose and must never fall back to
+		// DATABASE_URL: `beforeEach` below deletes the whole catalog, order and
+		// cart set, and DATABASE_URL is the database the application uses.
+		// Falling back would wipe live development data on the first test.
+		const databaseUrl = process.env.TEST_DATABASE_URL;
 		if (!databaseUrl) {
-			throw new Error('TEST_DATABASE_URL or DATABASE_URL must be set for integration tests');
+			throw new Error('TEST_DATABASE_URL must be set for integration tests');
 		}
 		sql = postgres(databaseUrl, { max: 1 });
 		testDb = drizzle(sql, { schema });
