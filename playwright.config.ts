@@ -17,16 +17,13 @@ export default defineConfig({
 			// `channel: 'chromium'` launches the full Chromium build instead of the
 			// headless shell Playwright defaults to in headless mode, so the suite
 			// runs against the browser the project installs.
+			//
+			// Firefox and WebKit projects are intentionally omitted: their browsers
+			// are not installed locally and there is no CI to run them. Re-add them
+			// once `npx playwright install firefox webkit` has been run somewhere
+			// that can reach the Playwright CDN.
 			name: 'chromium',
 			use: { ...devices['Desktop Chrome'], channel: 'chromium' }
-		},
-		{
-			name: 'firefox',
-			use: { ...devices['Desktop Firefox'] }
-		},
-		{
-			name: 'webkit',
-			use: { ...devices['Desktop Safari'] }
 		}
 	],
 	webServer: {
