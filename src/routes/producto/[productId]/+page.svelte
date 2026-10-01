@@ -14,6 +14,7 @@
 		totalStock
 	} from '$lib/variant';
 	import { specEntries } from '$lib/product-specs';
+	import Spinner from '$lib/components/Spinner.svelte';
 	import VariantSelector from '$lib/components/VariantSelector.svelte';
 	import { resolveSafeReturnTarget } from '$lib/route-back';
 	import { toast } from '$lib/toast.svelte.js';
@@ -39,9 +40,6 @@
 	let touchCurrentX = $state(0);
 	let dragOffset = $state(0);
 	let showControls = $state(true);
-
-	// Toast
-	let toastMessage = $state('');
 
 	// Derived: images for current variant (fallback to product images)
 	const currentImages = $derived(
@@ -142,14 +140,6 @@
 		showControls = !showControls;
 	}
 
-	// Toast
-	function showToast(message: string) {
-		toastMessage = message;
-		setTimeout(() => {
-			toastMessage = '';
-		}, 3000);
-	}
-
 	function goBack() {
 		const safeTarget = resolveSafeReturnTarget({
 			currentOrigin: page.url.origin,
@@ -163,6 +153,9 @@
 
 	// Add to cart handler (via form enhance)
 	let addToCartForm: HTMLFormElement | undefined = $state();
+	// True from submit until the action's result lands, so the button can
+	// swap its icon for a spinner and refuse a second submit.
+	let submitting = $state(false);
 
 	// Cancel focus helper
 	function cancelFocus(e: FocusEvent) {
@@ -350,6 +343,7 @@
 			action="?/addToCart"
 			method="post"
 			use:enhance={() => {
+				submitting = true;
 				return async (input: {
 					result: {
 						type: string;
@@ -361,19 +355,21 @@
 						};
 					};
 				}) => {
-					const { result } = input;
-					if (result.type === 'success' && result.data?.success) {
-						showToast('Producto añadido al carrito');
-						await invalidateAll();
-					} else if (result.type === 'failure') {
-						if (result.data?.code === CartErrorCode.OUT_OF_STOCK) {
-							// Over-stock rejections go to the global toast with a
-							// clear Spanish message; the inline toast keeps
-							// displaying every other failure.
-							toast(stockLimitMessage(result.data.details?.available));
-						} else {
-							showToast(result.data?.message ?? 'Error al añadir al carrito');
+					try {
+						const { result } = input;
+						if (result.type === 'success' && result.data?.success) {
+							toast('Producto añadido al carrito');
+							await invalidateAll();
+						} else if (result.type === 'failure') {
+							if (result.data?.code === CartErrorCode.OUT_OF_STOCK) {
+								// Over-stock rejections use the availability-aware message.
+								toast(stockLimitMessage(result.data.details?.available));
+							} else {
+								toast(result.data?.message ?? 'Error al añadir al carrito');
+							}
 						}
+					} finally {
+						submitting = false;
 					}
 				};
 			}}
@@ -388,10 +384,19 @@
 			<button
 				type="submit"
 				class="btn-primary w-full py-4 text-lg sm:w-auto"
-				disabled={!isVariantAvailable(selectedVariant, product)}
+				disabled={!isVariantAvailable(selectedVariant, product) || submitting}
+				aria-busy={submitting}
 				onfocus={(e) => cancelFocus(e)}
 			>
-				<Icon icon="bi:cart-plus-fill" class="mr-2 text-xl" />
+				<!-- Fixed-width slot: swapping the icon for a spinner must not resize the
+				     button, which is shrink-to-fit from the sm breakpoint up. -->
+				<span class="mr-2 flex w-5 shrink-0 items-center justify-center">
+					{#if submitting}
+						<Spinner />
+					{:else}
+						<Icon icon="bi:cart-plus-fill" class="text-xl" />
+					{/if}
+				</span>
 				Añadir al carrito
 			</button>
 		</form>
@@ -480,13 +485,4 @@
 			</div>
 		{/if}
 	</section>
-{/if}
-
-<!-- Toast -->
-{#if toastMessage}
-	<div class="animate-slide-up fixed right-6 bottom-6 z-50" transition:fade={{ duration: 200 }}>
-		<div class="glass shadow-depth rounded-xl border border-white/4 px-4 py-3">
-			{toastMessage}
-		</div>
-	</div>
 {/if}
