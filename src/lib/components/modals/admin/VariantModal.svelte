@@ -323,7 +323,6 @@
 						class="bg-surface-2 text-text-primary focus:border-brand-400/50 w-full rounded-lg border border-white/4 px-4 py-2 focus:outline-none"
 						placeholder="Ej: M, L, XL"
 						bind:value={name}
-						disabled={!isAdd}
 					/>
 				</div>
 				<div class="flex flex-col place-items-center gap-2">
@@ -338,7 +337,6 @@
 						class="bg-surface-2 text-text-primary focus:border-brand-400/50 w-full rounded-lg border border-white/4 px-4 py-2 focus:outline-none"
 						placeholder="Ej: Negro, Blanco"
 						bind:value={color}
-						disabled={!isAdd}
 					/>
 					<label for="variantColorHex" class="text-text-secondary mb-1 block w-full text-sm"
 						>Muestra de color</label
@@ -360,7 +358,6 @@
 						required
 						class="bg-surface-2 text-text-primary focus:border-brand-400/50 w-full rounded-lg border border-white/4 px-4 py-2 focus:outline-none"
 						bind:value={cut}
-						disabled={!isAdd}
 					>
 						<option value="oversize">Oversize</option>
 						<option value="recto">Recto</option>
