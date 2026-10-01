@@ -4,6 +4,7 @@ import {
 	resolveImplicitVariant,
 	effectivePrice,
 	effectiveStock,
+	totalStock,
 	isVariantAvailable,
 	getVariantDisplayName,
 	hasExplicitVariants,
@@ -167,6 +168,21 @@ describe('Variant Utilities', () => {
 		it('should return product stock for null variant', () => {
 			const stock = effectiveStock(null, mockProduct);
 			expect(stock).toBe(10);
+		});
+	});
+
+	describe('totalStock', () => {
+		it('should return the base stock when the product has no variants', () => {
+			expect(totalStock(10, [])).toBe(10);
+		});
+
+		it('should return the sum of the variant stocks when variants exist', () => {
+			// mockVariants: 5 + 3 + 0 — the base stock is reference only.
+			expect(totalStock(10, mockVariants)).toBe(8);
+		});
+
+		it('should return 0 when variants sum to 0 instead of the base stock', () => {
+			expect(totalStock(10, [{ stock: 0 }, { stock: 0 }])).toBe(0);
 		});
 	});
 

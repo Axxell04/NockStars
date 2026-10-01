@@ -64,6 +64,22 @@ export function effectiveStock(variant: VariantComplete | null, product: Product
 }
 
 /**
+ * Total sellable stock for a product.
+ *
+ * A product without variants sells its base stock. A product with variants
+ * sells the sum of its variant stock, and the base number stops being
+ * authoritative — it is kept only as reference.
+ *
+ * Computed on read: a stored mirror would have to be re-synced by every
+ * variant-stock write (create, update, delete, checkout decrement) and any
+ * path that forgets leaves a stale number.
+ */
+export function totalStock(baseStock: number, variants: readonly { stock: number }[]): number {
+	if (variants.length === 0) return baseStock;
+	return variants.reduce((sum, variant) => sum + variant.stock, 0);
+}
+
+/**
  * User-facing copy for stock-limit rejections, shared by every cart entry
  * point so the wording stays identical. `available` is the stock left for the
  * exact variant (or implicit variant) that was rejected; when the server does

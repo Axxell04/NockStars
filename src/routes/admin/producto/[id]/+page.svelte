@@ -13,6 +13,7 @@
 		toSpecRows,
 		type ProductSpecs
 	} from '$lib/product-specs';
+	import { totalStock } from '$lib/variant';
 
 	interface ProductData {
 		id: string;
@@ -342,6 +343,16 @@
 							/>
 						</div>
 						<div class="space-y-1">
+							{#if data.product.variants.length > 0}
+								<div
+									class="text-text-secondary bg-surface-2 rounded-lg border border-white/10 px-3 py-2 text-sm"
+								>
+									Stock total de variantes
+									<span class="text-text-primary ml-1 font-semibold tabular-nums">
+										{totalStock(data.product.stock, data.product.variants)}
+									</span>
+								</div>
+							{/if}
 							<label for="stock" class="text-text-secondary block text-sm font-medium"
 								>Stock base *</label
 							>

@@ -10,7 +10,8 @@
 		effectiveStock,
 		getVariantDisplayName,
 		isVariantAvailable,
-		stockLimitMessage
+		stockLimitMessage,
+		totalStock
 	} from '$lib/variant';
 	import { specEntries } from '$lib/product-specs';
 	import VariantSelector from '$lib/components/VariantSelector.svelte';
@@ -73,8 +74,11 @@
 	// "Único" size/color and a hardcoded "recto" cut, none of which is a real
 	// attribute — so it contributes no rows and the whole group stays hidden.
 	const isExplicitVariant = $derived(selectedVariant !== null && selectedVariant.id !== 'implicit');
+	// Once variants exist the base stock stops being the reference: the
+	// sellable amount is the sum of the variant stocks, computed on read.
+	const totalVariantStock = $derived(totalStock(product.stock, variants));
 	const variantStockDiffers = $derived(
-		isExplicitVariant && (selectedVariant?.stock ?? 0) !== product.stock
+		isExplicitVariant && (selectedVariant?.stock ?? 0) !== totalVariantStock
 	);
 	const showFichaTecnica = $derived(
 		productDescription !== '' || productSpecEntries.length > 0 || isExplicitVariant
@@ -466,7 +470,7 @@
 								<dd class="ml-auto text-right font-medium">
 									<span class="text-text-primary tabular-nums">{selectedVariant.stock}</span>
 									<span class="text-text-muted block text-xs">
-										Base {product.stock}
+										Total {totalVariantStock}
 									</span>
 								</dd>
 							</div>

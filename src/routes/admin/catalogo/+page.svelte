@@ -252,9 +252,21 @@
 		};
 	}
 
-	function handleVariantSuccess() {
-		if (productSelected) {
-			loadVariants(productSelected.product.id);
+	// A variant save can change stock, and both the product card and the edit
+	// modal read `variantStockTotal` off the product list — so the list has to
+	// be refreshed too, or the displayed total goes stale. `productSelected`
+	// holds the pre-reload row, so re-point it at the fresh one as well.
+	async function handleVariantSuccess() {
+		const productId = productSelected?.product.id;
+		if (productId) {
+			await loadVariants(productId);
+		}
+		await loadProducts(catalogSelected?.id);
+		if (productId) {
+			const refreshed = products.find((entry) => entry.product.id === productId);
+			if (refreshed) {
+				productSelected = refreshed;
+			}
 		}
 	}
 </script>
@@ -475,7 +487,9 @@
 				<p class="text-brand-400 mt-1 font-semibold">
 					{product.product.price.toFixed(2)} $
 				</p>
-				<p class="text-text-muted text-xs">Stock: {product.product.stock}</p>
+				<p class="text-text-muted text-xs">
+					Stock: {product.product.variantStockTotal ?? product.product.stock}
+				</p>
 			</div>
 			<div class="flex flex-col gap-2">
 				<button
@@ -881,6 +895,16 @@
 							/>
 						</div>
 						<div>
+							{#if productSelected.product.variantStockTotal !== null && productSelected.product.variantStockTotal !== undefined}
+								<div
+									class="text-text-secondary bg-surface-2 mb-3 rounded-lg border border-white/4 px-4 py-2 text-sm"
+								>
+									Stock total de variantes
+									<span class="text-text-primary ml-1 font-semibold tabular-nums">
+										{productSelected.product.variantStockTotal}
+									</span>
+								</div>
+							{/if}
 							<label for="editProductStock" class="text-text-secondary mb-1 block text-sm"
 								>Stock</label
 							>

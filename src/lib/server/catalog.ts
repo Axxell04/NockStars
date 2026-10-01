@@ -1,7 +1,7 @@
 import * as table from '$lib/server/db/schema';
 import { encodeBase32LowerCase } from '@oslojs/encoding';
 import { getDb } from '$lib/server/db';
-import { and, eq, desc, isNull } from 'drizzle-orm';
+import { and, eq, desc, inArray, isNull, sql } from 'drizzle-orm';
 
 export async function createCatalog(name: string, description?: string) {
 	const productId = generateId();
@@ -69,6 +69,34 @@ export async function removeProductFromCatalog(productId: string, catalogId: str
 		.execute();
 }
 
+/**
+ * Sums `product_variant.stock` per product for the given ids in a single
+ * query. A product id missing from the result has no variants at all — which
+ * is distinct from a product whose variants sum to 0 — so callers must fall
+ * back to the base stock instead of treating the miss as a zero.
+ */
+async function getVariantStockTotals(productIds: string[]): Promise<Map<string, number>> {
+	// `inArray` with an empty array is a SQL footgun, and there is nothing to
+	// sum anyway: skip the query entirely.
+	if (productIds.length === 0) {
+		return new Map();
+	}
+
+	const rows = await getDb()
+		.select({
+			productId: table.productVariant.productId,
+			total: sql<number>`sum(${table.productVariant.stock})`
+		})
+		.from(table.productVariant)
+		.where(inArray(table.productVariant.productId, productIds))
+		.groupBy(table.productVariant.productId)
+		.execute();
+
+	// Postgres `sum` over integers returns bigint, which drivers may hand
+	// back as a string — normalize to a real number.
+	return new Map(rows.map((row) => [row.productId, Number(row.total)]));
+}
+
 export async function getProductsByCatalog(catalogId: string) {
 	const products = await getDb()
 		.select({
@@ -84,7 +112,12 @@ export async function getProductsByCatalog(catalogId: string) {
 		.orderBy(desc(table.product.createdAt))
 		.execute();
 
-	const listProducts: { product: (typeof products)[0]; imgs: table.Img[] }[] = [];
+	const variantStockTotals = await getVariantStockTotals(products.map((product) => product.id));
+
+	const listProducts: {
+		product: (typeof products)[0] & { variantStockTotal: number | null };
+		imgs: table.Img[];
+	}[] = [];
 
 	for (const product of products) {
 		const imgs = await getDb()
@@ -94,7 +127,7 @@ export async function getProductsByCatalog(catalogId: string) {
 			.execute();
 
 		listProducts.push({
-			product,
+			product: { ...product, variantStockTotal: variantStockTotals.get(product.id) ?? null },
 			imgs
 		});
 	}
@@ -119,7 +152,12 @@ export async function getProductsWithoutCatalog() {
 		.orderBy(desc(table.product.createdAt))
 		.execute();
 
-	const listProducts: { product: (typeof products)[0]; imgs: table.Img[] }[] = [];
+	const variantStockTotals = await getVariantStockTotals(products.map((product) => product.id));
+
+	const listProducts: {
+		product: (typeof products)[0] & { variantStockTotal: number | null };
+		imgs: table.Img[];
+	}[] = [];
 
 	for (const product of products) {
 		const imgs = await getDb()
@@ -129,7 +167,7 @@ export async function getProductsWithoutCatalog() {
 			.execute();
 
 		listProducts.push({
-			product,
+			product: { ...product, variantStockTotal: variantStockTotals.get(product.id) ?? null },
 			imgs
 		});
 	}
