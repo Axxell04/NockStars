@@ -23,6 +23,7 @@
 	let formMessage = $state('');
 	let name = $state(variantToEdit?.size ?? '');
 	let color = $state(variantToEdit?.color ?? '');
+	let colorHex = $state(variantToEdit?.colorHex ?? '#808080');
 	let cut = $state<'oversize' | 'recto'>(variantToEdit?.cut ?? 'oversize');
 	let description = $state(variantToEdit?.description ?? '');
 	let stock = $state(variantToEdit?.stock ?? 0);
@@ -116,6 +117,7 @@
 				formDataPhase1.append('productId', productSelected.product.id);
 				formDataPhase1.append('size', name);
 				formDataPhase1.append('color', color);
+				formDataPhase1.append('colorHex', colorHex);
 				formDataPhase1.append('cut', cut);
 				formDataPhase1.append('description', description);
 				formDataPhase1.append('stock', numberField(stock));
@@ -157,6 +159,7 @@
 				formData.append('variantId', variantId);
 				if (name) formData.append('size', name);
 				if (color) formData.append('color', color);
+				formData.append('colorHex', colorHex);
 				if (cut) formData.append('cut', cut);
 				formData.append('description', description);
 				formData.append('stock', numberField(stock));
@@ -334,6 +337,16 @@
 						placeholder="Ej: Negro, Blanco"
 						bind:value={color}
 						disabled={!isAdd}
+					/>
+					<label for="variantColorHex" class="text-text-secondary mb-1 block w-full text-sm"
+						>Muestra de color</label
+					>
+					<input
+						id="variantColorHex"
+						type="color"
+						name="colorHex"
+						class="bg-surface-2 h-10 w-24 cursor-pointer rounded-lg border border-white/4 p-1"
+						bind:value={colorHex}
 					/>
 				</div>
 				<div class="flex flex-col place-items-center gap-2">

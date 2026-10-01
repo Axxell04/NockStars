@@ -163,6 +163,7 @@ export const actions: Actions = {
 		const variantId = formData.get('variantId') as string;
 		const size = formData.get('size') as string;
 		const color = formData.get('color') as string;
+		const colorHex = (formData.get('colorHex') as string | null)?.trim() ?? '';
 		const cut = formData.get('cut') as 'oversize' | 'recto';
 		const descriptionRaw = formData.get('description') as string | null;
 		const description =
@@ -187,10 +188,14 @@ export const actions: Actions = {
 		) {
 			return fail(400, { message: 'Valores numéricos inválidos' });
 		}
+		if (colorHex !== '' && !/^#[0-9a-fA-F]{6}$/.test(colorHex)) {
+			return fail(400, { message: 'Color de muestra inválido' });
+		}
 
 		const input: UpdateVariantInput = {};
 		if (size) input.size = size;
 		if (color) input.color = color;
+		if (colorHex) input.colorHex = colorHex;
 		if (cut) input.cut = cut;
 		if (description !== undefined) input.description = description;
 		if (stock !== undefined) input.stock = stock;

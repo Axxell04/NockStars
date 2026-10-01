@@ -469,7 +469,17 @@ export async function getVariantsByProduct(productId: string): Promise<VariantCo
 export async function createVariant(
 	input: CreateVariantInput
 ): Promise<ProductActionResult<VariantComplete>> {
-	const { productId, size, color, cut, description, stock, priceOverride, sortOrder = 0 } = input;
+	const {
+		productId,
+		size,
+		color,
+		colorHex,
+		cut,
+		description,
+		stock,
+		priceOverride,
+		sortOrder = 0
+	} = input;
 
 	// Validate product exists
 	const [product] = await getDb()
@@ -511,6 +521,7 @@ export async function createVariant(
 		productId,
 		size,
 		color,
+		colorHex: colorHex ?? null,
 		cut,
 		description: description ?? null,
 		stock: stock ?? 0,
@@ -537,7 +548,7 @@ export async function updateVariant(
 	variantId: string,
 	input: UpdateVariantInput
 ): Promise<ProductActionResult<VariantComplete>> {
-	const { size, color, cut, description, stock, priceOverride, sortOrder } = input;
+	const { size, color, colorHex, cut, description, stock, priceOverride, sortOrder } = input;
 
 	const [existingVariant] = await getDb()
 		.select()
@@ -583,6 +594,7 @@ export async function updateVariant(
 
 	if (size !== undefined) updates.size = size;
 	if (color !== undefined) updates.color = color;
+	if (colorHex !== undefined) updates.colorHex = colorHex;
 	if (cut !== undefined) updates.cut = cut;
 	if (description !== undefined) updates.description = description;
 	if (stock !== undefined) updates.stock = stock;

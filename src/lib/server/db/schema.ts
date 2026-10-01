@@ -94,6 +94,7 @@ export const productVariant = pgTable(
 			.references(() => product.id, { onDelete: 'cascade' }),
 		size: text('size').notNull(),
 		color: text('color').notNull(),
+		colorHex: text('color_hex'),
 		cut: cutTypeEnum('cut').notNull(),
 		description: text('description'),
 		stock: integer('stock').notNull().default(0),

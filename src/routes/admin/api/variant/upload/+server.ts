@@ -18,6 +18,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const productId = formData.get('productId') as string;
 		const size = formData.get('size') as string;
 		const color = formData.get('color') as string;
+		const colorHex = (formData.get('colorHex') as string | null)?.trim() ?? '';
 		const cut = formData.get('cut') as 'oversize' | 'recto';
 		const description = formData.get('description') as string | null;
 		const stock = Number(formData.get('stock'));
@@ -27,6 +28,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		if (!productId || !size || !color || !cut) {
 			return json({ success: false, message: 'Faltan campos obligatorios' });
+		}
+		if (colorHex !== '' && !/^#[0-9a-fA-F]{6}$/.test(colorHex)) {
+			return json({ success: false, message: 'Color de muestra inválido' });
 		}
 		if (
 			!Number.isInteger(stock) ||
@@ -42,6 +46,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				productId,
 				size,
 				color,
+				colorHex: colorHex || undefined,
 				cut,
 				description: description ?? undefined,
 				stock,

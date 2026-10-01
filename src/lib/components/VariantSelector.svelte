@@ -26,11 +26,18 @@
 	);
 
 	// Derived: unique colors from available variants (filtered by selected size if any)
-	const availableColors = $derived(
-		variants
-			.filter((v) => isVariantAvailable(v, product) && (!selectedSize || v.size === selectedSize))
-			.map((v) => v.color)
-	);
+	const availableColors = $derived([
+		...new Set(
+			variants
+				.filter((v) => isVariantAvailable(v, product) && (!selectedSize || v.size === selectedSize))
+				.map((v) => v.color)
+		)
+	]);
+
+	// Derived: colour label -> swatch hex. `color` is a human label ("Negro") and
+	// is never a valid CSS colour, so the swatch is painted from `colorHex`.
+	// Variants created before the swatch existed fall back to a neutral dot.
+	const colorHexByLabel = $derived(new Map(variants.map((v) => [v.color, v.colorHex ?? null])));
 
 	// Derived: unique cuts from available variants (filtered by size/color if selected)
 	const availableCuts = $derived(
@@ -290,12 +297,16 @@
 								)}
 							disabled={!isColorAvailable(color)}
 							tabindex={selectedColor === color ? 0 : -1}
-							style="background-color: {color};"
 						>
+							<span
+								class="swatch-dot"
+								style="background-color: {colorHexByLabel.get(color) ?? '#6b7280'};"
+								aria-hidden="true"
+							></span>
+							<span>{color}</span>
 							{#if selectedColor === color}
-								<Icon icon="mdi:check" class="text-surface-0 text-sm" aria-hidden="true" />
-							{/if}
-							{#if !isColorAvailable(color)}
+								<Icon icon="mdi:check" class="text-brand-400 text-sm" aria-hidden="true" />
+							{:else if !isColorAvailable(color)}
 								<Icon icon="mdi:cancel" class="text-text-error text-sm" aria-hidden="true" />
 							{/if}
 						</button>
@@ -400,15 +411,25 @@
 	}
 
 	.swatch {
-		display: flex;
-		width: 2.5rem;
-		height: 2.5rem;
+		display: inline-flex;
 		align-items: center;
-		justify-content: center;
+		gap: 0.5rem;
+		padding: 0.375rem 0.75rem;
 		border-radius: 9999px;
 		border-width: 2px;
+		font-size: 0.875rem;
+		font-weight: 500;
 		transition: all 0.2s ease;
 		outline: none;
+	}
+
+	.swatch-dot {
+		display: block;
+		width: 1.5rem;
+		height: 1.5rem;
+		flex: none;
+		border-radius: 9999px;
+		border: 1px solid rgba(255, 255, 255, 0.2);
 	}
 
 	.swatch:focus-visible {

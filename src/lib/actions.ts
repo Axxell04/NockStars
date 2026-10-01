@@ -152,6 +152,7 @@ export interface CreateVariantInput {
 	productId: string;
 	size: string;
 	color: string;
+	colorHex?: string;
 	cut: 'oversize' | 'recto';
 	description?: string;
 	stock: number;
@@ -162,6 +163,7 @@ export interface CreateVariantInput {
 export interface UpdateVariantInput {
 	size?: string;
 	color?: string;
+	colorHex?: string;
 	cut?: 'oversize' | 'recto';
 	description?: string | null;
 	stock?: number;

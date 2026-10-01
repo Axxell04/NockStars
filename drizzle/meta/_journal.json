@@ -15,6 +15,13 @@
       "when": 1790634071000,
       "tag": "0001_pg_cron_abandoned_cart_cleanup",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790816685372,
+      "tag": "0002_cool_warbird",
+      "breakpoints": true
     }
   ]
 }

@@ -29,6 +29,7 @@ export function resolveImplicitVariant(product: Product): VariantComplete {
 		productId: product.id,
 		size: 'Único',
 		color: 'Único',
+		colorHex: null,
 		cut: 'recto',
 		description: null,
 		stock: product.stock,
