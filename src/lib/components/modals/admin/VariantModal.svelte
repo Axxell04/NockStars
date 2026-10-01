@@ -223,6 +223,7 @@
 	function clearForm() {
 		name = '';
 		color = '';
+		colorHex = '#808080';
 		cut = 'oversize';
 		description = '';
 		stock = 0;
@@ -286,6 +287,7 @@
 		}
 		name = variantToEdit?.size ?? '';
 		color = variantToEdit?.color ?? '';
+		colorHex = variantToEdit?.colorHex ?? '#808080';
 		cut = variantToEdit?.cut ?? 'oversize';
 		description = variantToEdit?.description ?? '';
 		stock = variantToEdit?.stock ?? 0;
