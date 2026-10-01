@@ -667,7 +667,18 @@
 												{/if}
 											</td>
 											<td class="text-text-primary px-2 py-3 font-medium">{variant.size}</td>
-											<td class="text-text-primary px-2 py-3">{variant.color}</td>
+											<td class="text-text-primary px-2 py-3">
+												<span
+													class="inline-flex items-center gap-2 rounded-full border border-white/4 py-1 pr-2.5 pl-1"
+												>
+													<span
+														class="block size-4 shrink-0 rounded-full border border-white/20"
+														style="background-color: {variant.colorHex ?? '#6b7280'};"
+														aria-hidden="true"
+													></span>
+													{variant.color}
+												</span>
+											</td>
 											<td class="text-text-primary px-2 py-3 capitalize">{variant.cut}</td>
 											<td class="text-text-primary px-2 py-3 tabular-nums">{variant.stock}</td>
 											<td class="text-brand-400 px-2 py-3 font-medium tabular-nums">
