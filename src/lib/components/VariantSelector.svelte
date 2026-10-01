@@ -88,6 +88,18 @@
 		);
 	}
 
+	// Re-seat the cut on a combination the current size/colour actually offers.
+	// `resolveVariant` matches size/colour/cut exactly, so a cut outside that set
+	// leaves the selector unmatched forever — and when only one cut exists there
+	// is no control left to change it. Defaulting to 'recto' guessed wrong for
+	// oversize-only products, where the badge showed the available cut while the
+	// state silently held another.
+	function syncCutToAvailable() {
+		if (!isCutAvailable(selectedCut)) {
+			selectedCut = availableCuts[0] ?? selectedCut;
+		}
+	}
+
 	// Handle size selection
 	function handleSizeSelect(size: string) {
 		selectedSize = size;
@@ -95,9 +107,7 @@
 		if (!isColorAvailable(selectedColor)) {
 			selectedColor = '';
 		}
-		if (!isCutAvailable(selectedCut)) {
-			selectedCut = 'recto';
-		}
+		syncCutToAvailable();
 		// Check if we have a complete match
 		if (matchedVariant) {
 			onSelect(matchedVariant.id);
@@ -108,9 +118,7 @@
 	// Handle color selection
 	function handleColorSelect(color: string) {
 		selectedColor = color;
-		if (!isCutAvailable(selectedCut)) {
-			selectedCut = 'recto';
-		}
+		syncCutToAvailable();
 		if (matchedVariant) {
 			onSelect(matchedVariant.id);
 			syncUrl(matchedVariant.id);
