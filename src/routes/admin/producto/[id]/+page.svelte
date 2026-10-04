@@ -14,6 +14,7 @@
 		type ProductSpecs
 	} from '$lib/product-specs';
 	import { totalStock } from '$lib/variant';
+	import { variantManagerUrl } from '$lib/admin-links';
 
 	interface ProductData {
 		id: string;
@@ -258,7 +259,7 @@
 	}
 
 	function goToVariants() {
-		goto(`/admin/catalogo?productId=${data.product.id}&tab=variantes`);
+		goto(variantManagerUrl(data.product.id));
 	}
 </script>
 

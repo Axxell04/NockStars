@@ -9,6 +9,7 @@
 		MAX_SPEC_VALUE_LENGTH,
 		SPEC_LABELS
 	} from '$lib/product-specs';
+	import { variantManagerUrl } from '$lib/admin-links';
 
 	let { data }: { data: { catalogs: { id: string; name: string }[] } } = $props();
 
@@ -160,7 +161,7 @@
 
 	function goToVariants() {
 		if (createdProductId) {
-			goto(`/admin/catalogo?productId=${createdProductId}&tab=variantes`);
+			goto(variantManagerUrl(createdProductId));
 		}
 	}
 </script>
