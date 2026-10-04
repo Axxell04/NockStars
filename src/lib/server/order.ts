@@ -1,7 +1,8 @@
 import * as table from '$lib/server/db/schema';
 import { generateId } from '$lib/server/functions';
 import { getDb } from '$lib/server/db';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
+import { lineKey } from '$lib/order-content';
 
 type GetOrderOptions = {
 	page?: number;
@@ -19,6 +20,56 @@ export async function checkOrderExists(cod: string) {
 export async function getOrderById(id: string) {
 	const [order] = await getDb().select().from(table.order).where(eq(table.order.id, id)).execute();
 	return order ?? null;
+}
+
+/**
+ * Primary image URL per order line, keyed by `lineKey()`.
+ *
+ * Preference is the variant's first image (by sortOrder), falling back to
+ * the product's first image — a deleted or imageless variant still shows
+ * its product. Images are presentational only: names, prices and variant
+ * params always come from the order snapshots, never from live rows, so a
+ * changed product photo can never rewrite the purchase record.
+ * Two batched queries, no N+1. Lines without any image resolve to null.
+ */
+export async function getOrderLineImages(
+	lines: { productId: string; variantId?: string | null }[]
+): Promise<Record<string, string | null>> {
+	const images: Record<string, string | null> = {};
+	const isPresent = (id: unknown): id is string => typeof id === 'string' && id !== '';
+	const variantIds = [...new Set(lines.map((line) => line.variantId).filter(isPresent))];
+	const productIds = [...new Set(lines.map((line) => line.productId).filter(isPresent))];
+	if (productIds.length === 0) return images;
+
+	const variantImgs =
+		variantIds.length > 0
+			? await getDb()
+					.select()
+					.from(table.variantImg)
+					.where(inArray(table.variantImg.variantId, variantIds))
+					.orderBy(table.variantImg.sortOrder)
+					.execute()
+			: [];
+	const variantPrimary = new Map<string, string>();
+	for (const img of variantImgs) {
+		if (!variantPrimary.has(img.variantId)) variantPrimary.set(img.variantId, img.url);
+	}
+
+	const productImgs = await getDb()
+		.select()
+		.from(table.img)
+		.where(inArray(table.img.productId, productIds))
+		.execute();
+	const productPrimary = new Map<string, string>();
+	for (const img of productImgs) {
+		if (!productPrimary.has(img.productId)) productPrimary.set(img.productId, img.url);
+	}
+
+	for (const line of lines) {
+		const variantUrl = isPresent(line.variantId) ? variantPrimary.get(line.variantId) : undefined;
+		images[lineKey(line)] = variantUrl ?? productPrimary.get(line.productId) ?? null;
+	}
+	return images;
 }
 
 export async function getOrderWithItems(cod: string) {

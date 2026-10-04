@@ -6,6 +6,7 @@
 	import { fade, scale, slide } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
 	import { lineKey, setLineAmounts, toOrderLines, type OrderLine } from '$lib/order-content';
+	import ContainerModal from '$lib/components/modals/ContainerModal.svelte';
 
 	let { data }: PageProps = $props();
 
@@ -25,6 +26,13 @@
 	let totalValue = $derived(orderLines.reduce((pv, cv) => pv + cv.amount * cv.unitPrice, 0));
 
 	let selectedLine: OrderLine | undefined = $state();
+
+	// Fullscreen image viewer (lightbox)
+	let viewer: { url: string; name: string } | null = $state(null);
+
+	function openViewer(url: string, name: string) {
+		viewer = { url, name };
+	}
 
 	// HTML Elements
 	let btnEditOrder: HTMLButtonElement | undefined = $state();
@@ -212,8 +220,9 @@
 	<!-- Order lines -->
 	<section class="flex flex-col gap-2">
 		{#each orderLines as line}
+			{@const thumb = data.images[lineKey(line)] ?? null}
 			<div
-				class="flex min-w-0 flex-col gap-1 rounded-xl border px-3 py-2 transition-colors duration-150 {selectedLine &&
+				class="flex min-w-0 flex-row gap-3 rounded-xl border px-2 py-2 transition-colors duration-150 {selectedLine &&
 				lineKey(selectedLine) === lineKey(line)
 					? 'border-brand-400/40 bg-brand-400/10'
 					: 'bg-surface-1 border-white/5'} place-content-between place-items-center"
@@ -226,30 +235,46 @@
 				tabindex="0"
 				onkeydown={() => {}}
 			>
-				<div class="flex w-full min-w-0 flex-row place-content-between place-items-center gap-2">
-					<div class="flex min-w-0 flex-row place-items-center gap-2">
-						<span class="text-text-primary truncate">
-							{line.name}
-						</span>
-						<span class="text-text-secondary flex-shrink-0">
-							({line.amount})
-						</span>
-					</div>
-					<span class="text-text-primary flex-shrink-0 font-semibold">
-						$ {(line.unitPrice * line.amount).toFixed(2)}
-					</span>
-				</div>
-				{#if line.size ?? line.color ?? line.cut}
-					<div class="flex w-full flex-wrap gap-1">
-						{#each lineChips(line) as chip}
-							<span
-								class="bg-surface-0/60 text-text-secondary rounded-md border border-white/8 px-1.5 py-px text-xs"
-							>
-								{chip}
-							</span>
-						{/each}
-					</div>
+				{#if thumb}
+					<button
+						type="button"
+						aria-label="Ampliar imagen de {line.name}"
+						onclick={(e) => {
+							e.stopPropagation();
+							openViewer(thumb, line.name);
+						}}
+						onfocus={(e) => cancelFocus(e)}
+						class="h-16 w-16 shrink-0 self-start overflow-hidden rounded-lg border border-white/8 transition-transform duration-150 active:scale-95"
+					>
+						<img src={thumb} alt="" class="h-full w-full object-cover" loading="lazy" />
+					</button>
 				{/if}
+				<div class="flex min-w-0 flex-1 flex-col gap-1">
+					<div class="flex w-full min-w-0 flex-row place-content-between place-items-center gap-2">
+						<div class="flex min-w-0 flex-row place-items-center gap-2">
+							<span class="text-text-primary truncate">
+								{line.name}
+							</span>
+							<span class="text-text-secondary flex-shrink-0">
+								({line.amount})
+							</span>
+						</div>
+						<span class="text-text-primary flex-shrink-0 font-semibold">
+							$ {(line.unitPrice * line.amount).toFixed(2)}
+						</span>
+					</div>
+					{#if line.size ?? line.color ?? line.cut}
+						<div class="flex w-full flex-wrap gap-1">
+							{#each lineChips(line) as chip}
+								<span
+									class="bg-surface-2 text-text-secondary rounded-lg border border-white/10 px-2 py-0.5 text-xs font-medium"
+								>
+									{chip}
+								</span>
+							{/each}
+						</div>
+					{/if}
+				</div>
 			</div>
 		{/each}
 	</section>
@@ -419,4 +444,28 @@
 			</button>
 		</form>
 	</section>
+
+	{#if viewer}
+		<ContainerModal toggleModal={() => (viewer = null)}>
+			<figure class="relative">
+				<img
+					src={viewer.url}
+					alt="Imagen de {viewer.name}"
+					class="max-h-[80vh] w-auto max-w-full rounded-2xl object-contain"
+				/>
+				<button
+					type="button"
+					aria-label="Cerrar imagen"
+					onclick={() => (viewer = null)}
+					onfocus={(e) => cancelFocus(e)}
+					class="bg-surface-2 text-text-secondary hover:text-text-primary absolute -top-3 -right-3 rounded-full border border-white/10 p-2 transition-[color,transform] duration-150 active:scale-90"
+				>
+					<Icon icon="mdi:close" />
+				</button>
+				<figcaption class="text-text-secondary mt-2 text-center text-sm">
+					{viewer.name}
+				</figcaption>
+			</figure>
+		</ContainerModal>
+	{/if}
 </div>
