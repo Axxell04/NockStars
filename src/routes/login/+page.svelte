@@ -95,7 +95,7 @@
 					<label for="username" class="text-text-secondary text-sm font-medium">Usuario</label>
 					<input
 						type="text"
-						id="user"
+						id="username"
 						name="username"
 						autocomplete="off"
 						required
@@ -161,7 +161,7 @@
 					<label for="username" class="text-text-secondary text-sm font-medium">Usuario</label>
 					<input
 						type="text"
-						id="user"
+						id="username"
 						name="username"
 						autocomplete="off"
 						required
