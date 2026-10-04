@@ -153,8 +153,12 @@ test.describe('Multi-tab Version Conflict', () => {
 			await waitForHydration(second);
 			await expect(second.locator(QUANTITY)).toHaveText('1');
 
-			// First tab advances twice: quantity 3, version 3.
+			// First tab advances twice: quantity 3, version 3. Each click has to
+			// land on the re-rendered form: a second click on the stale snapshot
+			// would re-post version 1, and the guard under test would rightly
+			// reject it — the increment would be lost, not delayed.
 			await page.getByRole('button', { name: 'Aumentar cantidad' }).click();
+			await expect(page.locator(QUANTITY)).toHaveText('2');
 			await page.getByRole('button', { name: 'Aumentar cantidad' }).click();
 			await expect(page.locator(QUANTITY)).toHaveText('3');
 

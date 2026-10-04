@@ -115,24 +115,19 @@ export async function cleanupTestCart(sessionId: string): Promise<void> {
  * Waits until the client has taken the page over.
  *
  * Server markup — and its form handlers' hosts — exist long before SvelteKit
- * hydrates, and there is no exposed hydration signal. Clicking in that window
- * falls back to a native form POST: the request still succeeds, but the
- * `use:enhance` callback that renders the toast never runs, so the failure
- * shows up as a missing element rather than as a click error.
+ * hydrates. Clicking in that window falls back to a native form POST: the
+ * request still succeeds, but the `use:enhance` callback that renders the
+ * toast never runs, so the failure shows up as a missing element rather than
+ * as a click error.
  *
- * A fixed delay was not enough on a cold dev server, where the first request
- * spends a second or more compiling. `networkidle` tracks that work directly:
- * hydration needs every module, and fetching one triggers the next request, so
- * the network only settles once the entry module has executed. The socket can
- * keep a dev page from ever settling, so it is a best-effort wait.
+ * Timing proxies (fixed delays, `networkidle`) cannot close that window: on
+ * a cold dev server under parallel load, module execution can stall for
+ * seconds with nothing on the network. The root layout therefore flips
+ * `data-hydrated` in `onMount`, which runs after every `use:enhance` below
+ * it has been attached — a deterministic signal instead of a guess.
  */
 export async function waitForHydration(page: Page): Promise<void> {
-	try {
-		await page.waitForLoadState('networkidle', { timeout: 8000 });
-	} catch {
-		// Fall through to the floor below rather than failing the test here.
-	}
-	await page.waitForTimeout(300);
+	await page.locator('[data-hydrated="true"]').waitFor({ timeout: 30000 });
 }
 
 /**

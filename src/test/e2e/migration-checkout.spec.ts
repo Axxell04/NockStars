@@ -12,16 +12,19 @@ test.describe('Cookie Migration', () => {
 		const product = await seedTestProduct({ name: 'Test Product' });
 
 		try {
-			await page.goto('/');
-
 			// Set the v1 legacy cookie against a product this test created, so the
 			// migration has something real to resolve and clean up can be exact.
-			await page.evaluate((productId) => {
-				const item = { productId, quantity: 2, size: 'M', color: 'Red', cut: 'recto' };
-				document.cookie = `cart=${JSON.stringify([item])}; path=/; max-age=2592000`;
-			}, product.id);
+			// Seeded before the first navigation: after hydration the storefront
+			// cart sync POSTs its own httpOnly `cart` cookie, which would shadow
+			// a later `document.cookie` write (JS cannot overwrite httpOnly).
+			const item = { productId: product.id, quantity: 2, size: 'M', color: 'Red', cut: 'recto' };
+			await page
+				.context()
+				.addCookies([
+					{ name: 'cart', value: JSON.stringify([item]), domain: 'localhost', path: '/' }
+				]);
 
-			await page.reload();
+			await page.goto('/');
 
 			// Read through the context, not document.cookie: the server issues
 			// cart_session_id as httpOnly, so it is deliberately invisible to JS.
@@ -30,8 +33,12 @@ test.describe('Cookie Migration', () => {
 			// v2 cookie exists
 			expect(cookies.find((c) => c.name === 'cart_session_id')).toBeTruthy();
 
-			// v1 cookie is gone
-			expect(cookies.find((c) => c.name === 'cart')).toBeFalsy();
+			// v1 cookie is gone. Match the JS-visible cookie only: the storefront
+			// cart sync (`?/update_cart`) reuses the `cart` name for its own
+			// httpOnly blob and can land before this read, which would make a
+			// name-only assertion flaky. The legacy cookie was set from JS, so
+			// it is the only `cart` cookie that is not httpOnly.
+			expect(cookies.find((c) => c.name === 'cart' && !c.httpOnly)).toBeFalsy();
 
 			// Cart actually carried the item over
 			await page.goto('/carrito');

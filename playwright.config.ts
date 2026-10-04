@@ -17,6 +17,12 @@ export default defineConfig({
 	// the checkout and multi-tab flows need well over Playwright's 30s default
 	// even when nothing is wrong — they time out waiting, not failing.
 	timeout: 60000,
+	// Form actions queue behind that same compiling server, so a round-trip
+	// can take well over Playwright's 5s assertion default. A late toast is
+	// still a passing toast — only a missing one is a failure.
+	expect: {
+		timeout: 15000
+	},
 	reporter: 'html',
 	use: {
 		baseURL: 'http://localhost:5173',
@@ -38,9 +44,14 @@ export default defineConfig({
 		}
 	],
 	webServer: {
-		command: 'npm run dev',
+		// E2E runs against the production build, not `vite dev`. The dev
+		// server compiles on demand on a single thread, so under two workers
+		// navigations stall, round-trips exceed assertion budgets and the
+		// suite flakes in ways no timeout can fix deterministically.
+		// Rebuilding here keeps `npm run test:e2e` self-contained.
+		command: 'npm run build && npm run preview -- --port 5173',
 		url: 'http://localhost:5173',
 		reuseExistingServer: !process.env.CI,
-		timeout: 120000
+		timeout: 180000
 	}
 });
