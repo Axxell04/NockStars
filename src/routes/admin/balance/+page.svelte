@@ -496,7 +496,6 @@
 						duration: 200
 					}}
 				>
-					<!-- <OrderCard {order} {selectThisOrder} {orderSelected} {setOrderPagination} {updateOrderPaginationContent} /> -->
 					<BalanceDetailCard
 						{balanceDetail}
 						{selectThisBalanceDetail}

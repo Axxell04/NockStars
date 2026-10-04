@@ -6,7 +6,6 @@
 	import { enhance } from '$app/forms';
 	import Toast from '$lib/components/Toast.svelte';
 	import type { Order, OrderPagination } from '$lib/interfaces/order';
-	import { setLineAmounts, type OrderLine } from '$lib/order-content';
 	import OrderCard from '$lib/components/OrderCard.svelte';
 	import { page } from '$app/state';
 
@@ -33,13 +32,6 @@
 	let btnSetInitViewState: HTMLButtonElement | undefined = $state();
 
 	let selectStateElementHeight: number = $state(9);
-
-	// Selected Elements
-	let orderSelected: Order | undefined = $state();
-
-	function selectThisOrder(order: Order | undefined) {
-		orderSelected = order;
-	}
 
 	// Visible Elements
 	let gotoPageListIsVisible = $state(false);
@@ -71,18 +63,6 @@
 		orderPagination = newOrderPagination;
 	}
 
-	function updateOrderPaginationContent(orderId: string, newLines: OrderLine[]) {
-		const kept = newLines.filter((line) => line.amount > 0);
-		orderPagination = {
-			...orderPagination,
-			orders: orderPagination.orders
-				.filter((order) => order.id !== orderId || kept.length > 0)
-				.map((order) =>
-					order.id === orderId ? { ...order, content: setLineAmounts(order.content, kept) } : order
-				)
-		};
-	}
-
 	function createListPages(totalPages: number) {
 		let list = [];
 		for (let index = 1; index <= totalPages; index++) {
@@ -112,14 +92,12 @@
 	// Effects
 
 	$effect(() => {
-		// `orders` is the dependency: re-frame the viewport and drop the
-		// selection whenever the rendered list is replaced. This is a presence
-		// check, NOT page validation — `currentPage` is never verified anywhere
-		// in this codebase, and the actions below stay unconditional so a
-		// selection carried over from another page is always dropped.
+		// `orders` is the dependency: re-frame the viewport whenever the
+		// rendered list is replaced. This is a presence check, NOT page
+		// validation — `currentPage` is never verified anywhere in this
+		// codebase.
 		if (orderPagination.orders) {
 			scrollTo({ behavior: 'smooth', top: 170 });
-			orderSelected = undefined;
 		}
 	});
 
@@ -377,13 +355,7 @@
 		<!-- {#key Date.now()} -->
 		{#each orders as order (order.id)}
 			<div transition:scale={{ delay: 100 * (orders.indexOf(order) + 1), duration: 200 }}>
-				<OrderCard
-					{order}
-					{selectThisOrder}
-					{orderSelected}
-					{setOrderPagination}
-					{updateOrderPaginationContent}
-				/>
+				<OrderCard {order} />
 			</div>
 		{/each}
 		<!-- {/key} -->
