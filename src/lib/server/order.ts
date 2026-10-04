@@ -16,6 +16,11 @@ export async function checkOrderExists(cod: string) {
 	return false;
 }
 
+export async function getOrderById(id: string) {
+	const [order] = await getDb().select().from(table.order).where(eq(table.order.id, id)).execute();
+	return order ?? null;
+}
+
 export async function getOrderWithItems(cod: string) {
 	const [order] = await getDb().select().from(table.order).where(eq(table.order.id, cod)).execute();
 
