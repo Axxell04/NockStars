@@ -1,4 +1,13 @@
-import { test, expect } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
+import { test, expect, type Page } from '@playwright/test';
+import {
+	seedTestProduct,
+	cleanupTestProduct,
+	cleanupTestCart,
+	loginAsAdmin,
+	waitForHydration,
+	type SeededProduct
+} from './fixtures';
 
 /**
  * The product exercised below is the catalogue entry the storefront actually
@@ -9,15 +18,16 @@ import { test, expect } from '@playwright/test';
  *   M / Blanco / oversize   -> only cut is 'oversize'  (regression case)
  *
  * `fixtures.ts` provides data for the suites that do need it; the original
- * draft's `prod-1` / `Test Product` / `Red` / `Blue` never existed and are
- * now referenced only by dormant tests.
+ * draft's `prod-1` / `Test Product` / `Red` / `Blue` never existed and are now
+ * referenced only by comments below.
  *
- * Every test here is safe to run repeatedly:
+ * Every test in the selector suite is safe to run repeatedly:
  *   - selecting a variant only writes URL/session state;
  *   - adding to the cart writes to the cart session, which lives in the fresh
  *     browser context Playwright gives each test, so it never leaks;
  *   - product stock is decremented only at checkout (cart.ts), never on add,
- *     which is exactly why the checkout suite below is fixme'd instead of run.
+ *     so browsing and adding cost nothing. The suites that do mutate the
+ *     catalogue seed an `e2e-` product of their own and remove it in `finally`.
  */
 const PRODUCT = 'em5y3nddwir4lyecrjcq5y3f';
 const PRODUCT_URL = `/producto/${PRODUCT}`;
@@ -27,6 +37,10 @@ const colourButton = (value: string) => `button[role="radio"][aria-label="Color 
 
 const SUMMARY = 'p:has-text("Variante seleccionada")';
 const PENDING = 'p:has-text("Selecciona todas las opciones")';
+
+// The cart page has no quantity input: the stepper form posts current ± 1 and
+// the running total sits in a tabular span beside the buttons.
+const QUANTITY = 'form[action="?/updateQuantity"] span.tabular-nums';
 
 test.describe('Variant Selector', () => {
 	test.beforeEach(async ({ page }) => {
@@ -103,159 +117,166 @@ test.describe('Variant Selector', () => {
 });
 
 /*
- * Fixtures live in `./fixtures` now, but the suites below still need scoping
- * work before they can run: checkout has to own both the product and the order
- * it creates (an order row is not a child of the product, so product cleanup
- * alone would leave it behind), and the admin suites have to share a single
- * login because `login` calls `invalidateAllUserSessions`.
+ * The suites below own every row they touch: each seeds an `e2e-`-prefixed
+ * product and removes it — plus any cart or order row it created — in
+ * `finally`. Checkout deletes the order *before* the product because `order` is
+ * not a child of `product`, and the admin suite runs serially because every
+ * `login` calls `invalidateAllUserSessions`.
  *
- * They stay as `describe.fixme` so the intent is preserved and the suite stays
- * green instead of training everyone to ignore red.
- *
- * Cookie migration was the first suite to graduate: see
- * `migration-checkout.spec.ts`, which now seeds its own product.
+ * Their assertions target copy the app actually renders. The drafts asserted
+ * "Finalizar pedido", "Pedido creado", "Añadir variante", "Variante eliminada"
+ * and "modificado por otra petición" — none of which exist anywhere in `src/`.
  */
 
-test.describe.fixme('Checkout Flow', () => {
-	test.beforeEach(async ({ page }) => {
-		// Create test product via API or seed
-		await page.goto('/');
-	});
+test.describe('Multi-tab Version Conflict', () => {
+	test('a stale write cannot rewind a newer one', async ({ page, context }) => {
+		const product = await seedTestProduct({ name: 'E2E Multi-tab Product' });
+		let cartSessionId: string | undefined;
+		let second: Page | undefined;
 
-	test('should add variant to cart, update quantity, checkout, and clear cart', async ({
-		page
-	}) => {
-		// Go to product detail page
-		await page.goto('/producto/prod-1?variant=var-1');
+		try {
+			await page.goto(`/producto/${product.id}`);
+			await waitForHydration(page);
+			await page.getByRole('button', { name: 'Añadir al carrito' }).click();
+			await expect(page.getByText('Producto añadido al carrito')).toBeVisible();
 
-		// Verify variant is selected
-		await expect(page.locator('text=M / Red / recto')).toBeVisible();
+			await page.goto('/carrito');
+			await waitForHydration(page);
+			cartSessionId = (await page.context().cookies()).find(
+				(c) => c.name === 'cart_session_id'
+			)?.value;
 
-		// Add to cart
-		await page.click('button:has-text("Añadir al carrito")');
-		await expect(page.locator('text=Producto añadido al carrito')).toBeVisible();
+			// The second tab shares the session but has its own snapshot: there is
+			// no cross-tab invalidation, only a version check on the next write.
+			second = await context.newPage();
+			await second.goto('/carrito');
+			await waitForHydration(second);
+			await expect(second.locator(QUANTITY)).toHaveText('1');
 
-		// Go to cart
-		await page.goto('/carrito');
+			// First tab advances twice: quantity 3, version 3.
+			await page.getByRole('button', { name: 'Aumentar cantidad' }).click();
+			await page.getByRole('button', { name: 'Aumentar cantidad' }).click();
+			await expect(page.locator(QUANTITY)).toHaveText('3');
 
-		// Update quantity
-		await page.fill('input[name="quantity"]', '3');
-		await page.click('button:has-text("Actualizar")');
-
-		// Verify quantity updated
-		await expect(page.locator('input[name="quantity"]')).toHaveValue('3');
-
-		// Checkout
-		await page.click('button:has-text("Finalizar pedido")');
-
-		// Verify order created
-		await expect(page.locator('text=Pedido creado')).toBeVisible();
-
-		// Go to order detail
-		const orderLink = page.locator('a[href^="/pedido/"]').first();
-		await orderLink.click();
-
-		// Verify order shows variant details
-		await expect(page.locator('text=M')).toBeVisible();
-		await expect(page.locator('text=Red')).toBeVisible();
-		await expect(page.locator('text=recto')).toBeVisible();
-
-		// Cart should be cleared
-		await page.goto('/carrito');
-		await expect(page.locator('text=Tu carrito está vacío')).toBeVisible();
+			// The stale tab posts quantity 2 at version 1. The version check rejects
+			// it and re-seeds the list, so the cart keeps 3 instead of silently
+			// rewinding to 2 — which is exactly what an unguarded write would do.
+			await second.getByRole('button', { name: 'Aumentar cantidad' }).click();
+			await expect(second.locator(QUANTITY)).toHaveText('3');
+			await expect(second.locator('input[name="version"]')).toHaveValue('3');
+		} finally {
+			if (second) {
+				await second.close();
+			}
+			if (cartSessionId) {
+				await cleanupTestCart(cartSessionId);
+			}
+			await cleanupTestProduct(product.id);
+		}
 	});
 });
 
-test.describe.fixme('Multi-tab Version Conflict', () => {
-	test('should detect version conflict and auto-reload', async ({ page, context }) => {
-		// Open first tab
-		await page.goto('/producto/prod-1?variant=var-1');
-		await page.click('button:has-text("Añadir al carrito")');
-		await page.goto('/carrito');
+test.describe('Admin Variant CRUD', () => {
+	// Every login invalidates all of that user's sessions, so these four must
+	// not overlap: a second login would evict the session of one still running.
+	test.describe.configure({ mode: 'serial' });
 
-		// Open second tab
-		const page2 = await context.newPage();
-		await page2.goto('/carrito');
+	let product: SeededProduct;
+	let productName: string;
+	let cartSessionId: string | undefined;
 
-		// Update quantity in first tab
-		await page.fill('input[name="quantity"]', '3');
-		await page.click('button:has-text("Actualizar")');
-
-		// Try to update in second tab with stale version
-		await page2.fill('input[name="quantity"]', '5');
-		await page2.click('button:has-text("Actualizar")');
-
-		// Should show version conflict error
-		await expect(page2.locator('text=modificado por otra petición')).toBeVisible();
-
-		// Should auto-reload or show refresh option
-		await expect(page2.locator('button:has-text("Recargar")')).toBeVisible();
-	});
-});
-
-test.describe.fixme('Admin Variant CRUD', () => {
 	test.beforeEach(async ({ page }) => {
-		// Login as admin
-		await page.goto('/login');
-		await page.fill('input[name="username"]', 'admin');
-		await page.fill('input[name="password"]', 'admin123');
-		await page.click('button:has-text("Iniciar sesión")');
+		cartSessionId = undefined;
+		// A unique name per test keeps the product picker unambiguous even if an
+		// earlier run leaked a row into the catalogue.
+		productName = `E2E Variante ${randomUUID().slice(0, 8)}`;
+		product = await seedTestProduct({ name: productName });
+
+		await loginAsAdmin(page);
+
+		// The Variantes tab only lists variants of the selected product, and the
+		// `?productId=&tab=variantes` deep link that "Gestionar variantes"
+		// produces is never read by this page — so the selection has to be made
+		// through the UI.
 		await page.goto('/admin/catalogo');
+		await waitForHydration(page);
+		await page.getByRole('button', { name: 'Productos' }).click();
+		await page.locator('[role="button"] h4', { hasText: productName }).click();
+		await expect(page.getByText('Selección:')).toBeVisible();
+		await page.getByRole('button', { name: 'Variantes' }).click();
+		await expect(page.locator('table')).toBeVisible();
 	});
 
-	test('should create variant', async ({ page }) => {
-		// Click add variant button
-		await page.click('button:has-text("Añadir variante")');
-
-		// Fill form
-		await page.fill('input[name="size"]', 'XL');
-		await page.fill('input[name="color"]', 'Green');
-		await page.selectOption('select[name="cut"]', 'oversize');
-		await page.fill('input[name="stock"]', '10');
-		await page.fill('input[name="priceOverride"]', '44.99');
-
-		// Submit
-		await page.click('button:has-text("Guardar")');
-
-		// Verify created
-		await expect(page.locator('text=XL')).toBeVisible();
-		await expect(page.locator('text=Green')).toBeVisible();
-		await expect(page.locator('text=oversize')).toBeVisible();
+	test.afterEach(async () => {
+		if (cartSessionId) {
+			await cleanupTestCart(cartSessionId);
+		}
+		await cleanupTestProduct(product.id);
 	});
 
-	test('should edit variant', async ({ page }) => {
-		// Click edit on existing variant
-		await page.click('button[aria-label="Editar variante"]:first-child');
+	test('creates a variant', async ({ page }) => {
+		await page.getByRole('button', { name: 'Nueva Variante' }).click();
 
-		// Update stock
-		await page.fill('input[name="stock"]', '20');
-		await page.click('button:has-text("Guardar")');
+		await page.locator('input[name="size"]').fill('XL');
+		await page.locator('input[name="color"]').fill('Green');
+		await page.locator('select[name="cut"]').selectOption('oversize');
+		await page.locator('input[name="stock"]').fill('10');
+		await page.locator('input[name="priceOverride"]').fill('44.99');
+		await page.getByRole('button', { name: 'Crear variante' }).click();
 
-		// Verify updated
-		await expect(page.locator('text=20')).toBeVisible();
+		// No success copy exists, so the new row is the whole proof.
+		await expect(page.locator('table tbody tr', { hasText: 'XL' })).toBeVisible();
+		await expect(page.locator('table tbody tr', { hasText: 'Green' })).toBeVisible();
 	});
 
-	test('should delete variant not in cart/order', async ({ page }) => {
-		// Click delete on variant not in use
-		await page.click('button[aria-label="Eliminar variante"]:first-child');
-		await page.click('button:has-text("Confirmar")');
+	test('edits a variant', async ({ page }) => {
+		const row = page.locator('table tbody tr', { hasText: 'Red' });
+		await expect(row).toBeVisible();
 
-		// Verify deleted
-		await expect(page.locator('text=Variante eliminada')).toBeVisible();
+		await row.getByRole('button', { name: 'Editar variante' }).click();
+		await page.locator('input[name="stock"]').fill('20');
+		await page.getByRole('button', { name: 'Guardar cambios' }).click();
+
+		// Cells: imagen, talla, color, corte, stock.
+		await expect(row.locator('td').nth(4)).toHaveText('20');
 	});
 
-	test('should block deletion of variant in active cart', async ({ page }) => {
-		// First add variant to cart as customer
-		const customerPage = await page.context().newPage();
-		await customerPage.goto('/producto/prod-1?variant=var-1');
-		await customerPage.click('button:has-text("Añadir al carrito")');
+	test('deletes a variant nothing references', async ({ page }) => {
+		const row = page.locator('table tbody tr', { hasText: 'Red' });
+		await expect(row).toBeVisible();
 
-		// Now try to delete as admin
-		await page.click('button[aria-label="Eliminar variante"]:first-child');
-		await page.click('button:has-text("Confirmar")');
+		await row.getByRole('button', { name: 'Eliminar variante' }).click();
+		await page.getByRole('button', { name: 'Eliminar', exact: true }).click();
 
-		// Should show error
-		await expect(page.locator('text=variante está en uso')).toBeVisible();
-		await expect(page.locator('text=carrito activo')).toBeVisible();
+		await expect(row).toHaveCount(0);
+		await expect(page.getByText('Este producto no tiene variantes')).toBeVisible();
+	});
+
+	test('blocks deleting a variant a cart still references', async ({ page }) => {
+		// Add the variant from a second page in the same context, so the admin
+		// session on `page` is left where it is.
+		const customer = await page.context().newPage();
+		try {
+			await customer.goto(`/producto/${product.id}`);
+			await waitForHydration(customer);
+			await customer.getByRole('button', { name: 'Añadir al carrito' }).click();
+			await expect(customer.getByText('Producto añadido al carrito')).toBeVisible();
+			cartSessionId = (await customer.context().cookies()).find(
+				(c) => c.name === 'cart_session_id'
+			)?.value;
+		} finally {
+			await customer.close();
+		}
+
+		const row = page.locator('table tbody tr', { hasText: 'Red' });
+		await expect(row).toBeVisible();
+
+		await row.getByRole('button', { name: 'Eliminar variante' }).click();
+		await page.getByRole('button', { name: 'Eliminar', exact: true }).click();
+
+		await expect(
+			page.getByText('No se puede eliminar la variante: está referenciada en un carrito')
+		).toBeVisible();
+		await expect(row).toHaveCount(1);
 	});
 });

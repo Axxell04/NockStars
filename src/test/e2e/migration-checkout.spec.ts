@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { seedTestProduct, cleanupTestProduct } from './fixtures';
+import {
+	seedTestProduct,
+	cleanupTestProduct,
+	cleanupTestCart,
+	cleanupTestOrders,
+	waitForHydration
+} from './fixtures';
 
 test.describe('Cookie Migration', () => {
 	test('v1 cookie should migrate to v2 on first visit', async ({ page }) => {
@@ -36,42 +42,57 @@ test.describe('Cookie Migration', () => {
 	});
 });
 
-// Checkout settles a real order and decrements stock. It stays dormant until
-// the harness can scope both the product and the order it creates — see the
-// duplicate in variant-selector.spec.ts for the full reasoning.
-test.describe.fixme('Checkout Flow', () => {
-	test('complete checkout with variant', async ({ page }) => {
-		// Visit product with variant
-		await page.goto('/producto/prod-1?variant=var-1');
+// Checkout decrements stock and settles an order, so both are scoped to a
+// seeded `e2e-` product and torn down in `finally`. The order has to be removed
+// before the product: nothing cascades from the product up to `order`, so
+// deleting the product first would strand an empty order row.
+test.describe('Checkout Flow', () => {
+	test('adds a variant, updates quantity, checks out and empties the cart', async ({ page }) => {
+		const product = await seedTestProduct({ name: 'E2E Checkout Product' });
+		// Derived from the product id, so repeated runs never share an order.
+		const clientName = `E2E Cliente ${product.id}`;
+		let cartSessionId: string | undefined;
 
-		// Add to cart
-		await page.click('button:has-text("Añadir al carrito")');
-		await expect(page.locator('text=Producto añadido al carrito')).toBeVisible();
+		try {
+			await page.goto(`/producto/${product.id}`);
+			await waitForHydration(page);
+			await page.getByRole('button', { name: 'Añadir al carrito' }).click();
+			await expect(page.getByText('Producto añadido al carrito')).toBeVisible();
 
-		// Go to cart
-		await page.goto('/carrito');
+			await page.goto('/carrito');
+			await waitForHydration(page);
 
-		// Update quantity
-		await page.fill('input[name="quantity"]', '2');
-		await page.click('button:has-text("Actualizar")');
+			// Quantity is a pair of steppers, not a text field: the form posts
+			// current ± 1 and the readout is the tabular span beside them.
+			await page.getByRole('button', { name: 'Aumentar cantidad' }).click();
+			await expect(page.locator('form[action="?/updateQuantity"] span.tabular-nums')).toHaveText(
+				'2'
+			);
 
-		// Checkout
-		await page.click('button:has-text("Finalizar pedido")');
+			// Capture the session before checkout: the action deletes the cookie,
+			// but the cart row itself is never removed by the app.
+			cartSessionId = (await page.context().cookies()).find(
+				(c) => c.name === 'cart_session_id'
+			)?.value;
 
-		// Verify order
-		await expect(page.locator('text=Pedido creado')).toBeVisible();
+			await page.getByRole('button', { name: 'Proceder al pago' }).click();
+			await page.fill('#client-name', clientName);
+			await page.locator('form[action="?/send_cart"] button[type="submit"]').click();
 
-		// Check order detail
-		const orderLink = page.locator('a[href^="/pedido/"]').first();
-		await orderLink.click();
+			// Success closes the modal and opens wa.me in a popup; the app renders
+			// no confirmation copy, so the observable proof is the emptied cart.
+			await expect(page.locator('form[action="?/send_cart"]')).toBeHidden();
 
-		// Verify variant snapshots
-		await expect(page.locator('text=M')).toBeVisible();
-		await expect(page.locator('text=Red')).toBeVisible();
-		await expect(page.locator('text=recto')).toBeVisible();
+			await page.goto('/carrito');
+			await expect(page.getByText('Tu carrito está vacío')).toBeVisible();
 
-		// Cart cleared
-		await page.goto('/carrito');
-		await expect(page.locator('text=Tu carrito está vacío')).toBeVisible();
+			expect(await cleanupTestOrders(clientName)).toBe(1);
+		} finally {
+			await cleanupTestOrders(clientName);
+			if (cartSessionId) {
+				await cleanupTestCart(cartSessionId);
+			}
+			await cleanupTestProduct(product.id);
+		}
 	});
 });

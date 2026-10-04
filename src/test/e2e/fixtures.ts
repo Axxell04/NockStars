@@ -83,6 +83,59 @@ export async function cleanupTestProduct(productId: string): Promise<void> {
 }
 
 /**
+ * Removes every order a checkout test created, and returns how many there
+ * were. `order_item` cascades from the order, but nothing cascades from the
+ * product up to the order: deleting the product first would strip its items and
+ * leave an empty order row behind, so the order has to go first. Call this
+ * before `cleanupTestProduct`.
+ */
+export async function cleanupTestOrders(clientName: string): Promise<number> {
+	return withDb(async (db) => {
+		const removed = await db
+			.delete(schema.order)
+			.where(eq(schema.order.clientName, clientName))
+			.returning({ id: schema.order.id });
+		return removed.length;
+	});
+}
+
+/**
+ * Removes a cart by its session id; `cart_item` cascades from it. Checkout
+ * empties the items and the action deletes the cookie, but the cart row itself
+ * is never removed, so a test that checks out would otherwise leak one row per
+ * run.
+ */
+export async function cleanupTestCart(sessionId: string): Promise<void> {
+	await withDb(async (db) => {
+		await db.delete(schema.cart).where(eq(schema.cart.sessionId, sessionId));
+	});
+}
+
+/**
+ * Waits until the client has taken the page over.
+ *
+ * Server markup — and its form handlers' hosts — exist long before SvelteKit
+ * hydrates, and there is no exposed hydration signal. Clicking in that window
+ * falls back to a native form POST: the request still succeeds, but the
+ * `use:enhance` callback that renders the toast never runs, so the failure
+ * shows up as a missing element rather than as a click error.
+ *
+ * A fixed delay was not enough on a cold dev server, where the first request
+ * spends a second or more compiling. `networkidle` tracks that work directly:
+ * hydration needs every module, and fetching one triggers the next request, so
+ * the network only settles once the entry module has executed. The socket can
+ * keep a dev page from ever settling, so it is a best-effort wait.
+ */
+export async function waitForHydration(page: Page): Promise<void> {
+	try {
+		await page.waitForLoadState('networkidle', { timeout: 8000 });
+	} catch {
+		// Fall through to the floor below rather than failing the test here.
+	}
+	await page.waitForTimeout(300);
+}
+
+/**
  * Signs in through the real login form so the session cookie is the one the
  * app issues. Admin suites must run serially: `login` calls
  * `invalidateAllUserSessions`, so a second login would evict the first test's
@@ -101,6 +154,8 @@ export async function loginAsAdmin(page: Page): Promise<void> {
 	await page.goto('/login');
 	await page.fill('input[name="username"]', username);
 	await page.fill('input[name="password"]', password);
-	await page.click('button[type="submit"]');
+	// The submit button carries no `type` attribute — it only defaults to
+	// submit — so `button[type="submit"]` matches nothing in the DOM.
+	await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
 	await page.waitForURL('**/admin');
 }

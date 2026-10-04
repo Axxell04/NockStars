@@ -12,6 +12,11 @@ export default defineConfig({
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 0,
 	workers: process.env.CI ? 1 : undefined,
+	// Each test drives a full page lifecycle against a dev server that compiles
+	// on demand and a real database. Under two workers those requests queue, so
+	// the checkout and multi-tab flows need well over Playwright's 30s default
+	// even when nothing is wrong — they time out waiting, not failing.
+	timeout: 60000,
 	reporter: 'html',
 	use: {
 		baseURL: 'http://localhost:5173',

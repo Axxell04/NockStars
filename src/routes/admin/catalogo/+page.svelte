@@ -494,6 +494,7 @@
 			<div class="flex flex-col gap-2">
 				<button
 					class="text-text-muted hover:text-brand-400 text-sm transition-colors"
+					aria-label="Editar producto"
 					onclick={(e) => {
 						e.stopPropagation();
 						productSelected = product;
@@ -505,6 +506,7 @@
 				</button>
 				<button
 					class="text-text-muted hover:text-text-error text-sm transition-colors"
+					aria-label="Eliminar producto"
 					onclick={(e) => {
 						e.stopPropagation();
 						productSelected = product;
@@ -705,6 +707,7 @@
 												<div class="flex items-center gap-2">
 													<button
 														class="text-text-muted hover:text-brand-400 transition-colors"
+														aria-label="Editar variante"
 														onclick={() => {
 															variantToEdit = variant;
 															toggleEditVariantModalIsVisible(true);
@@ -715,6 +718,7 @@
 													</button>
 													<button
 														class="text-text-muted hover:text-text-error transition-colors"
+														aria-label="Eliminar variante"
 														onclick={() => {
 															variantToDelete = variant;
 															toggleDeleteVariantModalIsVisible(true);
