@@ -1,4 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
+
+// Specs seed and clean up their own rows, and the admin suites sign in, so the
+// worker process needs DATABASE_URL / ADMIN_USERNAME / ADMIN_PASS. Only the
+// spawned `npm run dev` child loads .env by itself.
+dotenv.config();
 
 export default defineConfig({
 	testDir: './src/test/e2e',

@@ -1,41 +1,44 @@
 import { test, expect } from '@playwright/test';
+import { seedTestProduct, cleanupTestProduct } from './fixtures';
 
-// Both suites below are marked fixme (see variant-selector.spec.ts): they seed
-// fixture ids (`prod-1`, `var-1`, `Test Product`) that only exist in the
-// original dev seed, and the checkout flow settles a real order against the live
-// database. Neither can run until there is a seed/fixture harness in front of
-// the suite. Nothing is deleted here — flip them back to `test.describe` once
-// that harness exists.
-test.describe.fixme('Cookie Migration', () => {
+test.describe('Cookie Migration', () => {
 	test('v1 cookie should migrate to v2 on first visit', async ({ page }) => {
-		await page.goto('/');
+		const product = await seedTestProduct({ name: 'Test Product' });
 
-		// Set v1 legacy cookie
-		await page.evaluate(() => {
-			document.cookie =
-				'cart=[{"productId":"prod-1","quantity":2,"size":"M","color":"Red","cut":"recto"}]; path=/; max-age=2592000';
-		});
+		try {
+			await page.goto('/');
 
-		await page.reload();
+			// Set the v1 legacy cookie against a product this test created, so the
+			// migration has something real to resolve and clean up can be exact.
+			await page.evaluate((productId) => {
+				const item = { productId, quantity: 2, size: 'M', color: 'Red', cut: 'recto' };
+				document.cookie = `cart=${JSON.stringify([item])}; path=/; max-age=2592000`;
+			}, product.id);
 
-		// Check v2 cookie exists
-		const v2Cookie = await page.evaluate(() =>
-			document.cookie.split('; ').find((c) => c.startsWith('cart_session_id='))
-		);
-		expect(v2Cookie).toBeTruthy();
+			await page.reload();
 
-		// Check v1 cookie is gone
-		const v1Cookie = await page.evaluate(() =>
-			document.cookie.split('; ').find((c) => c.startsWith('cart='))
-		);
-		expect(v1Cookie).toBeFalsy();
+			// Read through the context, not document.cookie: the server issues
+			// cart_session_id as httpOnly, so it is deliberately invisible to JS.
+			const cookies = await page.context().cookies();
 
-		// Verify cart migrated
-		await page.goto('/carrito');
-		await expect(page.locator('text=Test Product')).toBeVisible();
+			// v2 cookie exists
+			expect(cookies.find((c) => c.name === 'cart_session_id')).toBeTruthy();
+
+			// v1 cookie is gone
+			expect(cookies.find((c) => c.name === 'cart')).toBeFalsy();
+
+			// Cart actually carried the item over
+			await page.goto('/carrito');
+			await expect(page.getByText('Test Product').first()).toBeVisible();
+		} finally {
+			await cleanupTestProduct(product.id);
+		}
 	});
 });
 
+// Checkout settles a real order and decrements stock. It stays dormant until
+// the harness can scope both the product and the order it creates — see the
+// duplicate in variant-selector.spec.ts for the full reasoning.
 test.describe.fixme('Checkout Flow', () => {
 	test('complete checkout with variant', async ({ page }) => {
 		// Visit product with variant

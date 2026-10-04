@@ -1,16 +1,16 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * Storefront tests run against the real development database because the
- * project has no seed/fixture harness yet, so `prod-1` / `Test Product` /
- * `Red` / `Blue` from the original draft never existed.
- *
  * The product exercised below is the catalogue entry the storefront actually
- * serves, with these variants:
+ * serves, so these tests need no fixtures of their own:
  *
  *   S / Negro  / recto      -> only cut is 'recto'
  *   S / Verde  / oversize   -> only cut is 'oversize'  (regression case)
  *   M / Blanco / oversize   -> only cut is 'oversize'  (regression case)
+ *
+ * `fixtures.ts` provides data for the suites that do need it; the original
+ * draft's `prod-1` / `Test Product` / `Red` / `Blue` never existed and are
+ * now referenced only by dormant tests.
  *
  * Every test here is safe to run repeatedly:
  *   - selecting a variant only writes URL/session state;
@@ -103,47 +103,18 @@ test.describe('Variant Selector', () => {
 });
 
 /*
- * Everything below depends on fixtures this repository does not have yet: no
- * seed script, no test database, no admin credentials for tests. The original
- * draft referenced `prod-1`, `var-1`, `Test Product` and `Red`/`Blue`, none of
- * which exist. They stay as `describe.fixme` so the intent is preserved and
- * the suite stays green instead of training everyone to ignore red.
+ * Fixtures live in `./fixtures` now, but the suites below still need scoping
+ * work before they can run: checkout has to own both the product and the order
+ * it creates (an order row is not a child of the product, so product cleanup
+ * alone would leave it behind), and the admin suites have to share a single
+ * login because `login` calls `invalidateAllUserSessions`.
  *
- * Admin CRUD also mutates the live catalogue (create/edit/delete) and
- * checkout creates real orders and decrements stock, so neither may run
- * against a development database without an isolated harness.
+ * They stay as `describe.fixme` so the intent is preserved and the suite stays
+ * green instead of training everyone to ignore red.
+ *
+ * Cookie migration was the first suite to graduate: see
+ * `migration-checkout.spec.ts`, which now seeds its own product.
  */
-
-test.describe.fixme('Cookie Migration v1 → v2', () => {
-	test('should migrate v1 cookie to v2 on first visit', async ({ page }) => {
-		// Set up v1 cookie (legacy cart format)
-		await page.goto('/');
-		await page.evaluate(() => {
-			document.cookie =
-				'cart=[{"productId":"prod-1","quantity":2,"size":"M","color":"Red","cut":"recto"}]; path=/; max-age=2592000';
-		});
-
-		// Reload to trigger migration
-		await page.reload();
-
-		// Check v2 cookie is set
-		const v2Cookie = await page.evaluate(() => {
-			return document.cookie.split('; ').find((c) => c.startsWith('cart_session_id='));
-		});
-		expect(v2Cookie).toBeDefined();
-
-		// Check v1 cookie is cleared
-		const v1Cookie = await page.evaluate(() => {
-			return document.cookie.split('; ').find((c) => c.startsWith('cart='));
-		});
-		expect(v1Cookie).toBeUndefined();
-
-		// Verify cart was migrated by checking cart page
-		await page.goto('/carrito');
-		await expect(page.locator('text=Test Product')).toBeVisible();
-		await expect(page.locator('text=M / Red / recto')).toBeVisible();
-	});
-});
 
 test.describe.fixme('Checkout Flow', () => {
 	test.beforeEach(async ({ page }) => {
