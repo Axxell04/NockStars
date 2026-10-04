@@ -136,7 +136,7 @@
 				</button>
 			</form>
 		{:else}
-			<h2 in:fade class="text-brand-400 text-center text-3xl font-bold tracking-wider">Register</h2>
+			<h2 in:fade class="text-brand-400 text-center text-3xl font-bold tracking-wider">Registro</h2>
 			<form
 				in:fade
 				method="post"
