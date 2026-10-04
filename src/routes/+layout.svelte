@@ -8,8 +8,18 @@
 	import { renderJsonLdScript } from '$lib/json-ld';
 	import type { LayoutProps } from './$types';
 	import { scale, slide } from 'svelte/transition';
+	import { onMount } from 'svelte';
 
 	let { data, children }: LayoutProps = $props();
+
+	// Testability hook: flips once the client has taken over. `onMount` in
+	// the root layout runs after every `use:enhance` below it is attached, so
+	// e2e can wait on `[data-hydrated="true"]` instead of guessing with
+	// timers. It renders `false` in SSR and never affects styling.
+	let hydrated = $state(false);
+	onMount(() => {
+		hydrated = true;
+	});
 
 	// SEO: pages override via `seo` in their +page.server.ts load return
 	let pageData = $derived(page.data as Record<string, unknown>);
@@ -332,7 +342,7 @@
 </header>
 
 <!-- Contenido principal — Threadverse content area -->
-<main class="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+<main data-hydrated={hydrated} class="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
 	{@render children()}
 </main>
 
