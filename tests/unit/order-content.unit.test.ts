@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { setLineAmounts, toOrderLines, type OrderLine } from '$lib/order-content';
+import { lineKey, setLineAmounts, toOrderLines, type OrderLine } from '$lib/order-content';
 
 // Legacy storage shape: PurchaseDetail[] (written by the old createOrder()).
 const legacyContent = [
@@ -48,15 +48,51 @@ const liveContent = {
 describe('toOrderLines', () => {
 	it('reads the legacy PurchaseDetail[] shape', () => {
 		expect(toOrderLines(legacyContent)).toEqual([
-			{ productId: 'prod-1', name: 'Primer Diseno', amount: 2, unitPrice: 28.99 },
-			{ productId: 'prod-2', name: 'Camisa Basica', amount: 1, unitPrice: 15 }
+			{
+				productId: 'prod-1',
+				variantId: null,
+				name: 'Primer Diseno',
+				amount: 2,
+				unitPrice: 28.99,
+				size: null,
+				color: null,
+				cut: null
+			},
+			{
+				productId: 'prod-2',
+				variantId: null,
+				name: 'Camisa Basica',
+				amount: 1,
+				unitPrice: 15,
+				size: null,
+				color: null,
+				cut: null
+			}
 		]);
 	});
 
 	it('reads the live { items } shape from its snapshot fields', () => {
 		expect(toOrderLines(liveContent)).toEqual([
-			{ productId: 'prod-1', name: 'Primer Diseno', amount: 2, unitPrice: 28.99 },
-			{ productId: 'prod-2', name: 'Camisa Basica', amount: 1, unitPrice: 15 }
+			{
+				productId: 'prod-1',
+				variantId: null,
+				name: 'Primer Diseno',
+				amount: 2,
+				unitPrice: 28.99,
+				size: null,
+				color: null,
+				cut: null
+			},
+			{
+				productId: 'prod-2',
+				variantId: 'var-9',
+				name: 'Camisa Basica',
+				amount: 1,
+				unitPrice: 15,
+				size: 'M',
+				color: 'Rojo',
+				cut: 'recto'
+			}
 		]);
 	});
 
@@ -86,8 +122,56 @@ describe('toOrderLines', () => {
 
 	it('coerces defensively instead of throwing on partially malformed entries', () => {
 		expect(toOrderLines({ items: [null, { productId: 'prod-1' }] })).toEqual([
-			{ productId: 'prod-1', name: '', amount: 0, unitPrice: 0 }
+			{
+				productId: 'prod-1',
+				variantId: null,
+				name: '',
+				amount: 0,
+				unitPrice: 0,
+				size: null,
+				color: null,
+				cut: null
+			}
 		]);
+	});
+
+	it('keys lines by product + variant, so one product in two variants stays independent', () => {
+		expect(lineKey({ productId: 'prod-1' })).toBe('prod-1::');
+		expect(lineKey({ productId: 'prod-1', variantId: null })).toBe('prod-1::');
+		expect(lineKey({ productId: 'prod-1', variantId: 'var-9' })).toBe('prod-1::var-9');
+
+		const twoVariants = {
+			items: [
+				{
+					productId: 'prod-1',
+					variantId: 'var-a',
+					productNameSnapshot: 'Camisa',
+					variantSizeSnapshot: 'M',
+					variantColorSnapshot: 'Rojo',
+					variantCutSnapshot: 'recto',
+					unitPriceSnapshot: 15,
+					quantity: 2
+				},
+				{
+					productId: 'prod-1',
+					variantId: 'var-b',
+					productNameSnapshot: 'Camisa',
+					variantSizeSnapshot: 'L',
+					variantColorSnapshot: 'Azul',
+					variantCutSnapshot: 'oversize',
+					unitPriceSnapshot: 15,
+					quantity: 1
+				}
+			]
+		};
+
+		const updated = setLineAmounts(twoVariants, [
+			{ productId: 'prod-1', variantId: 'var-a', amount: 5 }
+		]) as typeof twoVariants;
+
+		expect(updated.items[0].quantity).toBe(5);
+		expect(updated.items[1].quantity).toBe(1);
+		expect(toOrderLines(updated).map((line) => line.amount)).toEqual([5, 1]);
 	});
 });
 
@@ -119,7 +203,7 @@ describe('setLineAmounts', () => {
 	it('round-trips through toOrderLines with the new amounts', () => {
 		const liveUpdated = setLineAmounts(liveContent, [
 			{ productId: 'prod-1', amount: 5 },
-			{ productId: 'prod-2', amount: 0 }
+			{ productId: 'prod-2', variantId: 'var-9', amount: 0 }
 		]);
 		const legacyUpdated = setLineAmounts(legacyContent, [{ productId: 'prod-2', amount: 4 }]);
 

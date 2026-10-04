@@ -6,7 +6,13 @@
  * - Legacy: `PurchaseDetail[]`, written by `createOrder()` (now dead code).
  *   Element shape: `{ product: { product: { id, name, price }, imgs }, amount }`.
  * - Live: `{ items: [...] }`, written by `checkoutCart()` since 456ae47.
- *   Item shape: `{ productId, variantId, productNameSnapshot, ..., unitPriceSnapshot, quantity }`.
+ *   Item shape: `{ productId, variantId, productNameSnapshot,
+ *   variantSizeSnapshot, variantColorSnapshot, variantCutSnapshot,
+ *   unitPriceSnapshot, quantity }`.
+ *
+ * Lines are identified by product + variant, not by product alone: one order
+ * can hold the same product in two variants, and matching by `productId`
+ * would edit both. `lineKey()` is the single identity function for this.
  *
  * `content` stays in its own shape forever; translation happens explicitly in
  * both directions here. Normalizing the live shape into legacy entries on read
@@ -19,9 +25,18 @@
 
 export interface OrderLine {
 	productId: string;
+	variantId: string | null;
 	name: string;
 	amount: number;
 	unitPrice: number;
+	size: string | null;
+	color: string | null;
+	cut: string | null;
+}
+
+/** Identity of a line: product + variant. Legacy lines carry `variantId: null`. */
+export function lineKey(line: { productId: string; variantId?: string | null }): string {
+	return `${line.productId}::${line.variantId ?? ''}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -37,6 +52,11 @@ function toText(value: unknown): string {
 function toNumber(value: unknown): number {
 	const parsed = Number(value);
 	return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function textOrNull(value: unknown): string | null {
+	const text = toText(value);
+	return text === '' ? null : text;
 }
 
 /** Parses a JSON string (recursively, one level at a time); anything else passes through. */
@@ -60,9 +80,13 @@ function legacyEntryToLine(entry: unknown): OrderLine | undefined {
 	if (productId === '') return undefined;
 	return {
 		productId,
+		variantId: null,
 		name: toText(product.name),
 		amount: toNumber(entry.amount),
-		unitPrice: toNumber(product.price)
+		unitPrice: toNumber(product.price),
+		size: null,
+		color: null,
+		cut: null
 	};
 }
 
@@ -73,9 +97,13 @@ function itemToLine(item: unknown): OrderLine | undefined {
 	if (productId === '') return undefined;
 	return {
 		productId,
+		variantId: textOrNull(item.variantId),
 		name: toText(item.productNameSnapshot),
 		amount: toNumber(item.quantity),
-		unitPrice: toNumber(item.unitPriceSnapshot)
+		unitPrice: toNumber(item.unitPriceSnapshot),
+		size: textOrNull(item.variantSizeSnapshot),
+		color: textOrNull(item.variantColorSnapshot),
+		cut: textOrNull(item.variantCutSnapshot)
 	};
 }
 
@@ -114,13 +142,13 @@ export function toOrderLines(content: unknown): OrderLine[] {
  */
 export function setLineAmounts(
 	content: unknown,
-	lines: { productId: string; amount: number }[]
+	lines: { productId: string; variantId?: string | null; amount: number }[]
 ): unknown {
 	const amounts = new Map<string, number>();
 	if (Array.isArray(lines)) {
 		for (const line of lines) {
 			if (line && typeof line.productId === 'string') {
-				amounts.set(line.productId, toNumber(line.amount));
+				amounts.set(lineKey(line), toNumber(line.amount));
 			}
 		}
 	}
@@ -138,8 +166,8 @@ export function setLineAmounts(
 	if (Array.isArray(content)) {
 		return content.map((entry) => {
 			const line = legacyEntryToLine(entry);
-			if (!line || !amounts.has(line.productId)) return entry;
-			return { ...entry, amount: amounts.get(line.productId) };
+			if (!line || !amounts.has(lineKey(line))) return entry;
+			return { ...entry, amount: amounts.get(lineKey(line)) };
 		});
 	}
 
@@ -147,8 +175,10 @@ export function setLineAmounts(
 		const items = content.items.map((item) => {
 			if (!isRecord(item)) return item;
 			const productId = toText(item.productId);
-			if (productId === '' || !amounts.has(productId)) return item;
-			return { ...item, quantity: amounts.get(productId) ?? item.quantity };
+			if (productId === '') return item;
+			const key = lineKey({ productId, variantId: textOrNull(item.variantId) });
+			if (!amounts.has(key)) return item;
+			return { ...item, quantity: amounts.get(key) ?? item.quantity };
 		});
 		return { ...content, items };
 	}
