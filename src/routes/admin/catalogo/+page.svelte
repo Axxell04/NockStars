@@ -17,18 +17,26 @@
 	let { data }: PageProps = $props();
 
 	// Active tab: 'catalogs' | 'products' | 'variants'
-	let activeTab = $state<'catalogs' | 'products' | 'variants'>('catalogs');
+	// The `?productId=&tab=variantes` deep link is read ONCE at init and
+	// deliberately not re-applied on refresh: invalidateAll() re-runs `load`
+	// while the query string stays in the URL, so re-applying it would yank
+	// the admin back to Variantes mid-navigation.
+	let activeTab = $state<'catalogs' | 'products' | 'variants'>(data.deepLink?.tab ?? 'catalogs');
 
 	// Catalog data
 	let catalogs: Catalog[] = $state(data.catalogs);
-	let catalogSelected: Catalog | undefined = $state();
+	let catalogSelected: Catalog | undefined = $state(
+		// `?.` because TS does not narrow `data.deepLink` inside the callback;
+		// the outer ternary already guarantees it is non-null here.
+		data.deepLink ? data.catalogs.find((c) => c.id === data.deepLink?.catalogId) : undefined
+	);
 
 	// Product data
 	let products: ProductComplete[] = $state([]);
-	let productSelected: ProductComplete | undefined = $state();
+	let productSelected: ProductComplete | undefined = $state(data.deepLink?.product ?? undefined);
 
 	// Variant data
-	let variants: VariantComplete[] = $state([]);
+	let variants: VariantComplete[] = $state(data.deepLink?.variants ?? []);
 	let variantToEdit: VariantComplete | null = $state(null);
 	let variantToDelete: VariantComplete | null = $state(null);
 

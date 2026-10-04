@@ -1,7 +1,15 @@
 import * as auth from '$lib/server/auth';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { createCatalog, deleteCatalog, getCatalogs, updateCatalog } from '$lib/server/catalog';
+import {
+	createCatalog,
+	deleteCatalog,
+	getCatalogs,
+	updateCatalog,
+	getCatalogIdForProduct,
+	getProductsByCatalog,
+	getProductsWithoutCatalog
+} from '$lib/server/catalog';
 import {
 	createProduct,
 	updateProduct,
@@ -10,7 +18,8 @@ import {
 	updateVariant,
 	deleteVariant
 } from '$lib/server/product';
-import type { UpdateVariantInput } from '$lib/actions';
+import type { UpdateVariantInput, VariantComplete } from '$lib/actions';
+import type { ProductComplete } from '$lib/interfaces/product';
 
 export const load: PageServerLoad = async (event) => {
 	if (!event.locals.user) {
@@ -19,9 +28,38 @@ export const load: PageServerLoad = async (event) => {
 
 	const catalogs = await getCatalogs();
 
+	// "Gestionar variantes" deep-links here with the product and tab in the
+	// query string. Without resolving it the admin would land on Catálogos
+	// with nothing selected, so build the selection server-side once.
+	const searchParams = event.url.searchParams;
+	const productId = searchParams.get('productId');
+	const tab = searchParams.get('tab');
+
+	let deepLink: null | {
+		tab: 'variants';
+		catalogId: string | null;
+		product: ProductComplete | null;
+		variants: VariantComplete[];
+	} = null;
+
+	if (productId && tab === 'variantes') {
+		const catalogId = await getCatalogIdForProduct(productId);
+		const candidates =
+			catalogId !== null
+				? await getProductsByCatalog(catalogId)
+				: await getProductsWithoutCatalog();
+		// A deleted or mistyped id still lands on the Variantes tab with its
+		// empty state — better than silently showing nothing happened.
+		const product = candidates.find((entry) => entry.product.id === productId) ?? null;
+		const variants = product ? await getVariantsByProduct(productId) : [];
+
+		deepLink = { tab: 'variants', catalogId, product, variants };
+	}
+
 	return {
 		user: event.locals.user,
-		catalogs: catalogs
+		catalogs: catalogs,
+		deepLink
 	};
 };
 

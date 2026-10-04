@@ -194,10 +194,9 @@ test.describe('Admin Variant CRUD', () => {
 
 		await loginAsAdmin(page);
 
-		// The Variantes tab only lists variants of the selected product, and the
-		// `?productId=&tab=variantes` deep link that "Gestionar variantes"
-		// produces is never read by this page — so the selection has to be made
-		// through the UI.
+		// The Variantes tab only lists variants of the selected product. The
+		// manual selection below still covers the click path; the
+		// `?productId=&tab=variantes` deep link has its own test.
 		await page.goto('/admin/catalogo');
 		await waitForHydration(page);
 		await page.getByRole('button', { name: 'Productos' }).click();
@@ -212,6 +211,16 @@ test.describe('Admin Variant CRUD', () => {
 			await cleanupTestCart(cartSessionId);
 		}
 		await cleanupTestProduct(product.id);
+	});
+
+	test('honours the gestionar-variantes deep link', async ({ page }) => {
+		// "Gestionar variantes" on the product editor lands here with the product
+		// and tab in the query string. A full reload drops component state, so
+		// anything the page shows can only have come from the URL.
+		await page.goto(`/admin/catalogo?productId=${product.id}&tab=variantes`);
+
+		await expect(page.getByText('Selección:')).toBeVisible();
+		await expect(page.locator('table')).toBeVisible();
 	});
 
 	test('creates a variant', async ({ page }) => {

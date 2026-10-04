@@ -175,6 +175,19 @@ export async function getProductsWithoutCatalog() {
 	return listProducts;
 }
 
+/** Catalog a product belongs to, or null when it has no membership at all. */
+export async function getCatalogIdForProduct(productId: string): Promise<string | null> {
+	// A product has at most one membership in practice, so the first row is
+	// the whole answer — no need to aggregate or deduplicate here.
+	const [row] = await getDb()
+		.select()
+		.from(table.productCatalog)
+		.where(eq(table.productCatalog.productId, productId))
+		.execute();
+
+	return row?.catalogId ?? null;
+}
+
 // Complementary Functions
 
 function generateId() {
