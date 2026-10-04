@@ -534,17 +534,12 @@
 					<button
 						onclick={saveProduct}
 						disabled={savingProduct}
-						class="bg-brand-400 text-surface-0 hover:bg-brand-300 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-70"
+						class="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-70"
 					>
 						<Icon icon="mdi:content-save" class="text-xl" />
 						{savingProduct ? 'Guardando...' : 'Guardar cambios'}
-						<a
-							href="/admin/catalogo"
-							class="text-text-secondary hover:bg-surface-2 hover:text-text-primary w-full rounded-lg border border-white/10 px-4 py-3 text-center transition-colors"
-						>
-							Cancelar
-						</a>
 					</button>
+					<a href="/admin/catalogo" class="btn-secondary w-full">Cancelar</a>
 				</div>
 
 				<!-- Quick Actions -->
