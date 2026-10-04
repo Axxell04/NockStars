@@ -435,26 +435,6 @@
 
 			<!-- Right: Actions & Info -->
 			<aside class="space-y-6">
-				<!-- Save Button -->
-				<div class="sticky top-24 space-y-3">
-					<button
-						onclick={createProduct}
-						disabled={creatingProduct}
-						class="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-70"
-					>
-						<Icon icon="mdi:content-save" class="text-xl" />
-						{creatingProduct ? 'Creando...' : 'Crear producto'}
-					</button>
-
-					<button
-						type="button"
-						onclick={() => goto(resolveReturnTarget())}
-						class="btn-secondary w-full"
-					>
-						Cancelar
-					</button>
-				</div>
-
 				<!-- Quick Actions (shown after creation) -->
 				{#if createdProductId}
 					<fieldset class="bg-surface-1 space-y-3 rounded-xl border border-white/10 p-4">
@@ -478,6 +458,26 @@
 						</a>
 					</fieldset>
 				{/if}
+
+				<!-- Save Button -->
+				<div class="sticky top-24 space-y-3">
+					<button
+						onclick={createProduct}
+						disabled={creatingProduct}
+						class="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-70"
+					>
+						<Icon icon="mdi:content-save" class="text-xl" />
+						{creatingProduct ? 'Creando...' : 'Crear producto'}
+					</button>
+
+					<button
+						type="button"
+						onclick={() => goto(resolveReturnTarget())}
+						class="btn-secondary w-full"
+					>
+						Cancelar
+					</button>
+				</div>
 			</aside>
 		</div>
 	</main>
