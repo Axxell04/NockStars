@@ -133,9 +133,20 @@
 	});
 
 	//Update cart locals
+	// Plain `let`, deliberately not `$state`: a non-reactive flag cannot become
+	// its own dependency, so assigning it inside never re-triggers the effect.
+	// The mount run only arms the sync — the cart at hydration is exactly what
+	// the server just sent, so re-posting it would be a wasted round trip on
+	// every visit. Every later run (real cart mutation or reload re-seed)
+	// still submits, which is the load-bearing path checkout relies on.
+	let cartSyncArmed = false;
+
 	$effect(() => {
 		if (cart.length >= 0 && typeof btnUpdateCartElement !== 'undefined') {
-			btnUpdateCartElement.click();
+			if (cartSyncArmed) {
+				btnUpdateCartElement.click();
+			}
+			cartSyncArmed = true;
 		}
 	});
 </script>
