@@ -7,10 +7,17 @@
 		children: Snippet;
 		toggleModal: (visible?: boolean) => void;
 		cancelClick?: boolean;
+		maxWidth?: string;
 		class?: string;
 	}
 
-	let { children, toggleModal, cancelClick = true, class: className = '' }: Props = $props();
+	let {
+		children,
+		toggleModal,
+		cancelClick = true,
+		maxWidth = 'max-w-xl',
+		class: className = ''
+	}: Props = $props();
 
 	$effect(() => {
 		// Read synchronously so a changing `cancelClick` re-registers the listener
@@ -59,7 +66,7 @@
 			tabindex="-1"
 			in:scale={{ start: 0.95, duration: 220, easing: expoOut }}
 			out:scale={{ start: 0.95, duration: 160, easing: expoOut }}
-			class="relative flex w-full max-w-xl origin-center items-center justify-center outline-none {className}"
+			class="relative flex w-full {maxWidth} origin-center items-center justify-center outline-none {className}"
 		>
 			{@render children()}
 		</div>
