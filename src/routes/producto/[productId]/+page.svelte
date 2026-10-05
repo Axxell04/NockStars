@@ -14,6 +14,7 @@
 		totalStock
 	} from '$lib/variant';
 	import { specEntries } from '$lib/product-specs';
+	import { withCloudinaryTransform } from '$lib/cloudinary';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import VariantSelector from '$lib/components/VariantSelector.svelte';
 	import { resolveSafeReturnTarget } from '$lib/route-back';
@@ -201,13 +202,14 @@
 					class="flex h-full w-full transition-transform duration-400 ease-out"
 					style={`transform: translateX(calc(-${imgIndex * 100}% + ${dragOffset}px))`}
 				>
-					{#each currentImages as image}
+					{#each currentImages as image, i}
 						<div class="h-full w-full shrink-0 basis-full">
 							<img
-								src={image.url}
+								src={withCloudinaryTransform(image.url, 'w_1200,f_auto,q_auto')}
 								alt={(image as { alt?: string }).alt ?? product.name}
 								class="pointer-events-none h-full w-full object-cover"
 								loading="eager"
+								fetchpriority={i === 0 ? 'high' : 'auto'}
 							/>
 						</div>
 					{/each}

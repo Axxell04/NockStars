@@ -428,7 +428,7 @@
 	>
 		{#each products as product, index (product.product.id)}
 			<div class="animate-thread-appear" style="--stagger-delay: {60 * index}ms">
-				<ProductCard {product} />
+				<ProductCard {product} priority={index === 0} />
 			</div>
 		{/each}
 	</section>

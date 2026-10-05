@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import type { ProductComplete } from '$lib/interfaces/product';
+	import { withCloudinaryTransform } from '$lib/cloudinary';
 	import Icon from '@iconify/svelte';
 	import { scale } from 'svelte/transition';
 	import { onMount, onDestroy } from 'svelte';
@@ -11,13 +12,15 @@
 		setProductSelected?: (product: ProductComplete) => void;
 		toggleDeleteProductModalIsVisible?: (visible?: boolean) => void;
 		toggleEditProductModalIsVisible?: (visible?: boolean) => void;
+		priority?: boolean;
 	}
 
 	let {
 		product,
 		setProductSelected,
 		toggleDeleteProductModalIsVisible,
-		toggleEditProductModalIsVisible
+		toggleEditProductModalIsVisible,
+		priority = false
 	}: Props = $props();
 
 	let actualRoute = $derived(page.route.id);
@@ -153,12 +156,13 @@
 		bind:this={imgContainer}
 		class="img-container absolute inset-0 z-0 flex snap-x snap-mandatory flex-row overflow-hidden scroll-smooth rounded-[1.25rem]"
 	>
-		{#each product.imgs as imgProduct}
+		{#each product.imgs as imgProduct, i}
 			<img
-				src={imgProduct.url}
+				src={withCloudinaryTransform(imgProduct.url, 'w_576,f_auto,q_auto')}
 				alt={imgProduct.id}
 				class="h-full w-72 flex-shrink-0 snap-center object-cover transition-all duration-700 ease-out group-hover/card:scale-[1.06] group-hover/card:brightness-110"
-				loading="lazy"
+				loading={priority && i === 0 ? 'eager' : 'lazy'}
+				fetchpriority={priority && i === 0 ? 'high' : 'auto'}
 				width="288"
 				height="320"
 			/>
