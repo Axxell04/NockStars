@@ -9,6 +9,7 @@ import {
 	uuid,
 	decimal,
 	pgEnum,
+	index,
 	uniqueIndex
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -60,13 +61,25 @@ export const product = pgTable('product', {
 	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
 });
 
-export const img = pgTable('img', {
-	id: text('id').primaryKey(),
-	url: text('url').notNull(),
-	productId: text('product_id')
-		.notNull()
-		.references(() => product.id)
-});
+export const img = pgTable(
+	'img',
+	{
+		id: text('id').primaryKey(),
+		url: text('url').notNull(),
+		productId: text('product_id')
+			.notNull()
+			.references(() => product.id),
+		sortOrder: integer('sort_order').notNull().default(0)
+	},
+	(table) => ({
+		// Deliberately not unique: reordering rewrites every row of a product in
+		// place, and a unique constraint would reject intermediate values.
+		productIdSortOrderIdx: index('img_product_id_sort_order_idx').on(
+			table.productId,
+			table.sortOrder
+		)
+	})
+);
 
 export const catalog = pgTable('catalog', {
 	id: text('id').primaryKey(),
