@@ -15,6 +15,7 @@
 	} from '$lib/product-specs';
 	import { totalStock } from '$lib/variant';
 	import { variantManagerUrl } from '$lib/admin-links';
+	import ImageMoveButtons from '$lib/components/ImageMoveButtons.svelte';
 
 	interface ProductData {
 		id: string;
@@ -112,8 +113,18 @@
 
 	let savingProduct = $state(false);
 	let uploadingImages = $state(false);
+	let reorderingImages = $state(false);
 	let imageFiles: File[] = $state([]);
+	let imagePreviews: string[] = $state([]);
 	let inputImages: HTMLInputElement | undefined = $state();
+
+	// Local copy so a reorder responds immediately; the effect re-seeds it from
+	// the server after every invalidateAll, which also undoes a failed save.
+	let productImages = $state([...data.product.productImages]);
+
+	$effect(() => {
+		productImages = [...data.product.productImages];
+	});
 
 	// Delete modal
 	let deleteProductModalIsVisible = $state(false);
@@ -129,7 +140,67 @@
 		const target = e.target as HTMLInputElement;
 		const files = target.files;
 		if (!files || !files.length) return;
-		imageFiles = Array.from(files);
+		// Accumulates instead of replacing: a second selection must not wipe
+		// what is already queued for upload in a chosen order.
+		const added = Array.from(files);
+		imageFiles = [...imageFiles, ...added];
+		imagePreviews = [...imagePreviews, ...added.map((file) => URL.createObjectURL(file))];
+		// Reset so picking the same file again still fires change.
+		target.value = '';
+	}
+
+	function removePendingImage(index: number) {
+		const url = imagePreviews[index];
+		if (url) URL.revokeObjectURL(url);
+		imageFiles = imageFiles.filter((_, i) => i !== index);
+		imagePreviews = imagePreviews.filter((_, i) => i !== index);
+	}
+
+	function movePendingImage(index: number, offset: -1 | 1) {
+		const target = index + offset;
+		if (target < 0 || target >= imageFiles.length) return;
+		const nextFiles = [...imageFiles];
+		const nextUrls = [...imagePreviews];
+		[nextFiles[index], nextFiles[target]] = [nextFiles[target], nextFiles[index]];
+		[nextUrls[index], nextUrls[target]] = [nextUrls[target], nextUrls[index]];
+		imageFiles = nextFiles;
+		imagePreviews = nextUrls;
+	}
+
+	function clearPendingImages() {
+		for (const url of imagePreviews) URL.revokeObjectURL(url);
+		imageFiles = [];
+		imagePreviews = [];
+	}
+
+	async function moveSavedImage(index: number, offset: -1 | 1) {
+		const target = index + offset;
+		if (target < 0 || target >= productImages.length || reorderingImages) return;
+
+		const next = [...productImages];
+		[next[index], next[target]] = [next[target], next[index]];
+		productImages = next;
+
+		reorderingImages = true;
+		try {
+			const formData = new FormData();
+			formData.append('imageIds', JSON.stringify(productImages.map((img) => img.id)));
+			const res = await fetch(`/admin/producto/${data.product.id}?/reorderImages`, {
+				method: 'POST',
+				body: formData
+			});
+			const payload = await res.json();
+			const result = payload?.data ?? payload;
+			if (!res.ok || (payload?.type !== 'success' && !result?.success)) {
+				formMessage = result?.message || payload?.message || 'Error al guardar el orden';
+			}
+		} catch {
+			formMessage = 'Error al guardar el orden';
+		} finally {
+			// Success re-seeds the saved order; failure re-seeds the server one.
+			await invalidateAll();
+			reorderingImages = false;
+		}
 	}
 
 	async function uploadToCloudinary(file: File): Promise<string> {
@@ -182,7 +253,7 @@
 			formMessage = 'Error al subir imágenes';
 		} finally {
 			uploadingImages = false;
-			imageFiles = [];
+			clearPendingImages();
 			if (inputImages) inputImages.value = '';
 		}
 	}
@@ -499,9 +570,38 @@
 							</div>
 						{/if}
 
+						<!-- New Images: staged locally, their order becomes the stored order -->
+						{#if imageFiles.length > 0}
+							<div class="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+								{#each imagePreviews as url, index (index)}
+									<div
+										class="bg-surface-2 border-brand-400/50 relative aspect-square overflow-hidden rounded-lg border border-dashed"
+									>
+										<img
+											src={url}
+											alt={`Imagen a subir ${index + 1}`}
+											class="h-full w-full object-cover"
+										/>
+										<button
+											onclick={() => removePendingImage(index)}
+											class="absolute top-2 right-2 rounded-full bg-red-500/90 p-1.5 text-white transition-colors hover:bg-red-500"
+											aria-label={`Quitar imagen a subir ${index + 1}`}
+										>
+											<Icon icon="mdi:delete" class="text-sm" />
+										</button>
+										<ImageMoveButtons
+											position={index + 1}
+											count={imageFiles.length}
+											onMove={(offset) => movePendingImage(index, offset)}
+										/>
+									</div>
+								{/each}
+							</div>
+						{/if}
+
 						<!-- Current Images Grid -->
 						<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-							{#each data.product.productImages as img}
+							{#each productImages as img, index (img.id)}
 								<div class="bg-surface-2 relative aspect-square overflow-hidden rounded-lg">
 									<img src={img.url} alt="Imagen del producto" class="h-full w-full object-cover" />
 									<button
@@ -511,10 +611,16 @@
 									>
 										<Icon icon="mdi:delete" class="text-sm" />
 									</button>
+									<ImageMoveButtons
+										position={index + 1}
+										count={productImages.length}
+										disabled={reorderingImages}
+										onMove={(offset) => moveSavedImage(index, offset)}
+									/>
 								</div>
 							{/each}
 
-							{#if data.product.productImages.length === 0}
+							{#if productImages.length === 0}
 								<div
 									class="text-text-muted/50 col-span-full flex aspect-square flex-col items-center justify-center rounded-lg border-2 border-dashed border-white/10"
 								>

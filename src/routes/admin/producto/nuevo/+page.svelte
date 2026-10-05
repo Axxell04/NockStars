@@ -12,6 +12,7 @@
 		SPEC_LABELS
 	} from '$lib/product-specs';
 	import { variantManagerUrl } from '$lib/admin-links';
+	import ImageMoveButtons from '$lib/components/ImageMoveButtons.svelte';
 
 	let { data }: { data: { catalogs: { id: string; name: string }[] } } = $props();
 
@@ -74,6 +75,23 @@
 		imagePreviewUrls = imagePreviewUrls.filter((_, i) => i !== index);
 	}
 
+	function movePendingImage(index: number, offset: -1 | 1) {
+		const target = index + offset;
+		if (target < 0 || target >= imageFiles.length) return;
+		const nextFiles = [...imageFiles];
+		const nextUrls = [...imagePreviewUrls];
+		[nextFiles[index], nextFiles[target]] = [nextFiles[target], nextFiles[index]];
+		[nextUrls[index], nextUrls[target]] = [nextUrls[target], nextUrls[index]];
+		imageFiles = nextFiles;
+		imagePreviewUrls = nextUrls;
+	}
+
+	function clearPendingImages() {
+		for (const url of imagePreviewUrls) URL.revokeObjectURL(url);
+		imageFiles = [];
+		imagePreviewUrls = [];
+	}
+
 	async function uploadToCloudinary(file: File): Promise<string> {
 		const sigRes = await fetch('/api/cloudinary/signature');
 		if (!sigRes.ok) throw new Error('Failed to get upload signature');
@@ -131,6 +149,7 @@
 			>;
 
 			if (actionResult.type === 'redirect') {
+				clearPendingImages();
 				await goto(actionResult.location);
 				return;
 			}
@@ -154,6 +173,7 @@
 				return;
 			}
 
+			clearPendingImages();
 			await goto(variantManagerUrl(actionResult.data.productId));
 		} catch (error) {
 			console.error('Create product failed', error);
@@ -381,9 +401,16 @@
 									const target = e.target as HTMLInputElement;
 									const files = target.files;
 									if (!files || !files.length) return;
-									const nextFiles = Array.from(files);
-									imageFiles = nextFiles;
-									imagePreviewUrls = nextFiles.map((file) => URL.createObjectURL(file));
+									// Accumulates instead of replacing: a second selection
+									// must not wipe what is already queued for reordering.
+									const added = Array.from(files);
+									imageFiles = [...imageFiles, ...added];
+									imagePreviewUrls = [
+										...imagePreviewUrls,
+										...added.map((file) => URL.createObjectURL(file))
+									];
+									// Reset so picking the same file again still fires change.
+									target.value = '';
 								}}
 								bind:this={inputImages}
 							/>
@@ -426,6 +453,11 @@
 									>
 										×
 									</button>
+									<ImageMoveButtons
+										position={index + 1}
+										count={imageFiles.length}
+										onMove={(offset) => movePendingImage(index, offset)}
+									/>
 								</div>
 							{/each}
 						{:else}

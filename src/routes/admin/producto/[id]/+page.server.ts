@@ -3,6 +3,7 @@ import {
 	getProductWithVariants,
 	getImgs,
 	bindImg,
+	reorderImgs,
 	deleteProduct as deleteProductRecord,
 	prepareProductWrite,
 	updateProduct as updateProductRecord
@@ -102,6 +103,33 @@ export const actions: Actions = {
 				return fail(400, { message: 'URL de imagen inválida' });
 			}
 			await bindImg(productId, url);
+		}
+
+		return { success: true };
+	},
+
+	reorderImages: async ({ request, params }) => {
+		const formData = await request.formData();
+		const rawIds = formData.get('imageIds');
+
+		let imageIds: unknown[] = [];
+		if (rawIds) {
+			try {
+				const parsed = JSON.parse(String(rawIds));
+				imageIds = Array.isArray(parsed) ? parsed : [];
+			} catch {
+				return fail(400, { message: 'Orden de imágenes inválido' });
+			}
+		}
+
+		if (imageIds.length === 0 || !imageIds.every((id) => typeof id === 'string')) {
+			return fail(400, { message: 'Orden de imágenes inválido' });
+		}
+
+		try {
+			await reorderImgs(params.id, imageIds as string[]);
+		} catch {
+			return fail(400, { message: 'El orden no coincide con las imágenes del producto' });
 		}
 
 		return { success: true };
