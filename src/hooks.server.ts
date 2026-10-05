@@ -18,9 +18,15 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	}
 
 	const catalogId = event.cookies.get('catalog-id');
+	const sessionToken = event.cookies.get(auth.sessionCookieName);
+
+	const [catalogValid, authResult] = await Promise.all([
+		catalogId ? validateCatalog(catalogId) : Promise.resolve(false),
+		sessionToken ? auth.validateSessionToken(sessionToken) : Promise.resolve(null)
+	]);
+
 	if (catalogId) {
-		const valid = await validateCatalog(catalogId);
-		if (valid) {
+		if (catalogValid) {
 			event.locals.catalogId = catalogId;
 		} else {
 			event.cookies.delete('catalog-id', {
@@ -35,16 +41,15 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		event.locals.catalogId = '';
 	}
 
-	const sessionToken = event.cookies.get(auth.sessionCookieName);
-	if (!sessionToken) {
+	if (!authResult) {
 		event.locals.user = null;
 		event.locals.session = null;
 		return resolve(event);
 	}
 
-	const { session, user } = await auth.validateSessionToken(sessionToken);
+	const { session, user } = authResult;
 	if (session) {
-		auth.setSessionTokenCookie(event, sessionToken, session.expiresAt);
+		auth.setSessionTokenCookie(event, sessionToken as string, session.expiresAt);
 	} else {
 		auth.deleteSessionTokenCookie(event);
 	}

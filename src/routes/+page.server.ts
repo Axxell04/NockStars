@@ -83,8 +83,7 @@ export const load: PageServerLoad = async (event) => {
 		}
 	}
 
-	const pagination = await getProducts({ catalogId });
-	const catalogs = await getCatalogs();
+	const [pagination, catalogs] = await Promise.all([getProducts({ catalogId }), getCatalogs()]);
 
 	return {
 		pagination: pagination,

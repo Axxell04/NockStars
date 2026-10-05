@@ -97,34 +97,62 @@ async function getCartItemsWithDetails(cartId: string): Promise<CartItemWithProd
 		.execute();
 
 	const enrichedItems: CartItemWithProduct[] = [];
+	if (items.length === 0) {
+		return enrichedItems;
+	}
 
-	// Product-level images for every line in one batched query (no per-line N+1).
 	const productIds = [...new Set(items.map((item) => item.productId))];
-	const productImagesByProductId = new Map<string, table.Img[]>();
-	if (productIds.length > 0) {
-		const productImages = await getDb()
+	const variantIds = [
+		...new Set(items.map((item) => item.variantId).filter((id): id is string => id !== null))
+	];
+	const db = getDb();
+
+	// One batched round trip per table (products, variants and both image
+	// sets) instead of one query per cart line.
+	const [productRows, productImages, variantRows, variantImages] = await Promise.all([
+		db.select().from(table.product).where(inArray(table.product.id, productIds)),
+		db
 			.select()
 			.from(table.img)
 			.where(inArray(table.img.productId, productIds))
-			.orderBy(asc(table.img.sortOrder))
-			.execute();
-		for (const image of productImages) {
-			const list = productImagesByProductId.get(image.productId);
-			if (list) {
-				list.push(image);
-			} else {
-				productImagesByProductId.set(image.productId, [image]);
-			}
+			.orderBy(asc(table.img.sortOrder)),
+		variantIds.length > 0
+			? db.select().from(table.productVariant).where(inArray(table.productVariant.id, variantIds))
+			: Promise.resolve([]),
+		variantIds.length > 0
+			? db
+					.select()
+					.from(table.variantImg)
+					.where(inArray(table.variantImg.variantId, variantIds))
+					.orderBy(table.variantImg.sortOrder)
+			: Promise.resolve([])
+	]);
+
+	const productsById = new Map(productRows.map((product) => [product.id, product]));
+	const variantsById = new Map(variantRows.map((variant) => [variant.id, variant]));
+
+	const productImagesByProductId = new Map<string, table.Img[]>();
+	for (const image of productImages) {
+		const list = productImagesByProductId.get(image.productId);
+		if (list) {
+			list.push(image);
+		} else {
+			productImagesByProductId.set(image.productId, [image]);
+		}
+	}
+
+	const variantImagesByVariantId = new Map<string, table.VariantImg[]>();
+	for (const image of variantImages) {
+		const list = variantImagesByVariantId.get(image.variantId);
+		if (list) {
+			list.push(image);
+		} else {
+			variantImagesByVariantId.set(image.variantId, [image]);
 		}
 	}
 
 	for (const item of items) {
-		const [product] = await getDb()
-			.select()
-			.from(table.product)
-			.where(eq(table.product.id, item.productId))
-			.execute();
-
+		const product = productsById.get(item.productId);
 		if (!product) {
 			// Product was deleted - skip or handle as needed
 			continue;
@@ -133,21 +161,12 @@ async function getCartItemsWithDetails(cartId: string): Promise<CartItemWithProd
 		let variant: (ProductVariant & { images: VariantImage[] }) | null = null;
 
 		if (item.variantId) {
-			const [variantRow] = await getDb()
-				.select()
-				.from(table.productVariant)
-				.where(eq(table.productVariant.id, item.variantId))
-				.execute();
-
+			const variantRow = variantsById.get(item.variantId);
 			if (variantRow) {
-				const images = await getDb()
-					.select()
-					.from(table.variantImg)
-					.where(eq(table.variantImg.variantId, variantRow.id))
-					.orderBy(table.variantImg.sortOrder)
-					.execute();
-
-				variant = { ...variantRow, images };
+				variant = {
+					...variantRow,
+					images: variantImagesByVariantId.get(item.variantId) ?? []
+				};
 			}
 		}
 

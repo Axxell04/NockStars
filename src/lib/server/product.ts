@@ -7,7 +7,7 @@ import {
 	CLOUDINARY_API_KEY,
 	CLOUDINARY_API_SECRET
 } from '$env/static/private';
-import { and, asc, desc, eq, like, max, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, like, max, sql } from 'drizzle-orm';
 import { addProductToCatalog } from './catalog';
 import type {
 	VariantComplete,
@@ -203,125 +203,92 @@ export async function reorderImgs(productId: string, orderedIds: string[]) {
 export async function getProducts(options: GetProductsOptions = {}) {
 	const { page = 1, limit = 5, search, catalogId } = options;
 	const offset = (page - 1) * limit;
-	let products: table.Product[];
+	const db = getDb();
+	const pattern = search ? `%${search}%` : null;
 
-	if (search) {
-		const searchPattern = `%${search}%`;
-		products = !catalogId
-			? await getDb()
-					.select()
-					.from(table.product)
-					.where(like(table.product.name, searchPattern))
-					.limit(limit)
-					.offset(offset)
-					.orderBy(desc(table.product.createdAt))
-					.execute()
-			: await getDb()
-					.select({
-						id: table.product.id,
-						name: table.product.name,
-						description: table.product.description,
-						price: table.product.price,
-						stock: table.product.stock,
-						specs: table.product.specs,
-						createdAt: table.product.createdAt
-					})
-					.from(table.product)
-					.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
-					.where(
-						and(
-							eq(table.productCatalog.catalogId, catalogId ?? ''),
-							like(table.product.name, searchPattern)
-						)
-					)
-					.limit(limit)
-					.offset(offset)
-					.orderBy(desc(table.product.createdAt))
-					.execute();
+	let productsQuery;
+	let countQuery;
+
+	if (pattern) {
+		if (!catalogId) {
+			productsQuery = db
+				.select()
+				.from(table.product)
+				.where(like(table.product.name, pattern))
+				.limit(limit)
+				.offset(offset)
+				.orderBy(desc(table.product.createdAt));
+			countQuery = db
+				.select({ total: count() })
+				.from(table.product)
+				.where(like(table.product.name, pattern));
+		} else {
+			productsQuery = db
+				.select({
+					id: table.product.id,
+					name: table.product.name,
+					description: table.product.description,
+					price: table.product.price,
+					stock: table.product.stock,
+					specs: table.product.specs,
+					createdAt: table.product.createdAt
+				})
+				.from(table.product)
+				.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
+				.where(
+					and(eq(table.productCatalog.catalogId, catalogId), like(table.product.name, pattern))
+				)
+				.limit(limit)
+				.offset(offset)
+				.orderBy(desc(table.product.createdAt));
+			countQuery = db
+				.select({ total: count() })
+				.from(table.product)
+				.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
+				.where(
+					and(eq(table.productCatalog.catalogId, catalogId), like(table.product.name, pattern))
+				);
+		}
+	} else if (!catalogId) {
+		productsQuery = db
+			.select()
+			.from(table.product)
+			.limit(limit)
+			.offset(offset)
+			.orderBy(desc(table.product.createdAt));
+		countQuery = db.select({ total: count() }).from(table.product);
 	} else {
-		products = !catalogId
-			? await getDb()
-					.select()
-					.from(table.product)
-					.limit(limit)
-					.offset(offset)
-					.orderBy(desc(table.product.createdAt))
-					.execute()
-			: await getDb()
-					.select({
-						id: table.product.id,
-						name: table.product.name,
-						description: table.product.description,
-						price: table.product.price,
-						stock: table.product.stock,
-						specs: table.product.specs,
-						createdAt: table.product.createdAt
-					})
-					.from(table.product)
-					.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
-					.where(eq(table.productCatalog.catalogId, catalogId ?? ''))
-					.limit(limit)
-					.offset(offset)
-					.orderBy(desc(table.product.createdAt))
-					.execute();
+		productsQuery = db
+			.select({
+				id: table.product.id,
+				name: table.product.name,
+				description: table.product.description,
+				price: table.product.price,
+				stock: table.product.stock,
+				specs: table.product.specs,
+				createdAt: table.product.createdAt
+			})
+			.from(table.product)
+			.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
+			.where(eq(table.productCatalog.catalogId, catalogId))
+			.limit(limit)
+			.offset(offset)
+			.orderBy(desc(table.product.createdAt));
+		countQuery = db
+			.select({ total: count() })
+			.from(table.product)
+			.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
+			.where(eq(table.productCatalog.catalogId, catalogId));
 	}
 
-	const listProducts: { product: table.Product; imgs: table.Img[] }[] = [];
+	const [products, countRows] = await Promise.all([productsQuery, countQuery]);
+	const totalProducts = countRows[0].total;
 
-	for (const product of products) {
-		const imgs = await getImgs(product.id);
-		listProducts.push({
-			product: product,
-			imgs: imgs
-		});
-	}
-
-	let totalProducts: number;
-	if (search) {
-		const searchPattern = `%${search}%`;
-		totalProducts = !catalogId
-			? (
-					await getDb()
-						.select()
-						.from(table.product)
-						.where(like(table.product.name, searchPattern))
-						.execute()
-				).length
-			: (
-					await getDb()
-						.select({
-							id: table.product.id,
-							name: table.product.name,
-							price: table.product.price,
-							createdAt: table.product.createdAt
-						})
-						.from(table.product)
-						.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
-						.where(
-							and(
-								eq(table.productCatalog.catalogId, catalogId ?? ''),
-								like(table.product.name, searchPattern)
-							)
-						)
-						.execute()
-				).length;
-	} else {
-		totalProducts = !catalogId
-			? (await getDb().select().from(table.product).execute()).length
-			: (
-					await getDb()
-						.select({
-							id: table.product.id,
-							name: table.product.name,
-							price: table.product.price,
-							createdAt: table.product.createdAt
-						})
-						.from(table.product)
-						.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
-						.where(eq(table.productCatalog.catalogId, catalogId ?? ''))
-						.execute()
-				).length;
-	}
+	const imgsByProduct = await getImgsByProducts(products.map((product) => product.id));
+	const listProducts = products.map((product) => ({
+		product: product,
+		imgs: imgsByProduct.get(product.id) ?? []
+	}));
 
 	const totalPages = Math.ceil(totalProducts / limit);
 
@@ -401,6 +368,33 @@ export async function getImgs(productId: string) {
 		.orderBy(asc(table.img.sortOrder))
 		.execute();
 	return imgs;
+}
+
+/**
+ * Fetches the images of many products in a single query, grouped by productId
+ * in the requested order — replaces one round trip per product on list loads.
+ */
+async function getImgsByProducts(productIds: string[]): Promise<Map<string, table.Img[]>> {
+	const grouped = new Map<string, table.Img[]>();
+	if (productIds.length === 0) {
+		return grouped;
+	}
+
+	for (const id of productIds) {
+		grouped.set(id, []);
+	}
+
+	const rows = await getDb()
+		.select()
+		.from(table.img)
+		.where(inArray(table.img.productId, productIds))
+		.orderBy(asc(table.img.sortOrder))
+		.execute();
+
+	for (const img of rows) {
+		grouped.get(img.productId)?.push(img);
+	}
+	return grouped;
 }
 
 // Complementary Functions
