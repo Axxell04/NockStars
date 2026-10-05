@@ -29,7 +29,9 @@
 		(seo.description as string) ??
 			'NockStars es tu tienda online de camisetas personalizadas. Catálogo exclusivo, pedidos por encargo y envíos a todo el país.'
 	);
-	let seoImage = $derived((seo.image as string) ?? '/nock-logo.png');
+	// Absolute on purpose: og:image, twitter:image and the Organization logo
+	// are fetched by scrapers that never resolve site-relative paths.
+	let seoImage = $derived(new URL((seo.image as string) ?? '/nock-logo.png', page.url.origin).href);
 	let seoUrl = $derived(page.url.href);
 	let seoType = $derived((seo.type as string) ?? 'website');
 
