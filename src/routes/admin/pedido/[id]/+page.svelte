@@ -27,12 +27,41 @@
 
 	let selectedLine: OrderLine | undefined = $state();
 
-	// Fullscreen image viewer (lightbox)
-	let viewer: { url: string; name: string } | null = $state(null);
+	// Fullscreen image viewer (lightbox). `urls` holds every image of the
+	// line (variant first, product fallback); an empty list never opens it.
+	let viewer: { urls: string[]; index: number; name: string } | null = $state(null);
 
-	function openViewer(url: string, name: string) {
-		viewer = { url, name };
+	function openViewer(urls: string[], name: string) {
+		if (urls.length === 0) return;
+		viewer = { urls, index: 0, name };
 	}
+
+	function stepViewer(delta: number) {
+		if (!viewer) return;
+		const next = viewer.index + delta;
+		if (next < 0 || next >= viewer.urls.length) return;
+		viewer = { ...viewer, index: next };
+	}
+
+	function setViewerIndex(index: number) {
+		if (!viewer) return;
+		viewer = { ...viewer, index };
+	}
+
+	// Arrow-key navigation while the lightbox is open. Registered only for a
+	// multi-image viewer and removed on close, mirroring ContainerModal's own
+	// Escape listener so both stay in sync through the same `viewer` signal.
+	$effect(() => {
+		if (!viewer || viewer.urls.length < 2) return;
+
+		function handleKeyDown(event: KeyboardEvent) {
+			if (event.key === 'ArrowLeft') stepViewer(-1);
+			if (event.key === 'ArrowRight') stepViewer(1);
+		}
+
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	});
 
 	// HTML Elements
 	let btnEditOrder: HTMLButtonElement | undefined = $state();
@@ -243,7 +272,8 @@
 	<section class="flex flex-col gap-2">
 		{#each orderLines as line}
 			{@const lineDisplay = data.display[lineKey(line)] ?? null}
-			{@const thumb = lineDisplay?.imageUrl ?? null}
+			{@const imageUrls = lineDisplay?.imageUrls ?? []}
+			{@const thumb = imageUrls[0] ?? null}
 			<div
 				class="flex min-w-0 flex-row gap-3 rounded-xl border px-2 py-2 transition-colors duration-150 {selectedLine &&
 				lineKey(selectedLine) === lineKey(line)
@@ -264,7 +294,7 @@
 						aria-label="Ampliar imagen de {line.name}"
 						onclick={(e) => {
 							e.stopPropagation();
-							openViewer(thumb, line.name);
+							openViewer(imageUrls, line.name);
 						}}
 						onfocus={(e) => cancelFocus(e)}
 						class="h-16 w-16 shrink-0 self-start overflow-hidden rounded-lg border border-white/8 transition-transform duration-150 active:scale-95"
@@ -479,13 +509,33 @@
 	</section>
 
 	{#if viewer}
-		<ContainerModal toggleModal={() => (viewer = null)}>
+		<ContainerModal toggleModal={() => (viewer = null)} maxWidth="max-w-3xl">
 			<figure class="relative">
 				<img
-					src={viewer.url}
-					alt="Imagen de {viewer.name}"
-					class="max-h-[80vh] w-auto max-w-full rounded-2xl object-contain"
+					src={viewer.urls[viewer.index]}
+					alt="Imagen {viewer.index + 1} de {viewer.urls.length} de {viewer.name}"
+					class="max-h-[75vh] w-auto max-w-full rounded-2xl object-contain"
 				/>
+				{#if viewer.urls.length > 1}
+					<button
+						type="button"
+						aria-label="Imagen anterior"
+						disabled={viewer.index === 0}
+						onclick={() => stepViewer(-1)}
+						class="bg-surface-1/95 text-text-secondary hover:border-brand-400/30 hover:bg-brand-400/10 hover:text-brand-400 absolute top-1/2 left-2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 transition-all duration-200 disabled:pointer-events-none disabled:opacity-30"
+					>
+						<Icon icon="mingcute:left-fill" class="text-xl" />
+					</button>
+					<button
+						type="button"
+						aria-label="Imagen siguiente"
+						disabled={viewer.index === viewer.urls.length - 1}
+						onclick={() => stepViewer(1)}
+						class="bg-surface-1/95 text-text-secondary hover:border-brand-400/30 hover:bg-brand-400/10 hover:text-brand-400 absolute top-1/2 right-2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 transition-all duration-200 disabled:pointer-events-none disabled:opacity-30"
+					>
+						<Icon icon="mingcute:right-fill" class="text-xl" />
+					</button>
+				{/if}
 				<button
 					type="button"
 					aria-label="Cerrar imagen"
@@ -495,8 +545,32 @@
 				>
 					<Icon icon="mdi:close" />
 				</button>
-				<figcaption class="text-text-secondary mt-2 text-center text-sm">
-					{viewer.name}
+				{#if viewer.urls.length > 1}
+					<div
+						class="mt-3 flex justify-center gap-2"
+						role="tablist"
+						aria-label="Navegación de imágenes"
+					>
+						{#each viewer.urls.keys() as i}
+							<button
+								role="tab"
+								aria-selected={i === viewer.index}
+								aria-label="Ver imagen {i + 1} de {viewer.urls.length}"
+								onclick={() => setViewerIndex(i)}
+								class="h-2 w-2 rounded-full transition-all duration-300 {i === viewer.index
+									? 'bg-brand-400 shadow-glow-sm w-6'
+									: 'bg-white/30 hover:bg-white/50'}"
+							></button>
+						{/each}
+					</div>
+				{/if}
+				<figcaption class="text-text-secondary mt-2 flex items-center justify-center gap-2 text-sm">
+					<span class="min-w-0 truncate">{viewer.name}</span>
+					{#if viewer.urls.length > 1}
+						<span class="text-text-muted flex-shrink-0 tabular-nums">
+							{viewer.index + 1} / {viewer.urls.length}
+						</span>
+					{/if}
 				</figcaption>
 			</figure>
 		</ContainerModal>

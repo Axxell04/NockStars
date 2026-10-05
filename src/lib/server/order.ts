@@ -24,19 +24,20 @@ export async function getOrderById(id: string) {
 /**
  * Presentational data per order line, keyed by `lineKey()`.
  *
- * Preference is the variant's first image (by sortOrder), falling back to
- * the product's first image — a deleted or imageless variant still shows
- * its product. `colorHex` comes from the live variant row so the color
- * chip can render its swatch; anything that is not a `#rrggbb` hex is
- * discarded at this boundary and surfaces as null.
+ * `imageUrls` holds every image of the line's variant (by sortOrder),
+ * falling back to the product's images when the variant has none — a
+ * deleted or imageless variant still shows its product. `colorHex` comes
+ * from the live variant row so the color chip can render its swatch;
+ * anything that is not a `#rrggbb` hex is discarded at this boundary and
+ * surfaces as null.
  *
  * All of this is presentational only: names, prices and variant params
  * always come from the order snapshots, never from live rows, so a changed
  * product photo or color can never rewrite the purchase record.
- * Batched queries, no N+1. Lines without any image resolve to nulls.
+ * Batched queries, no N+1. Lines without any image resolve to empty lists.
  */
 export interface OrderLineDisplay {
-	imageUrl: string | null;
+	imageUrls: string[];
 	colorHex: string | null;
 }
 
@@ -64,9 +65,11 @@ export async function getOrderLineDisplay(
 					.orderBy(table.variantImg.sortOrder)
 					.execute()
 			: [];
-	const variantPrimary = new Map<string, string>();
+	const urlsByVariant = new Map<string, string[]>();
 	for (const img of variantImgs) {
-		if (!variantPrimary.has(img.variantId)) variantPrimary.set(img.variantId, img.url);
+		const urls = urlsByVariant.get(img.variantId);
+		if (urls) urls.push(img.url);
+		else urlsByVariant.set(img.variantId, [img.url]);
 	}
 
 	const variantRows =
@@ -88,15 +91,18 @@ export async function getOrderLineDisplay(
 		.from(table.img)
 		.where(inArray(table.img.productId, productIds))
 		.execute();
-	const productPrimary = new Map<string, string>();
+	const urlsByProduct = new Map<string, string[]>();
 	for (const img of productImgs) {
-		if (!productPrimary.has(img.productId)) productPrimary.set(img.productId, img.url);
+		const urls = urlsByProduct.get(img.productId);
+		if (urls) urls.push(img.url);
+		else urlsByProduct.set(img.productId, [img.url]);
 	}
 
 	for (const line of lines) {
-		const variantUrl = isPresent(line.variantId) ? variantPrimary.get(line.variantId) : undefined;
+		const variantUrls = isPresent(line.variantId) ? urlsByVariant.get(line.variantId) : undefined;
+		const productUrls = urlsByProduct.get(line.productId);
 		display[lineKey(line)] = {
-			imageUrl: variantUrl ?? productPrimary.get(line.productId) ?? null,
+			imageUrls: variantUrls?.length ? variantUrls : (productUrls ?? []),
 			colorHex: isPresent(line.variantId) ? (hexByVariant.get(line.variantId) ?? null) : null
 		};
 	}
