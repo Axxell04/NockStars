@@ -101,17 +101,11 @@
 	<!-- LCP preload -->
 	<link rel="preload" as="image" href="/nock-logo.png" />
 
-	<!-- Fonts: preconnect + link — Only essential weights -->
+	<!-- Fonts: preconnect + a single stylesheet request — Only essential weights -->
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
-	<!-- Cinzel: only 400, 700, 900 (titles/brand) -->
 	<link
-		href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&display=swap"
-		rel="stylesheet"
-	/>
-	<!-- PT Sans: 400, 700 + italic (body text) -->
-	<link
-		href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+		href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap"
 		rel="stylesheet"
 	/>
 
