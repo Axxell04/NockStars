@@ -242,7 +242,8 @@
 	<!-- Order lines -->
 	<section class="flex flex-col gap-2">
 		{#each orderLines as line}
-			{@const thumb = data.images[lineKey(line)] ?? null}
+			{@const lineDisplay = data.display[lineKey(line)] ?? null}
+			{@const thumb = lineDisplay?.imageUrl ?? null}
 			<div
 				class="flex min-w-0 flex-row gap-3 rounded-xl border px-2 py-2 transition-colors duration-150 {selectedLine &&
 				lineKey(selectedLine) === lineKey(line)
@@ -287,10 +288,10 @@
 					</div>
 					{#if line.size ?? line.color ?? line.cut}
 						<div class="flex w-full flex-wrap gap-1">
-							{#each lineChips(line, display?.colorHex ?? null) as chip}
+							{#each lineChips(line, lineDisplay?.colorHex ?? null) as chip}
 								<span
 									title={chip.title}
-									class="text-text-secondary inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-surface-2 px-2 py-0.5 text-xs font-medium"
+									class="text-text-secondary bg-surface-2 inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2 py-0.5 text-xs font-medium"
 								>
 									{#if chip.hex}
 										<span
@@ -433,11 +434,11 @@
 					</span>
 					{#if selectedLine.size ?? selectedLine.color ?? selectedLine.cut}
 						<div class="flex flex-wrap justify-center gap-1">
-							{#each lineChips(selectedLine) as chip}
+							{#each lineChips(selectedLine, data.display[lineKey(selectedLine)]?.colorHex ?? null) as chip}
 								<span
 									class="bg-surface-0/60 text-text-secondary rounded-md border border-white/8 px-1.5 py-px text-xs"
 								>
-									{chip}
+									{chip.label}
 								</span>
 							{/each}
 						</div>
