@@ -7,7 +7,7 @@ import {
 	CLOUDINARY_API_KEY,
 	CLOUDINARY_API_SECRET
 } from '$env/static/private';
-import { and, desc, eq, like, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, like, max, sql } from 'drizzle-orm';
 import { addProductToCatalog } from './catalog';
 import type {
 	VariantComplete,
@@ -150,14 +150,54 @@ export async function bindImg(productId: string, url: string) {
 	const normalizedUrl = normalizeCloudinaryImageUrl(url);
 	const imgId = generateId();
 
+	// Appends after the current last image, so the upload order the admin
+	// picked is the order that gets stored (and survives a later reorder).
+	const [last] = await getDb()
+		.select({ sortOrder: max(table.img.sortOrder) })
+		.from(table.img)
+		.where(eq(table.img.productId, productId))
+		.execute();
+
 	await getDb()
 		.insert(table.img)
 		.values({
 			id: imgId,
 			url: normalizedUrl,
-			productId: productId
+			productId: productId,
+			sortOrder: (last?.sortOrder ?? -1) + 1
 		})
 		.execute();
+}
+
+/**
+ * Rewrites the whole image order of a product from a list of ids.
+ *
+ * The payload must be exactly the product's image set — duplicated, missing or
+ * foreign ids are rejected instead of silently scrambling the stored order.
+ * Validation runs before the first write, so a bad payload writes nothing.
+ */
+export async function reorderImgs(productId: string, orderedIds: string[]) {
+	const current = await getImgs(productId);
+	const currentIds = new Set(current.map((img) => img.id));
+	const uniqueIds = new Set(orderedIds);
+	const isExactSet =
+		uniqueIds.size === orderedIds.length &&
+		currentIds.size === orderedIds.length &&
+		orderedIds.every((id) => currentIds.has(id));
+
+	if (!isExactSet) {
+		throw new Error('Image order does not match this product images');
+	}
+
+	await getDb().transaction(async (tx) => {
+		for (let i = 0; i < orderedIds.length; i++) {
+			await tx
+				.update(table.img)
+				.set({ sortOrder: i })
+				.where(and(eq(table.img.id, orderedIds[i]), eq(table.img.productId, productId)))
+				.execute();
+		}
+	});
 }
 
 export async function getProducts(options: GetProductsOptions = {}) {
@@ -358,6 +398,7 @@ export async function getImgs(productId: string) {
 		.select()
 		.from(table.img)
 		.where(eq(table.img.productId, productId))
+		.orderBy(asc(table.img.sortOrder))
 		.execute();
 	return imgs;
 }
@@ -423,6 +464,7 @@ export async function getProductWithVariants(
 		.select()
 		.from(table.img)
 		.where(eq(table.img.productId, productId))
+		.orderBy(asc(table.img.sortOrder))
 		.execute();
 
 	const variants = await getVariantsByProduct(productId);

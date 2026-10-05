@@ -9,7 +9,10 @@ vi.mock('$lib/server/db', () => ({
 		select: () => ({
 			from: () => ({
 				where: () => ({
-					execute: async () => []
+					execute: async () => [],
+					orderBy: () => ({
+						execute: async () => []
+					})
 				})
 			})
 		}),

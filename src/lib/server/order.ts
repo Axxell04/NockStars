@@ -1,7 +1,7 @@
 import * as table from '$lib/server/db/schema';
 import { generateId } from '$lib/server/functions';
 import { getDb } from '$lib/server/db';
-import { eq, inArray } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
 import { lineKey } from '$lib/order-content';
 
 type GetOrderOptions = {
@@ -90,6 +90,7 @@ export async function getOrderLineDisplay(
 		.select()
 		.from(table.img)
 		.where(inArray(table.img.productId, productIds))
+		.orderBy(asc(table.img.sortOrder))
 		.execute();
 	const urlsByProduct = new Map<string, string[]>();
 	for (const img of productImgs) {
@@ -138,6 +139,7 @@ export async function getOrderWithItems(cod: string) {
 				.select()
 				.from(table.img)
 				.where(eq(table.img.productId, product.id))
+				.orderBy(asc(table.img.sortOrder))
 				.execute();
 		}
 

@@ -1,6 +1,6 @@
 import * as table from '$lib/server/db/schema';
 import { getDb } from '$lib/server/db';
-import { eq, and, sql, inArray } from 'drizzle-orm';
+import { asc, eq, and, sql, inArray } from 'drizzle-orm';
 import type {
 	Cart,
 	CartWithItems,
@@ -106,6 +106,7 @@ async function getCartItemsWithDetails(cartId: string): Promise<CartItemWithProd
 			.select()
 			.from(table.img)
 			.where(inArray(table.img.productId, productIds))
+			.orderBy(asc(table.img.sortOrder))
 			.execute();
 		for (const image of productImages) {
 			const list = productImagesByProductId.get(image.productId);

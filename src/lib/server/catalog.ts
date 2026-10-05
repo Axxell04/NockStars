@@ -1,7 +1,7 @@
 import * as table from '$lib/server/db/schema';
 import { encodeBase32LowerCase } from '@oslojs/encoding';
 import { getDb } from '$lib/server/db';
-import { and, eq, desc, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, desc, inArray, isNull, sql } from 'drizzle-orm';
 
 export async function createCatalog(name: string, description?: string) {
 	const productId = generateId();
@@ -124,6 +124,7 @@ export async function getProductsByCatalog(catalogId: string) {
 			.select()
 			.from(table.img)
 			.where(eq(table.img.productId, product.id))
+			.orderBy(asc(table.img.sortOrder))
 			.execute();
 
 		listProducts.push({
@@ -164,6 +165,7 @@ export async function getProductsWithoutCatalog() {
 			.select()
 			.from(table.img)
 			.where(eq(table.img.productId, product.id))
+			.orderBy(asc(table.img.sortOrder))
 			.execute();
 
 		listProducts.push({
