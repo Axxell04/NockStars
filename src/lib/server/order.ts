@@ -94,9 +94,7 @@ export async function getOrderLineDisplay(
 	}
 
 	for (const line of lines) {
-		const variantUrl = isPresent(line.variantId)
-			? variantPrimary.get(line.variantId)
-			: undefined;
+		const variantUrl = isPresent(line.variantId) ? variantPrimary.get(line.variantId) : undefined;
 		display[lineKey(line)] = {
 			imageUrl: variantUrl ?? productPrimary.get(line.productId) ?? null,
 			colorHex: isPresent(line.variantId) ? (hexByVariant.get(line.variantId) ?? null) : null
