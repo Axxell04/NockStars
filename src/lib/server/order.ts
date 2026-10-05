@@ -21,25 +21,39 @@ export async function getOrderById(id: string) {
 	const [order] = await getDb().select().from(table.order).where(eq(table.order.id, id)).execute();
 	return order ?? null;
 }
-
 /**
- * Primary image URL per order line, keyed by `lineKey()`.
+ * Presentational data per order line, keyed by `lineKey()`.
  *
  * Preference is the variant's first image (by sortOrder), falling back to
  * the product's first image — a deleted or imageless variant still shows
- * its product. Images are presentational only: names, prices and variant
- * params always come from the order snapshots, never from live rows, so a
- * changed product photo can never rewrite the purchase record.
- * Two batched queries, no N+1. Lines without any image resolve to null.
+ * its product. `colorHex` comes from the live variant row so the color
+ * chip can render its swatch; anything that is not a `#rrggbb` hex is
+ * discarded at this boundary and surfaces as null.
+ *
+ * All of this is presentational only: names, prices and variant params
+ * always come from the order snapshots, never from live rows, so a changed
+ * product photo or color can never rewrite the purchase record.
+ * Batched queries, no N+1. Lines without any image resolve to nulls.
  */
-export async function getOrderLineImages(
+export interface OrderLineDisplay {
+	imageUrl: string | null;
+	colorHex: string | null;
+}
+
+function sanitizeHex(value: unknown): string | null {
+	if (typeof value !== 'string') return null;
+	const hex = value.trim();
+	return /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : null;
+}
+
+export async function getOrderLineDisplay(
 	lines: { productId: string; variantId?: string | null }[]
-): Promise<Record<string, string | null>> {
-	const images: Record<string, string | null> = {};
+): Promise<Record<string, OrderLineDisplay>> {
+	const display: Record<string, OrderLineDisplay> = {};
 	const isPresent = (id: unknown): id is string => typeof id === 'string' && id !== '';
 	const variantIds = [...new Set(lines.map((line) => line.variantId).filter(isPresent))];
 	const productIds = [...new Set(lines.map((line) => line.productId).filter(isPresent))];
-	if (productIds.length === 0) return images;
+	if (productIds.length === 0) return display;
 
 	const variantImgs =
 		variantIds.length > 0
@@ -55,6 +69,20 @@ export async function getOrderLineImages(
 		if (!variantPrimary.has(img.variantId)) variantPrimary.set(img.variantId, img.url);
 	}
 
+	const variantRows =
+		variantIds.length > 0
+			? await getDb()
+					.select()
+					.from(table.productVariant)
+					.where(inArray(table.productVariant.id, variantIds))
+					.execute()
+			: [];
+	const hexByVariant = new Map<string, string>();
+	for (const variant of variantRows) {
+		const hex = sanitizeHex(variant.colorHex);
+		if (hex && !hexByVariant.has(variant.id)) hexByVariant.set(variant.id, hex);
+	}
+
 	const productImgs = await getDb()
 		.select()
 		.from(table.img)
@@ -66,12 +94,16 @@ export async function getOrderLineImages(
 	}
 
 	for (const line of lines) {
-		const variantUrl = isPresent(line.variantId) ? variantPrimary.get(line.variantId) : undefined;
-		images[lineKey(line)] = variantUrl ?? productPrimary.get(line.productId) ?? null;
+		const variantUrl = isPresent(line.variantId)
+			? variantPrimary.get(line.variantId)
+			: undefined;
+		display[lineKey(line)] = {
+			imageUrl: variantUrl ?? productPrimary.get(line.productId) ?? null,
+			colorHex: isPresent(line.variantId) ? (hexByVariant.get(line.variantId) ?? null) : null
+		};
 	}
-	return images;
+	return display;
 }
-
 export async function getOrderWithItems(cod: string) {
 	const [order] = await getDb().select().from(table.order).where(eq(table.order.id, cod)).execute();
 

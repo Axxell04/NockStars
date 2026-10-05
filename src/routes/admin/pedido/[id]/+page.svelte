@@ -72,14 +72,36 @@
 		return value.charAt(0).toUpperCase() + value.slice(1);
 	}
 
-	// Chip labels for a line's variant snapshots. Empty when the line carries
-	// no variant (legacy shape or variant-less product): the row then renders
-	// exactly as before instead of showing placeholder chips.
-	function lineChips(line: OrderLine): string[] {
-		const chips: string[] = [];
-		if (line.size) chips.push(`Talla ${line.size}`);
-		if (line.color) chips.push(line.color);
-		if (line.cut) chips.push(capitalize(line.cut));
+	// Chips for a line's variant snapshots. Each chip pairs an icon with its
+	// value; the color chip renders its swatch circle when the live variant
+	// carries a valid hex, falling back to the palette glyph so the chip
+	// never shows a wrong color. Empty when the line carries no variant
+	// (legacy shape or variant-less product).
+	interface LineChip {
+		icon: string;
+		label: string;
+		title: string;
+		hex: string | null;
+	}
+
+	function lineChips(line: OrderLine, colorHex: string | null): LineChip[] {
+		const chips: LineChip[] = [];
+		if (line.size)
+			chips.push({ icon: 'mdi:ruler', label: line.size, title: `Talla ${line.size}`, hex: null });
+		if (line.color)
+			chips.push({
+				icon: 'mdi:palette',
+				label: line.color,
+				title: `Color ${line.color}`,
+				hex: colorHex
+			});
+		if (line.cut)
+			chips.push({
+				icon: 'mdi:scissors-cutting',
+				label: capitalize(line.cut),
+				title: `Corte ${capitalize(line.cut)}`,
+				hex: null
+			});
 		return chips;
 	}
 
@@ -265,11 +287,21 @@
 					</div>
 					{#if line.size ?? line.color ?? line.cut}
 						<div class="flex w-full flex-wrap gap-1">
-							{#each lineChips(line) as chip}
+							{#each lineChips(line, display?.colorHex ?? null) as chip}
 								<span
-									class="bg-surface-2 text-text-secondary rounded-lg border border-white/10 px-2 py-0.5 text-xs font-medium"
+									title={chip.title}
+									class="text-text-secondary inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-surface-2 px-2 py-0.5 text-xs font-medium"
 								>
-									{chip}
+									{#if chip.hex}
+										<span
+											aria-hidden="true"
+											class="h-3.5 w-3.5 shrink-0 rounded-full border border-white/25"
+											style="background-color: {chip.hex};"
+										></span>
+									{:else}
+										<Icon icon={chip.icon} class="text-sm" aria-hidden="true" />
+									{/if}
+									{chip.label}
 								</span>
 							{/each}
 						</div>

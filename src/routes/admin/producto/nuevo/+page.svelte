@@ -2,6 +2,8 @@
 	/* eslint-disable @typescript-eslint/no-unused-vars */
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { deserialize } from '$app/forms';
+	import type { ActionResult } from '@sveltejs/kit';
 	import Icon from '@iconify/svelte';
 	import {
 		MAX_SPEC_KEY_LENGTH,
@@ -120,34 +122,39 @@
 
 			const res = await fetch('/admin/producto/nuevo?/createProduct', {
 				method: 'POST',
+				headers: { accept: 'application/json' },
 				body: formData
 			});
-			const payload = (await res.json()) ?? {};
-			const result = payload?.data ?? payload ?? {};
-			const success = Boolean(
-				res.ok &&
-					(payload?.type === 'success' || result?.success === true || payload?.success === true)
-			);
-			const productId =
-				result?.productId ??
-				payload?.productId ??
-				payload?.data?.productId ??
-				result?.data?.productId ??
-				null;
+			const actionResult = deserialize(await res.text()) as ActionResult<
+				{ success: boolean; productId?: string },
+				{ message?: string }
+			>;
 
-			if (success) {
-				if (productId) {
-					const returnTarget = resolveReturnTarget();
-					formMessage = 'Producto creado correctamente. Redirigiendo a edición...';
-					await goto(`/admin/producto/${productId}?returnTo=${encodeURIComponent(returnTarget)}`);
-					return;
-				}
-
-				formMessage = 'Producto creado correctamente';
+			if (actionResult.type === 'redirect') {
+				await goto(actionResult.location);
 				return;
 			}
 
-			formMessage = result?.message || payload?.message || 'Error al crear producto';
+			if (actionResult.type === 'failure') {
+				formMessage = actionResult.data?.message || 'Error al crear producto';
+				return;
+			}
+
+			if (actionResult.type !== 'success' || !actionResult.data?.success) {
+				formMessage =
+					actionResult.type === 'error'
+						? actionResult.error?.message || 'Error al crear producto'
+						: 'Error al crear producto';
+				return;
+			}
+
+			if (!actionResult.data.productId) {
+				formMessage =
+					'El producto se creó, pero no se recibió su identificador. Abrilo desde el catálogo para cargar variantes.';
+				return;
+			}
+
+			await goto(variantManagerUrl(actionResult.data.productId));
 		} catch (error) {
 			console.error('Create product failed', error);
 			formMessage =

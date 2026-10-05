@@ -251,7 +251,7 @@
 		const payload = await res.json();
 		const result = payload?.data ?? payload ?? {};
 		if (res.ok && (payload?.type === 'success' || result?.success)) {
-			goto(resolveReturnTarget('/admin/catalogo'));
+			goto('/admin');
 		} else {
 			formMessage = result?.message || payload?.message || 'Error al eliminar producto';
 		}

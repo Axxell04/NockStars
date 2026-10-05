@@ -1,5 +1,5 @@
 import { getProductWithVariants } from '$lib/server/product';
-import { fail } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { effectivePrice, effectiveStock, getDefaultVariant } from '$lib/variant';
 import type { VariantComplete } from '$lib/actions';
@@ -12,7 +12,7 @@ export const load: PageServerLoad = async (event) => {
 	const productData = await getProductWithVariants(productId);
 
 	if (!productData) {
-		return fail(404, { message: 'Producto no encontrado' });
+		throw error(404, 'Producto no encontrado');
 	}
 
 	// Select variant
@@ -22,7 +22,7 @@ export const load: PageServerLoad = async (event) => {
 		// Validate variant belongs to this product
 		const variant = productData.variants.find((v) => v.id === variantParam);
 		if (!variant) {
-			return fail(400, { message: 'Variante no válida para este producto' });
+			throw error(400, 'Variante no válida para este producto');
 		}
 		selectedVariant = variant;
 	} else {

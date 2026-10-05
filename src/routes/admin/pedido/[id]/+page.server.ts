@@ -1,6 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { deleteOrder, getOrderById, getOrderLineImages, updateOrder } from '$lib/server/order';
+import { deleteOrder, getOrderById, getOrderLineDisplay, updateOrder } from '$lib/server/order';
 import { createRevenue } from '$lib/server/revenue';
 import { toOrderLines } from '$lib/order-content';
 
@@ -14,7 +14,7 @@ export const load: PageServerLoad = async (event) => {
 	}
 	return {
 		order,
-		images: await getOrderLineImages(toOrderLines(order.content))
+		display: await getOrderLineDisplay(toOrderLines(order.content))
 	};
 };
 
