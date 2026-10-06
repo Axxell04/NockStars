@@ -59,6 +59,14 @@ export const actions: Actions = {
 		const variantId = formData.get('variantId') as string | null;
 		const quantity = parseInt(formData.get('quantity') as string) || 1;
 
+		// Deactivated products must not be purchasable. The lookup also
+		// rejects unknown ids, so this fails before a cart cookie or row is
+		// ever created for them.
+		const product = await getProductWithVariants(productId);
+		if (!product) {
+			return fail(404, { message: 'Producto no encontrado' });
+		}
+
 		// Get cart session ID from cookies
 		let cartSessionId = event.cookies.get('cart_session_id');
 

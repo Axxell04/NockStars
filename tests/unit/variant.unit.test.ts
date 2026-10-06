@@ -21,7 +21,8 @@ describe('Variant Utilities', () => {
 		price: 29.99,
 		stock: 10,
 		specs: {},
-		createdAt: new Date()
+		createdAt: new Date(),
+		deactivatedAt: null
 	};
 
 	const mockProductImages: Img[] = [];
@@ -40,6 +41,7 @@ describe('Variant Utilities', () => {
 			sortOrder: 1,
 			createdAt: new Date(),
 			updatedAt: new Date(),
+			deactivatedAt: null,
 			images: []
 		},
 		{
@@ -55,6 +57,7 @@ describe('Variant Utilities', () => {
 			sortOrder: 2,
 			createdAt: new Date(),
 			updatedAt: new Date(),
+			deactivatedAt: null,
 			images: []
 		},
 		{
@@ -70,6 +73,7 @@ describe('Variant Utilities', () => {
 			sortOrder: 3,
 			createdAt: new Date(),
 			updatedAt: new Date(),
+			deactivatedAt: null,
 			images: []
 		}
 	];
@@ -91,6 +95,7 @@ describe('Variant Utilities', () => {
 			sortOrder: -1,
 			createdAt: new Date(),
 			updatedAt: new Date(),
+			deactivatedAt: null,
 			images: []
 		}
 	};

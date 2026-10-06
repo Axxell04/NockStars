@@ -7,7 +7,21 @@ import {
 	CLOUDINARY_API_KEY,
 	CLOUDINARY_API_SECRET
 } from '$env/static/private';
-import { and, asc, count, desc, eq, inArray, like, max, sql } from 'drizzle-orm';
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	inArray,
+	isNotNull,
+	isNull,
+	like,
+	lt,
+	max,
+	sql
+} from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import { addProductToCatalog } from './catalog';
 import type {
 	VariantComplete,
@@ -38,6 +52,13 @@ type GetProductsOptions = {
 	limit?: number;
 	search?: string;
 	catalogId?: string;
+	/**
+	 * 'active' (the default) hides soft-deleted products — that is the
+	 * storefront contract, and the safe default for any new caller. Admin
+	 * screens pass 'all' so deactivated rows stay listed, flagged, and
+	 * reactivateable.
+	 */
+	visibility?: 'active' | 'all';
 };
 
 export type CreateProductOptions = {
@@ -60,7 +81,9 @@ export async function createProduct(
 		price: price,
 		stock: stock,
 		specs: options.specs ?? {},
-		createdAt: new Date()
+		createdAt: new Date(),
+		// New products are listed straight away.
+		deactivatedAt: null
 	};
 
 	await getDb().insert(table.product).values(product).execute();
@@ -201,10 +224,19 @@ export async function reorderImgs(productId: string, orderedIds: string[]) {
 }
 
 export async function getProducts(options: GetProductsOptions = {}) {
-	const { page = 1, limit = 5, search, catalogId } = options;
+	const { page = 1, limit = 5, search, catalogId, visibility = 'active' } = options;
 	const offset = (page - 1) * limit;
 	const db = getDb();
 	const pattern = search ? `%${search}%` : null;
+
+	// Folds the visibility filter into each branch's own condition. The
+	// product-table predicate applies to both the page query and its count, so
+	// the totals agree with the rows the caller actually sees.
+	const activeCondition = visibility === 'all' ? undefined : isNull(table.product.deactivatedAt);
+	const withVisibility = (condition?: SQL): SQL | undefined => {
+		if (!activeCondition) return condition;
+		return condition ? and(condition, activeCondition) : activeCondition;
+	};
 
 	let productsQuery;
 	let countQuery;
@@ -214,14 +246,14 @@ export async function getProducts(options: GetProductsOptions = {}) {
 			productsQuery = db
 				.select()
 				.from(table.product)
-				.where(like(table.product.name, pattern))
+				.where(withVisibility(like(table.product.name, pattern)))
 				.limit(limit)
 				.offset(offset)
 				.orderBy(desc(table.product.createdAt));
 			countQuery = db
 				.select({ total: count() })
 				.from(table.product)
-				.where(like(table.product.name, pattern));
+				.where(withVisibility(like(table.product.name, pattern)));
 		} else {
 			productsQuery = db
 				.select({
@@ -231,12 +263,15 @@ export async function getProducts(options: GetProductsOptions = {}) {
 					price: table.product.price,
 					stock: table.product.stock,
 					specs: table.product.specs,
-					createdAt: table.product.createdAt
+					createdAt: table.product.createdAt,
+					deactivatedAt: table.product.deactivatedAt
 				})
 				.from(table.product)
 				.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
 				.where(
-					and(eq(table.productCatalog.catalogId, catalogId), like(table.product.name, pattern))
+					withVisibility(
+						and(eq(table.productCatalog.catalogId, catalogId), like(table.product.name, pattern))
+					)
 				)
 				.limit(limit)
 				.offset(offset)
@@ -246,17 +281,20 @@ export async function getProducts(options: GetProductsOptions = {}) {
 				.from(table.product)
 				.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
 				.where(
-					and(eq(table.productCatalog.catalogId, catalogId), like(table.product.name, pattern))
+					withVisibility(
+						and(eq(table.productCatalog.catalogId, catalogId), like(table.product.name, pattern))
+					)
 				);
 		}
 	} else if (!catalogId) {
 		productsQuery = db
 			.select()
 			.from(table.product)
+			.where(withVisibility())
 			.limit(limit)
 			.offset(offset)
 			.orderBy(desc(table.product.createdAt));
-		countQuery = db.select({ total: count() }).from(table.product);
+		countQuery = db.select({ total: count() }).from(table.product).where(withVisibility());
 	} else {
 		productsQuery = db
 			.select({
@@ -266,11 +304,12 @@ export async function getProducts(options: GetProductsOptions = {}) {
 				price: table.product.price,
 				stock: table.product.stock,
 				specs: table.product.specs,
-				createdAt: table.product.createdAt
+				createdAt: table.product.createdAt,
+				deactivatedAt: table.product.deactivatedAt
 			})
 			.from(table.product)
 			.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
-			.where(eq(table.productCatalog.catalogId, catalogId))
+			.where(withVisibility(eq(table.productCatalog.catalogId, catalogId)))
 			.limit(limit)
 			.offset(offset)
 			.orderBy(desc(table.product.createdAt));
@@ -278,7 +317,7 @@ export async function getProducts(options: GetProductsOptions = {}) {
 			.select({ total: count() })
 			.from(table.product)
 			.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
-			.where(eq(table.productCatalog.catalogId, catalogId));
+			.where(withVisibility(eq(table.productCatalog.catalogId, catalogId)));
 	}
 
 	const [products, countRows] = await Promise.all([productsQuery, countQuery]);
@@ -335,7 +374,97 @@ export async function updateProduct(options: UpdateProductOptions) {
 	}
 }
 
-export async function deleteProduct(id: string) {
+/**
+ * Toggles the soft-delete flag of a product.
+ *
+ * Deactivating is what the admin "eliminar" flow now does: the row (and every
+ * order or cart line that points at it) survives, the storefront stops listing
+ * it, and the backoffice keeps showing it flagged as inactive.
+ */
+export async function setProductActive(
+	productId: string,
+	active: boolean
+): Promise<ProductActionResult<void>> {
+	const [product] = await getDb()
+		.select({ id: table.product.id })
+		.from(table.product)
+		.where(eq(table.product.id, productId))
+		.execute();
+
+	if (!product) {
+		return failure(ProductErrorCode.NOT_FOUND, 'Producto no encontrado');
+	}
+
+	await getDb()
+		.update(table.product)
+		.set({ deactivatedAt: active ? null : new Date() })
+		.where(eq(table.product.id, productId))
+		.execute();
+
+	return success(undefined);
+}
+
+/**
+ * Permanently deletes a product, refusing when it is still active or when
+ * anything references it.
+ *
+ * `order_item.product_id` and `cart_item.product_id` are ON DELETE CASCADE, so
+ * a bare delete would take those rows along: order lines would silently vanish
+ * from history and cart lines from the session. That is the exact damage
+ * soft-delete exists to prevent, so a referenced product must stay even when
+ * deactivated, and an active one must be deactivated before anything else.
+ * Only unreferenced inactive products are removed.
+ */
+export async function deleteProduct(id: string): Promise<ProductActionResult<void>> {
+	const [product] = await getDb()
+		.select({ id: table.product.id, deactivatedAt: table.product.deactivatedAt })
+		.from(table.product)
+		.where(eq(table.product.id, id))
+		.execute();
+
+	if (!product) {
+		return failure(ProductErrorCode.NOT_FOUND, 'Producto no encontrado');
+	}
+
+	const [orderRef] = await getDb()
+		.select({ id: table.orderItem.id })
+		.from(table.orderItem)
+		.where(eq(table.orderItem.productId, id))
+		.limit(1)
+		.execute();
+	if (orderRef) {
+		return failure(
+			ProductErrorCode.REFERENTIAL_INTEGRITY,
+			product.deactivatedAt
+				? 'No se puede eliminar el producto: figura en pedidos y el historial depende de él.'
+				: 'No se puede eliminar el producto: figura en pedidos. Desactivalo en su lugar.'
+		);
+	}
+
+	const [cartRef] = await getDb()
+		.select({ id: table.cartItem.id })
+		.from(table.cartItem)
+		.where(eq(table.cartItem.productId, id))
+		.limit(1)
+		.execute();
+	if (cartRef) {
+		return failure(
+			ProductErrorCode.REFERENTIAL_INTEGRITY,
+			product.deactivatedAt
+				? 'No se puede eliminar el producto: está en un carrito y el carrito depende de él.'
+				: 'No se puede eliminar el producto: está en un carrito. Desactivalo en su lugar.'
+		);
+	}
+
+	// Reference checks come first: they are the harder blocker, since the row
+	// must stay even after deactivation. This one is the "prescindible" gate.
+	if (!product.deactivatedAt) {
+		return failure(
+			ProductErrorCode.NOT_INACTIVE,
+			'Desactivalo antes de eliminarlo permanentemente'
+		);
+	}
+
 	const imgs = await getImgs(id);
 	for (const img of imgs) {
 		await deleteImg(img.id);
@@ -358,6 +487,42 @@ export async function deleteProduct(id: string) {
 		.execute();
 
 	await getDb().delete(table.product).where(eq(table.product.id, id)).execute();
+
+	return success(undefined);
+}
+
+/**
+ * Deletes inactive products older than `olderThanDays`, one by one through the
+ * guarded `deleteProduct`.
+ *
+ * Products still referenced by an order or a cart are reported as `skipped`
+ * rather than forced: their rows are the only thing keeping that history
+ * readable, so they stay until the reference goes away.
+ */
+export async function purgeInactiveProducts(
+	options: { olderThanDays?: number } = {}
+): Promise<{ purged: string[]; skipped: string[] }> {
+	const olderThanDays = options.olderThanDays ?? 30;
+	const cutoff = new Date(Date.now() - olderThanDays * 86_400_000);
+
+	const candidates = await getDb()
+		.select({ id: table.product.id })
+		.from(table.product)
+		.where(and(isNotNull(table.product.deactivatedAt), lt(table.product.deactivatedAt, cutoff)))
+		.execute();
+
+	const purged: string[] = [];
+	const skipped: string[] = [];
+	for (const candidate of candidates) {
+		const result = await deleteProduct(candidate.id);
+		if (result.success) {
+			purged.push(candidate.id);
+		} else {
+			skipped.push(candidate.id);
+		}
+	}
+
+	return { purged, skipped };
 }
 
 export async function getImgs(productId: string) {
@@ -438,15 +603,24 @@ function extractPublicId(url: string): string {
 // ============================================================================
 
 /**
- * Gets a product with all its variants and images, plus the implicit variant
+ * Gets a product with all its variants and images, plus the implicit variant.
+ *
+ * Soft-deleted products are a miss by default: that is what turns the public
+ * product page into a 404. The admin detail page passes `includeInactive` so a
+ * deactivated product stays reachable (and reactivatable) from the backoffice.
  */
 export async function getProductWithVariants(
-	productId: string
+	productId: string,
+	options: { includeInactive?: boolean } = {}
 ): Promise<ProductWithVariants | null> {
 	const [product] = await getDb()
 		.select()
 		.from(table.product)
-		.where(eq(table.product.id, productId))
+		.where(
+			options.includeInactive
+				? eq(table.product.id, productId)
+				: and(eq(table.product.id, productId), isNull(table.product.deactivatedAt))
+		)
 		.execute();
 
 	if (!product) {
@@ -461,7 +635,9 @@ export async function getProductWithVariants(
 		.orderBy(asc(table.img.sortOrder))
 		.execute();
 
-	const variants = await getVariantsByProduct(productId);
+	const variants = await getVariantsByProduct(productId, {
+		visibility: options.includeInactive ? 'all' : 'active'
+	});
 	const implicitVariant = resolveImplicitVariant(product);
 
 	return {
@@ -472,14 +648,37 @@ export async function getProductWithVariants(
 	};
 }
 
+type GetVariantsOptions = {
+	/**
+	 * 'active' (the default) hides soft-deleted variants — the storefront
+	 * contract, and the safe default for any new caller. Admin screens pass
+	 * 'all' so deactivated rows stay listed, flagged, and reactivateable.
+	 */
+	visibility?: 'active' | 'all';
+};
+
 /**
- * Gets all variants for a product with their images
+ * Gets all variants for a product with their images.
+ *
+ * Soft-deleted variants are hidden unless `visibility: 'all'` is passed, so
+ * the storefront never offers one while the backoffice still lists it.
  */
-export async function getVariantsByProduct(productId: string): Promise<VariantComplete[]> {
+export async function getVariantsByProduct(
+	productId: string,
+	options: GetVariantsOptions = {}
+): Promise<VariantComplete[]> {
+	const { visibility = 'active' } = options;
 	const variantRows = await getDb()
 		.select()
 		.from(table.productVariant)
-		.where(eq(table.productVariant.productId, productId))
+		.where(
+			visibility === 'all'
+				? eq(table.productVariant.productId, productId)
+				: and(
+						eq(table.productVariant.productId, productId),
+						isNull(table.productVariant.deactivatedAt)
+					)
+		)
 		.orderBy(table.productVariant.sortOrder, table.productVariant.createdAt)
 		.execute();
 
@@ -564,7 +763,9 @@ export async function createVariant(
 		priceOverride: priceOverride !== undefined ? priceOverride.toFixed(2) : null,
 		sortOrder,
 		createdAt: now,
-		updatedAt: now
+		updatedAt: now,
+		// New variants are listed straight away.
+		deactivatedAt: null
 	};
 
 	await getDb().insert(table.productVariant).values(variant).execute();
@@ -662,6 +863,41 @@ export async function updateVariant(
 }
 
 /**
+ * Toggles the soft-delete flag of a variant.
+ *
+ * Deactivating is what the admin variant "eliminar" flow now does: the row
+ * (and every order or cart line that points at it) survives, the storefront
+ * stops offering it, and the backoffice keeps showing it flagged as inactive.
+ *
+ * Deactivation also demotes `sortOrder` to 999, so the variant sinks to the
+ * bottom of every admin list ordered by `sortOrder, createdAt` and no longer
+ * reads as a "main" variant. Reactivation keeps the demoted rank: no original
+ * order is stored, and the edit form lets the admin re-rank if needed.
+ */
+export async function setVariantActive(
+	variantId: string,
+	active: boolean
+): Promise<ProductActionResult<void>> {
+	const [variant] = await getDb()
+		.select({ id: table.productVariant.id })
+		.from(table.productVariant)
+		.where(eq(table.productVariant.id, variantId))
+		.execute();
+
+	if (!variant) {
+		return failure(ProductErrorCode.VARIANT_NOT_FOUND, 'Variante no encontrada');
+	}
+
+	await getDb()
+		.update(table.productVariant)
+		.set(active ? { deactivatedAt: null } : { deactivatedAt: new Date(), sortOrder: 999 })
+		.where(eq(table.productVariant.id, variantId))
+		.execute();
+
+	return success(undefined);
+}
+
+/**
  * Destroys the Cloudinary assets behind a variant's images.
  *
  * Best-effort by design: a failed destroy must never block the DB delete, so the
@@ -701,19 +937,16 @@ export async function deleteVariantImg(id: string) {
 }
 
 /**
- * Deletes a product variant (checks referential integrity)
+ * Returns the failure that blocks deleting a variant — still referenced by a
+ * cart or an order — or null when nothing references it.
+ *
+ * Shared by `deleteVariant` and `purgeInactiveVariants` so both paths agree
+ * on which references protect a row: those rows are the only thing keeping
+ * cart and order history readable, so neither path may force them out.
  */
-export async function deleteVariant(variantId: string): Promise<ProductActionResult<void>> {
-	const [variant] = await getDb()
-		.select()
-		.from(table.productVariant)
-		.where(eq(table.productVariant.id, variantId))
-		.execute();
-
-	if (!variant) {
-		return failure(ProductErrorCode.VARIANT_NOT_FOUND, 'Variante no encontrada');
-	}
-
+async function variantDeletionBlocker(
+	variantId: string
+): Promise<ProductActionResult<void> | null> {
 	// Check referential integrity: cart_items
 	const [cartItemRef] = await getDb()
 		.select({ id: table.cartItem.id })
@@ -744,17 +977,92 @@ export async function deleteVariant(variantId: string): Promise<ProductActionRes
 		);
 	}
 
+	return null;
+}
+
+/**
+ * Hard-deletes a variant row: its Cloudinary assets first (they do not
+ * cascade), then the `variant_img` rows and the variant itself.
+ */
+async function hardDeleteVariant(variantId: string): Promise<void> {
 	// Delete variant images first (cascade should handle this, but explicit is safer)
 	await destroyVariantImgs(variantId);
 	await getDb().delete(table.variantImg).where(eq(table.variantImg.variantId, variantId)).execute();
 
-	// Delete variant
 	await getDb()
 		.delete(table.productVariant)
 		.where(eq(table.productVariant.id, variantId))
 		.execute();
+}
+
+/**
+ * Deletes a product variant (checks referential integrity).
+ *
+ * Deliberately does NOT require the variant to be inactive: `VariantModal`
+ * rolls back a failed create by deleting the just-created ACTIVE orphan row
+ * through this path. The admin UI gates permanent deletion instead — the
+ * "Eliminar permanentemente" button only appears once the variant is inactive —
+ * while the reference guards below protect order and cart history either way.
+ */
+export async function deleteVariant(variantId: string): Promise<ProductActionResult<void>> {
+	const [variant] = await getDb()
+		.select()
+		.from(table.productVariant)
+		.where(eq(table.productVariant.id, variantId))
+		.execute();
+
+	if (!variant) {
+		return failure(ProductErrorCode.VARIANT_NOT_FOUND, 'Variante no encontrada');
+	}
+
+	const blocker = await variantDeletionBlocker(variantId);
+	if (blocker) {
+		return blocker;
+	}
+
+	await hardDeleteVariant(variantId);
 
 	return success(undefined);
+}
+
+/**
+ * Deletes inactive variants older than `olderThanDays`, one by one through the
+ * guard `deleteVariant` shares via `variantDeletionBlocker`.
+ *
+ * Variants still referenced by an order or a cart are reported as `skipped`
+ * rather than forced: their rows are the only thing keeping that history
+ * readable, so they stay until the reference goes away.
+ */
+export async function purgeInactiveVariants(
+	options: { olderThanDays?: number } = {}
+): Promise<{ purged: string[]; skipped: string[] }> {
+	const olderThanDays = options.olderThanDays ?? 30;
+	const cutoff = new Date(Date.now() - olderThanDays * 86_400_000);
+
+	const candidates = await getDb()
+		.select({ id: table.productVariant.id })
+		.from(table.productVariant)
+		.where(
+			and(
+				isNotNull(table.productVariant.deactivatedAt),
+				lt(table.productVariant.deactivatedAt, cutoff)
+			)
+		)
+		.execute();
+
+	const purged: string[] = [];
+	const skipped: string[] = [];
+	for (const candidate of candidates) {
+		const blocker = await variantDeletionBlocker(candidate.id);
+		if (blocker) {
+			skipped.push(candidate.id);
+			continue;
+		}
+		await hardDeleteVariant(candidate.id);
+		purged.push(candidate.id);
+	}
+
+	return { purged, skipped };
 }
 
 /**

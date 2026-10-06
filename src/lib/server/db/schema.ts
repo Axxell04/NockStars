@@ -58,7 +58,12 @@ export const product = pgTable('product', {
 		.$type<ProductSpecs>()
 		.notNull()
 		.default(sql`'{}'::jsonb`),
-	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
+	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+	// Soft delete: NULL means the product is active, a timestamp means it was
+	// deactivated (and when — the purge uses that age). Keeping the row is what
+	// lets a product vanish from the storefront while its order and cart lines
+	// keep resolving it.
+	deactivatedAt: timestamp('deactivated_at', { withTimezone: true, mode: 'date' })
 });
 
 export const img = pgTable(
@@ -114,7 +119,10 @@ export const productVariant = pgTable(
 		priceOverride: decimal('price_override', { precision: 10, scale: 2 }),
 		sortOrder: integer('sort_order').notNull().default(0),
 		createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-		updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
+		updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+		// Soft delete: NULL = active, timestamp = when it was deactivated (and
+		// when — the purge uses that age).
+		deactivatedAt: timestamp('deactivated_at', { withTimezone: true, mode: 'date' })
 	},
 	(table) => ({
 		uniqueProductSizeColorCut: uniqueIndex('product_variant_unique_product_size_color_cut').on(

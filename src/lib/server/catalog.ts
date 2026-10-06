@@ -74,6 +74,9 @@ export async function removeProductFromCatalog(productId: string, catalogId: str
  * query. A product id missing from the result has no variants at all — which
  * is distinct from a product whose variants sum to 0 — so callers must fall
  * back to the base stock instead of treating the miss as a zero.
+ *
+ * Only active variants count: a deactivated variant's stock is not sellable,
+ * so including it would advertise units the storefront will not offer.
  */
 async function getVariantStockTotals(productIds: string[]): Promise<Map<string, number>> {
 	// `inArray` with an empty array is a SQL footgun, and there is nothing to
@@ -88,7 +91,12 @@ async function getVariantStockTotals(productIds: string[]): Promise<Map<string, 
 			total: sql<number>`sum(${table.productVariant.stock})`
 		})
 		.from(table.productVariant)
-		.where(inArray(table.productVariant.productId, productIds))
+		.where(
+			and(
+				inArray(table.productVariant.productId, productIds),
+				isNull(table.productVariant.deactivatedAt)
+			)
+		)
 		.groupBy(table.productVariant.productId)
 		.execute();
 
@@ -104,7 +112,8 @@ export async function getProductsByCatalog(catalogId: string) {
 			name: table.product.name,
 			price: table.product.price,
 			stock: table.product.stock,
-			createdAt: table.product.createdAt
+			createdAt: table.product.createdAt,
+			deactivatedAt: table.product.deactivatedAt
 		})
 		.from(table.product)
 		.innerJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
@@ -145,7 +154,8 @@ export async function getProductsWithoutCatalog() {
 			name: table.product.name,
 			price: table.product.price,
 			stock: table.product.stock,
-			createdAt: table.product.createdAt
+			createdAt: table.product.createdAt,
+			deactivatedAt: table.product.deactivatedAt
 		})
 		.from(table.product)
 		.leftJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))

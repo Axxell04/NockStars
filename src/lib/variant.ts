@@ -37,6 +37,9 @@ export function resolveImplicitVariant(product: Product): VariantComplete {
 		sortOrder: -1,
 		createdAt: product.createdAt ?? new Date(),
 		updatedAt: product.createdAt ?? new Date(),
+		// The implicit variant mirrors the product row, which `load` already
+		// filtered to active products — it is never itself deactivated.
+		deactivatedAt: null,
 		images: []
 	};
 }

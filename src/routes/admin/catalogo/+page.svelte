@@ -2,6 +2,7 @@
 	import { fade } from 'svelte/transition';
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
 	import Icon from '@iconify/svelte';
 	import type { Catalog } from '$lib/interfaces/catalog';
 	import type { ProductComplete } from '$lib/interfaces/product';
@@ -45,6 +46,18 @@
 	let productsLoading = $state(false);
 	let variantsLoading = $state(false);
 
+	// Outcome of the purge action, shown next to its button and auto-cleared.
+	let purgeMessage = $state('');
+
+	$effect(() => {
+		if (purgeMessage) {
+			const timeout = setTimeout(() => {
+				purgeMessage = '';
+			}, 6000);
+			return () => clearTimeout(timeout);
+		}
+	});
+
 	// Fixed placeholder counts — they communicate "loading", they do not predict
 	// the real list length.
 	const PRODUCT_SKELETONS = Array.from({ length: 6 }, (_, i) => i);
@@ -57,7 +70,6 @@
 
 	let addProductModalIsVisible = $state(false);
 	let deleteProductModalIsVisible = $state(false);
-	let editProductModalIsVisible = $state(false);
 
 	let addVariantModalIsVisible = $state(false);
 	let deleteVariantModalIsVisible = $state(false);
@@ -65,7 +77,6 @@
 
 	// Form action references for enhance callbacks
 	let addProductForm: HTMLFormElement | undefined = $state();
-	let updateProductForm: HTMLFormElement | undefined = $state();
 	let deleteProductForm: HTMLFormElement | undefined = $state();
 
 	// Selection functions
@@ -85,6 +96,12 @@
 		productSelected = product;
 		// Load variants for this product
 		loadVariants(product.product.id);
+	}
+
+	// Editing happens in the full editor view. The card only has to get there
+	// with a way back, which that view resolves on save and on "Volver".
+	function goToEditProduct(product: ProductComplete) {
+		goto(`/admin/producto/${product.product.id}?returnTo=${encodeURIComponent('/admin/catalogo')}`);
 	}
 
 	function setCatalogs(newCatalogs: Catalog[]) {
@@ -137,14 +154,6 @@
 			deleteProductModalIsVisible = visible;
 		} else {
 			deleteProductModalIsVisible = !deleteProductModalIsVisible;
-		}
-	}
-
-	function toggleEditProductModalIsVisible(visible?: boolean) {
-		if (typeof visible !== 'undefined') {
-			editProductModalIsVisible = visible;
-		} else {
-			editProductModalIsVisible = !editProductModalIsVisible;
 		}
 	}
 
@@ -234,27 +243,58 @@
 		};
 	}
 
-	function handleUpdateProductEnhance() {
-		return async (input: unknown) => {
-			const { result } = input as { result: { type: string; data?: { success?: boolean } } };
-			if (result.type === 'success' && result.data?.success) {
-				toggleEditProductModalIsVisible(false);
-				await loadProducts(catalogSelected?.id);
-			}
-		};
-	}
-
-	function handleDeleteProductEnhance() {
+	// Deactivating keeps the row, so the selection and its variants stay valid
+	// and only the list needs a refresh. Permanent delete removes the row: the
+	// refreshed list no longer holds it, so the selection goes with it.
+	function handleSetActiveEnhance() {
 		return async (input: unknown) => {
 			const { result } = input as { result: { type: string; data?: { success?: boolean } } };
 			if (result.type === 'success' && result.data?.success) {
 				toggleDeleteProductModalIsVisible(false);
-				// Capture the deleted product before awaiting: the selection may change meanwhile.
-				const deletedProductId = productSelected?.product.id;
+				const productId = productSelected?.product.id;
 				await loadProducts(catalogSelected?.id);
-				if (deletedProductId && productSelected?.product.id === deletedProductId) {
-					productSelected = undefined;
-					variants = [];
+				if (productId) {
+					const refreshed = products.find((entry) => entry.product.id === productId);
+					if (refreshed) {
+						productSelected = refreshed;
+					} else {
+						clearProductSelection();
+					}
+				}
+			}
+		};
+	}
+
+	// The purge removes rows (products and their inactive variants), so
+	// anything selected from them has to go too.
+	function handlePurgeEnhance() {
+		return async (input: unknown) => {
+			const { result } = input as {
+				result: {
+					type: string;
+					data?: {
+						success?: boolean;
+						purged?: number;
+						skipped?: number;
+						purgedVariants?: number;
+						skippedVariants?: number;
+					};
+				};
+			};
+			if (result.type === 'success' && result.data?.success) {
+				const { purged = 0, skipped = 0, purgedVariants = 0, skippedVariants = 0 } = result.data;
+				purgeMessage =
+					purged === 0 && skipped === 0 && purgedVariants === 0 && skippedVariants === 0
+						? 'No hay productos ni variantes inactivos antiguos para purgar.'
+						: `Productos eliminados: ${purged}. Conservados por tener pedidos o carrito: ${skipped}. Variantes eliminadas: ${purgedVariants}. Conservadas: ${skippedVariants}.`;
+				const selectedId = productSelected?.product.id;
+				await loadProducts(catalogSelected?.id);
+				if (selectedId && !products.some((entry) => entry.product.id === selectedId)) {
+					clearProductSelection();
+				} else if (selectedId) {
+					// The product survived, but its own deactivated variants may not
+					// have — refresh the list so the tab never shows purged rows.
+					await loadVariants(selectedId);
 				}
 			}
 		};
@@ -491,7 +531,16 @@
 				{/if}
 			</div>
 			<div class="min-w-0 flex-1">
-				<h4 class="text-text-primary truncate font-semibold">{product.product.name}</h4>
+				<div class="flex items-center gap-2">
+					<h4 class="text-text-primary truncate font-semibold">{product.product.name}</h4>
+					{#if product.product.deactivatedAt}
+						<span
+							class="shrink-0 rounded-full bg-red-500/85 px-2 py-0.5 text-[0.6rem] font-semibold tracking-wide text-white uppercase"
+						>
+							Inactivo
+						</span>
+					{/if}
+				</div>
 				<p class="text-brand-400 mt-1 font-semibold">
 					{product.product.price.toFixed(2)} $
 				</p>
@@ -505,16 +554,17 @@
 					aria-label="Editar producto"
 					onclick={(e) => {
 						e.stopPropagation();
-						productSelected = product;
-						toggleEditProductModalIsVisible(true);
+						goToEditProduct(product);
 					}}
 					onfocus={(e) => cancelFocus(e)}
 				>
 					<Icon icon="mdi:pencil-outline" class="text-xl" />
 				</button>
 				<button
-					class="text-text-muted hover:text-text-error text-sm transition-colors"
-					aria-label="Eliminar producto"
+					class="text-text-muted text-sm transition-colors {product.product.deactivatedAt
+						? 'hover:text-brand-400'
+						: 'hover:text-text-error'}"
+					aria-label={product.product.deactivatedAt ? 'Reactivar producto' : 'Desactivar producto'}
 					onclick={(e) => {
 						e.stopPropagation();
 						productSelected = product;
@@ -522,7 +572,10 @@
 					}}
 					onfocus={(e) => cancelFocus(e)}
 				>
-					<Icon icon="mdi:delete-outline" class="text-xl" />
+					<Icon
+						icon={product.product.deactivatedAt ? 'mdi:eye-outline' : 'mdi:eye-off-outline'}
+						class="text-xl"
+					/>
 				</button>
 			</div>
 		</div>
@@ -535,19 +588,39 @@
 				<h3 class="text-text-primary truncate text-base font-semibold sm:text-lg">
 					{catalogSelected ? catalogSelected.name : 'Sin catálogo'}
 				</h3>
-				<a
-					href={catalogSelected
-						? '/admin/producto/nuevo'
-						: '/admin/producto/nuevo?returnTo=%2Fadmin%2Fcatalogo'}
-					class="btn-primary w-full justify-center text-center sm:w-auto"
-					onfocus={(e) => cancelFocus(e)}
-				>
-					<Icon icon="material-symbols:add-rounded" class="text-xl" />
-					<span>
-						{catalogSelected ? 'Añadir Producto' : 'Agregar producto sin catálogo'}
-					</span>
-				</a>
+				<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+					<a
+						href={catalogSelected
+							? '/admin/producto/nuevo'
+							: '/admin/producto/nuevo?returnTo=%2Fadmin%2Fcatalogo'}
+						class="btn-primary w-full justify-center text-center sm:w-auto"
+						onfocus={(e) => cancelFocus(e)}
+					>
+						<Icon icon="material-symbols:add-rounded" class="text-xl" />
+						<span>
+							{catalogSelected ? 'Añadir Producto' : 'Agregar producto sin catálogo'}
+						</span>
+					</a>
+					<!-- Deactivation only hides products; this is the one place they
+					     disappear for good, and only once nothing references them. -->
+					<form action="?/purge_inactive_products" method="post" use:enhance={handlePurgeEnhance}>
+						<button
+							type="submit"
+							class="btn-secondary w-full justify-center text-center sm:w-auto"
+							onfocus={(e) => cancelFocus(e)}
+						>
+							<Icon icon="mdi:delete-sweep-outline" class="text-xl" />
+							<span>Purgar inactivos (30+ días)</span>
+						</button>
+					</form>
+				</div>
 			</div>
+
+			{#if purgeMessage}
+				<p class="text-text-muted text-sm" transition:fade={{ duration: 200 }}>
+					{purgeMessage}
+				</p>
+			{/if}
 
 			<div class="flex grow flex-wrap justify-center gap-3 p-2">
 				{#if productsLoading}
@@ -668,7 +741,11 @@
 									{/each}
 								{:else}
 									{#each variants as variant}
-										<tr class="hover:bg-surface-1/50 border-b border-white/4 transition-colors">
+										<tr
+											class="hover:bg-surface-1/50 border-b border-white/4 transition-colors {variant.deactivatedAt
+												? 'opacity-60'
+												: 'opacity-100'}"
+										>
 											<td class="px-2 py-3">
 												{#if variant.images.length > 0}
 													<img
@@ -690,7 +767,18 @@
 													</div>
 												{/if}
 											</td>
-											<td class="text-text-primary px-2 py-3 font-medium">{variant.size}</td>
+											<td class="text-text-primary px-2 py-3 font-medium">
+												<span class="inline-flex items-center gap-2">
+													{variant.size}
+													{#if variant.deactivatedAt}
+														<span
+															class="shrink-0 rounded-full bg-red-500/85 px-2 py-0.5 text-[0.6rem] font-semibold tracking-wide text-white uppercase"
+														>
+															Inactivo
+														</span>
+													{/if}
+												</span>
+											</td>
 											<td class="text-text-primary px-2 py-3">
 												<span
 													class="inline-flex items-center gap-2 rounded-full border border-white/4 py-1 pr-2.5 pl-1"
@@ -725,15 +813,24 @@
 														<Icon icon="mdi:pencil-outline" class="text-xl" />
 													</button>
 													<button
-														class="text-text-muted hover:text-text-error transition-colors"
-														aria-label="Eliminar variante"
+														class="text-text-muted text-sm transition-colors {variant.deactivatedAt
+															? 'hover:text-brand-400'
+															: 'hover:text-text-error'}"
+														aria-label={variant.deactivatedAt
+															? 'Reactivar variante'
+															: 'Desactivar variante'}
 														onclick={() => {
 															variantToDelete = variant;
 															toggleDeleteVariantModalIsVisible(true);
 														}}
 														onfocus={(e) => cancelFocus(e)}
 													>
-														<Icon icon="mdi:delete-outline" class="text-xl" />
+														<Icon
+															icon={variant.deactivatedAt
+																? 'mdi:eye-outline'
+																: 'mdi:eye-off-outline'}
+															class="text-xl"
+														/>
 													</button>
 												</div>
 											</td>
@@ -793,7 +890,7 @@
 				<form
 					action="?/add_product"
 					method="post"
-					use:enhance={handleAddProductEnhance()}
+					use:enhance={handleAddProductEnhance}
 					bind:this={addProductForm}
 					class="overflow-y-auto p-4"
 				>
@@ -852,97 +949,6 @@
 		</div>
 	{/if}
 
-	{#if editProductModalIsVisible && productSelected}
-		<div
-			class="bg-surface-0/95 fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
-			transition:fade={{ duration: 200 }}
-		>
-			<div
-				class="glass mx-4 flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/4"
-			>
-				<div class="flex items-center justify-between border-b border-white/4 p-4">
-					<h2 class="text-text-primary text-lg font-semibold">Editar Producto</h2>
-					<button
-						class="text-text-secondary hover:text-brand-400 flex h-10 w-10 items-center justify-center rounded-full transition-colors"
-						onclick={() => toggleEditProductModalIsVisible(false)}
-					>
-						<Icon icon="material-symbols:close-rounded" class="text-xl" />
-					</button>
-				</div>
-				<form
-					action="?/update_product"
-					method="post"
-					use:enhance={handleUpdateProductEnhance()}
-					bind:this={updateProductForm}
-					class="overflow-y-auto p-4"
-				>
-					<input type="hidden" name="productId" value={productSelected.product.id} />
-					<div class="space-y-4">
-						<div>
-							<label for="editProductName" class="text-text-secondary mb-1 block text-sm"
-								>Nombre</label
-							>
-							<input
-								id="editProductName"
-								type="text"
-								name="name"
-								value={productSelected.product.name}
-								required
-								class="bg-surface-2 text-text-primary focus:border-brand-400/50 w-full rounded-lg border border-white/4 px-4 py-2 focus:outline-none"
-							/>
-						</div>
-						<div>
-							<label for="editProductPrice" class="text-text-secondary mb-1 block text-sm"
-								>Precio ($)</label
-							>
-							<input
-								id="editProductPrice"
-								type="number"
-								name="price"
-								step="0.01"
-								min="0"
-								value={productSelected.product.price}
-								required
-								class="bg-surface-2 text-text-primary focus:border-brand-400/50 w-full rounded-lg border border-white/4 px-4 py-2 focus:outline-none"
-							/>
-						</div>
-						<div>
-							{#if productSelected.product.variantStockTotal !== null && productSelected.product.variantStockTotal !== undefined}
-								<div
-									class="text-text-secondary bg-surface-2 mb-3 rounded-lg border border-white/4 px-4 py-2 text-sm"
-								>
-									Stock total de variantes
-									<span class="text-text-primary ml-1 font-semibold tabular-nums">
-										{productSelected.product.variantStockTotal}
-									</span>
-								</div>
-							{/if}
-							<label for="editProductStock" class="text-text-secondary mb-1 block text-sm"
-								>Stock</label
-							>
-							<input
-								id="editProductStock"
-								type="number"
-								name="stock"
-								min="0"
-								value={productSelected.product.stock}
-								class="bg-surface-2 text-text-primary focus:border-brand-400/50 w-full rounded-lg border border-white/4 px-4 py-2 focus:outline-none"
-							/>
-						</div>
-					</div>
-					<div class="mt-6 flex justify-end gap-3">
-						<button
-							type="button"
-							class="btn-secondary"
-							onclick={() => toggleEditProductModalIsVisible(false)}>Cancelar</button
-						>
-						<button type="submit" class="btn-primary">Guardar</button>
-					</div>
-				</form>
-			</div>
-		</div>
-	{/if}
-
 	{#if deleteProductModalIsVisible && productSelected}
 		<div
 			class="bg-surface-0/95 fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"
@@ -952,7 +958,9 @@
 				class="glass mx-4 flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/4"
 			>
 				<div class="flex items-center justify-between border-b border-white/4 p-4">
-					<h2 class="text-text-primary text-lg font-semibold">Eliminar Producto</h2>
+					<h2 class="text-text-primary text-lg font-semibold">
+						{productSelected.product.deactivatedAt ? 'Reactivar Producto' : 'Desactivar Producto'}
+					</h2>
 					<button
 						class="text-text-secondary hover:text-brand-400 flex h-10 w-10 items-center justify-center rounded-full transition-colors"
 						onclick={() => toggleDeleteProductModalIsVisible(false)}
@@ -961,23 +969,52 @@
 					</button>
 				</div>
 				<div class="text-text-secondary p-4">
-					¿Estás seguro de que quieres eliminar "{productSelected.product.name}"? Esta acción no se
-					puede deshacer.
+					{#if productSelected.product.deactivatedAt}
+						¿Reactivar "{productSelected.product.name}"? Volverá a mostrarse en la tienda.
+					{:else}
+						¿Desactivar "{productSelected.product.name}"? Dejará de mostrarse en la tienda, pero los
+						pedidos y el carrito que ya lo incluyen se conservan. Podrás reactivarlo cuando quieras.
+					{/if}
 				</div>
+				{#if productSelected.product.deactivatedAt}
+					<form
+						action="?/delete_product"
+						method="post"
+						use:enhance={handleSetActiveEnhance}
+						class="border-t border-white/4 p-4"
+					>
+						<input type="hidden" name="productId" value={productSelected.product.id} />
+						<button type="submit" class="btn-error w-full" onfocus={(e) => cancelFocus(e)}>
+							Eliminar permanentemente
+						</button>
+						<p class="text-text-muted mt-2 text-center text-xs">
+							Irreversible. Solo se elimina si ningún pedido ni carrito lo referencia.
+						</p>
+					</form>
+				{/if}
 				<form
-					action="?/delete_product"
+					action="?/set_product_active"
 					method="post"
-					use:enhance={handleDeleteProductEnhance()}
+					use:enhance={handleSetActiveEnhance}
 					bind:this={deleteProductForm}
 					class="flex justify-end gap-3 border-t border-white/4 p-4"
 				>
 					<input type="hidden" name="productId" value={productSelected.product.id} />
+					<input
+						type="hidden"
+						name="active"
+						value={productSelected.product.deactivatedAt ? 'true' : 'false'}
+					/>
 					<button
 						type="button"
 						class="btn-secondary"
 						onclick={() => toggleDeleteProductModalIsVisible(false)}>Cancelar</button
 					>
-					<button type="submit" class="btn-error">Eliminar</button>
+					<button
+						type="submit"
+						class={productSelected.product.deactivatedAt ? 'btn-primary' : 'btn-error'}
+						>{productSelected.product.deactivatedAt ? 'Reactivar' : 'Desactivar'}</button
+					>
 				</form>
 			</div>
 		</div>

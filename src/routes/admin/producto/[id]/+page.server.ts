@@ -4,9 +4,10 @@ import {
 	getImgs,
 	bindImg,
 	reorderImgs,
-	deleteProduct as deleteProductRecord,
+	setProductActive as setProductActiveRecord,
 	prepareProductWrite,
-	updateProduct as updateProductRecord
+	updateProduct as updateProductRecord,
+	deleteProduct as deleteProductRecord
 } from '$lib/server/product';
 import { parseSpecRows } from '$lib/product-specs';
 import { redirect, fail } from '@sveltejs/kit';
@@ -17,7 +18,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	}
 
 	const productId = params.id;
-	const product = await getProductWithVariants(productId);
+	// Admin views deactivated products too — they are still editable there.
+	const product = await getProductWithVariants(productId, { includeInactive: true });
 
 	if (!product) {
 		redirect(302, '/admin/catalogo');
@@ -73,9 +75,27 @@ export const actions: Actions = {
 		return { success: true };
 	},
 
+	setProductActive: async ({ request, params }) => {
+		const formData = await request.formData();
+		const active = formData.get('active') === 'true';
+
+		const result = await setProductActiveRecord(params.id, active);
+		if (!result.success) {
+			return fail(400, { message: result.error.message });
+		}
+
+		return { success: true, active };
+	},
+
+	// Permanent removal, offered only once the product is inactive. The client
+	// navigates to its return target on success: the editor has nothing left
+	// to show once the row is gone.
 	deleteProduct: async ({ params }) => {
-		const productId = params.id;
-		await deleteProductRecord(productId);
+		const result = await deleteProductRecord(params.id);
+		if (!result.success) {
+			return fail(400, { message: result.error.message });
+		}
+
 		return { success: true };
 	},
 

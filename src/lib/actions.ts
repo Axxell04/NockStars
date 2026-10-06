@@ -35,7 +35,10 @@ export const ProductErrorCode = {
 	VARIANT_NOT_FOUND: 'VARIANT_NOT_FOUND',
 	INVALID_VARIANT_DATA: 'INVALID_VARIANT_DATA',
 	INVALID_PRODUCT_DATA: 'INVALID_PRODUCT_DATA',
-	REFERENTIAL_INTEGRITY: 'REFERENTIAL_INTEGRITY'
+	REFERENTIAL_INTEGRITY: 'REFERENTIAL_INTEGRITY',
+	// The element is still active: permanent deletion is only for prescindible
+	// (inactive) rows, so the admin must deactivate it first.
+	NOT_INACTIVE: 'NOT_INACTIVE'
 } as const;
 
 export type ProductErrorCode = (typeof ProductErrorCode)[keyof typeof ProductErrorCode];

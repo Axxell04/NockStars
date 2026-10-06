@@ -188,9 +188,20 @@
 	<div
 		class="from-surface-0 via-surface-0/75 pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-row items-end justify-between gap-3 bg-gradient-to-t to-transparent px-4 pt-20 pb-3.5"
 	>
-		<p class="text-text-primary min-w-0 truncate text-base leading-tight font-bold drop-shadow-lg">
-			{product.product.name ?? 'Camisa'}
-		</p>
+		<div class="min-w-0">
+			{#if isAdminRoute && product.product.deactivatedAt}
+				<span
+					class="mb-1 inline-block rounded-full bg-red-500/85 px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide text-white uppercase backdrop-blur-sm"
+				>
+					Inactivo
+				</span>
+			{/if}
+			<p
+				class="text-text-primary min-w-0 truncate text-base leading-tight font-bold drop-shadow-lg"
+			>
+				{product.product.name ?? 'Camisa'}
+			</p>
+		</div>
 		<p class="text-brand-400 text-lg font-bold whitespace-nowrap tabular-nums drop-shadow-lg">
 			{`${product.product.price.toFixed(2)} $`}
 		</p>
@@ -225,9 +236,9 @@
 					toggleDeleteProductModalIsVisible(true);
 				}}
 				onfocus={(e) => cancelFocus(e)}
-				aria-label="Eliminar producto"
+				aria-label={product.product.deactivatedAt ? 'Reactivar producto' : 'Desactivar producto'}
 			>
-				<Icon icon="mdi:delete-outline" />
+				<Icon icon={product.product.deactivatedAt ? 'mdi:eye-outline' : 'mdi:eye-off-outline'} />
 			</button>
 			<button
 				class="text-text-muted hover:text-brand-400 hover:bg-surface-2 rounded-lg p-1.5 transition-colors"

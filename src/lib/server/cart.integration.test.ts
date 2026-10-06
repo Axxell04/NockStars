@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { getDb } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
-import { getCartItemCount } from './cart';
+import { CartErrorCode } from '$lib/actions';
+import { addCartItem, getCartItemCount } from './cart';
+import { setVariantActive } from './product';
 
 /**
  * Seeds a product with one product-level image row so the setup teardown
@@ -66,5 +68,44 @@ describe('getCartItemCount', () => {
 
 	it('returns 0 for a malformed (non-UUID) session cookie', async () => {
 		expect(await getCartItemCount('not-a-uuid')).toBe(0);
+	});
+});
+
+async function seedVariant(productId: string): Promise<string> {
+	const variantId = crypto.randomUUID();
+	await getDb()
+		.insert(table.productVariant)
+		.values({ id: variantId, productId, size: 'M', color: 'Negro', cut: 'oversize', stock: 5 })
+		.execute();
+	return variantId;
+}
+
+describe('addCartItem variant visibility', () => {
+	it('accepts an active variant and rejects the same variant once deactivated', async () => {
+		const sessionId = crypto.randomUUID();
+		const productId = await seedProductWithImage();
+		const variantId = await seedVariant(productId);
+		const cartId = await seedCart(sessionId);
+
+		const added = await addCartItem(cartId, { productId, variantId, quantity: 1 });
+		expect(added.success).toBe(true);
+
+		await setVariantActive(variantId, false);
+
+		const rejected = await addCartItem(cartId, { productId, variantId, quantity: 1 });
+		expect(rejected.success).toBe(false);
+		if (!rejected.success) {
+			expect(rejected.error.code).toBe(CartErrorCode.INVALID_VARIANT);
+			expect(rejected.error.message).toBe('Variant is no longer available');
+		}
+
+		// The rejection happens before any write: the cart still holds only the
+		// line that was added while the variant was active.
+		const lines = await getDb()
+			.select({ id: table.cartItem.id })
+			.from(table.cartItem)
+			.where(eq(table.cartItem.cartId, cartId))
+			.execute();
+		expect(lines).toHaveLength(1);
 	});
 });

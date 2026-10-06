@@ -12,7 +12,8 @@ export const GET: RequestHandler = async (event) => {
 	}
 
 	try {
-		const variants = await getVariantsByProduct(productId);
+		// Admin list: deactivated variants stay visible, flagged as inactive.
+		const variants = await getVariantsByProduct(productId, { visibility: 'all' });
 		return new Response(JSON.stringify({ variants }), {
 			status: 200,
 			headers: { 'Content-Type': 'application/json' }

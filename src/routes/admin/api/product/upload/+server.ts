@@ -29,7 +29,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		await bindImg(productId, url);
 		return json({ success: true });
 	} else if (phase === '3') {
-		const pagination = await getProducts({ catalogId });
+		const pagination = await getProducts({ visibility: 'all', catalogId });
 		return json({ success: true, pagination: pagination });
 	}
 	return json({ success: false, message: "Parámetro 'phase' es incorrecto" });

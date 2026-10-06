@@ -10,6 +10,12 @@ export interface Product {
 	 */
 	variantStockTotal?: number | null;
 	createdAt?: Date | undefined;
+	/**
+	 * Soft-delete marker: null means active, a date is when it was
+	 * deactivated. Optional because only payloads that carry it (the admin
+	 * product lists) set it.
+	 */
+	deactivatedAt?: Date | null;
 }
 
 export interface Img {

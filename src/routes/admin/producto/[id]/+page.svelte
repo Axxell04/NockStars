@@ -25,6 +25,7 @@
 		description: string | null;
 		specs: ProductSpecs;
 		createdAt: Date;
+		deactivatedAt: Date | null;
 		productImages: Array<{ id: string; url: string }>;
 		variants: Array<{
 			id: string;
@@ -313,7 +314,31 @@
 		}
 	}
 
-	async function deleteProduct() {
+	// Soft delete: the record stays, only its storefront visibility changes.
+	async function setProductActive(active: boolean) {
+		const formData = new FormData();
+		formData.set('active', String(active));
+		const res = await fetch(`/admin/producto/${data.product.id}?/setProductActive`, {
+			method: 'POST',
+			body: formData
+		});
+		const payload = await res.json();
+		const result = payload?.data ?? payload ?? {};
+		if (res.ok && (payload?.type === 'success' || result?.success)) {
+			toggleDeleteProductModalIsVisible(false);
+			formMessage = active ? 'Producto reactivado' : 'Producto desactivado';
+			// Re-runs `load` so the badge and the action follow the new state.
+			await invalidateAll();
+		} else {
+			formMessage =
+				result?.message || payload?.message || 'Error al cambiar el estado del producto';
+		}
+	}
+
+	// Permanent delete: offered only once the product is inactive. The row is
+	// gone for good on success, so the editor leaves through the same return
+	// target the save flow uses instead of re-running `load` on a missing row.
+	async function deleteProductPermanently() {
 		const formData = new FormData();
 		const res = await fetch(`/admin/producto/${data.product.id}?/deleteProduct`, {
 			method: 'POST',
@@ -322,11 +347,10 @@
 		const payload = await res.json();
 		const result = payload?.data ?? payload ?? {};
 		if (res.ok && (payload?.type === 'success' || result?.success)) {
-			goto('/admin');
-		} else {
-			formMessage = result?.message || payload?.message || 'Error al eliminar producto';
+			goto(resolveReturnTarget());
+			return;
 		}
-		toggleDeleteProductModalIsVisible(false);
+		formMessage = result?.message || payload?.message || 'Error al eliminar el producto';
 	}
 
 	function goToVariants() {
@@ -639,6 +663,15 @@
 				<fieldset class="bg-surface-1 space-y-3 rounded-xl border border-white/10 p-4">
 					<legend class="text-text-primary mb-2 text-sm font-semibold">Acciones rápidas</legend>
 
+					{#if data.product.deactivatedAt}
+						<div
+							class="flex items-center gap-2 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-300"
+						>
+							<Icon icon="mdi:eye-off-outline" class="text-lg" />
+							Inactivo: no se muestra en la tienda.
+						</div>
+					{/if}
+
 					<button
 						onclick={goToVariants}
 						class="text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:border-brand-400/30 flex w-full items-center gap-2 rounded-lg border border-white/10 px-3 py-2 transition-colors"
@@ -658,10 +691,16 @@
 
 					<button
 						onclick={() => toggleDeleteProductModalIsVisible(true)}
-						class="flex w-full items-center gap-2 rounded-lg border border-red-400/30 px-3 py-2 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+						class="flex w-full items-center gap-2 rounded-lg border px-3 py-2 transition-colors {data
+							.product.deactivatedAt
+							? 'border-emerald-400/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300'
+							: 'border-red-400/30 text-red-400 hover:bg-red-500/10 hover:text-red-300'}"
 					>
-						<Icon icon="mdi:delete" class="text-lg" />
-						Eliminar producto
+						<Icon
+							icon={data.product.deactivatedAt ? 'mdi:eye-outline' : 'mdi:eye-off-outline'}
+							class="text-lg"
+						/>
+						{data.product.deactivatedAt ? 'Reactivar producto' : 'Desactivar producto'}
 					</button>
 				</fieldset>
 
@@ -682,17 +721,27 @@
 	</main>
 </div>
 
-<!-- Delete Product Confirmation Modal -->
+<!-- Activation state confirmation modal: soft delete in one direction, restore in the other -->
 {#if deleteProductModalIsVisible}
 	<div transition:fade={{ duration: 200 }}>
 		<ContainerModal toggleModal={toggleDeleteProductModalIsVisible} cancelClick={true}>
 			<div class="bg-surface-1 max-w-md space-y-4 rounded-xl border border-white/10 p-6">
-				<h2 class="text-text-primary text-lg font-semibold">Eliminar producto</h2>
+				<h2 class="text-text-primary text-lg font-semibold">
+					{data.product.deactivatedAt ? 'Reactivar producto' : 'Desactivar producto'}
+				</h2>
 				<p class="text-text-secondary">
-					¿Estás seguro de que quieres eliminar <strong>"{data.product.name}"</strong>? Esta acción
-					eliminará el producto, todas sus variantes, imágenes asociadas y no se puede deshacer.
+					{#if data.product.deactivatedAt}
+						¿Reactivar <strong>"{data.product.name}"</strong>? Volverá a mostrarse en la tienda.
+					{:else}
+						¿Desactivar <strong>"{data.product.name}"</strong>? Dejará de mostrarse en la tienda,
+						pero sus variantes, imágenes, pedidos y carrito se conservan. Podrás reactivarlo cuando
+						quieras.
+					{/if}
 				</p>
-				<div class="flex justify-end gap-3 pt-2">
+				{#if formMessage}
+					<p class="text-text-error text-sm">{formMessage}</p>
+				{/if}
+				<div class="flex flex-wrap justify-end gap-3 pt-2">
 					<button
 						onclick={() => toggleDeleteProductModalIsVisible(false)}
 						class="text-text-secondary hover:bg-surface-2 hover:text-text-primary rounded-lg border border-white/10 px-4 py-2 transition-colors"
@@ -700,11 +749,21 @@
 						Cancelar
 					</button>
 					<button
-						onclick={deleteProduct}
-						class="rounded-lg bg-red-500 px-4 py-2 text-white transition-colors hover:bg-red-600"
+						onclick={() => setProductActive(!data.product.deactivatedAt)}
+						class="rounded-lg px-4 py-2 text-white transition-colors {data.product.deactivatedAt
+							? 'bg-emerald-600 hover:bg-emerald-500'
+							: 'bg-red-500 hover:bg-red-600'}"
 					>
-						Eliminar
+						{data.product.deactivatedAt ? 'Reactivar' : 'Desactivar'}
 					</button>
+					{#if data.product.deactivatedAt}
+						<button
+							onclick={deleteProductPermanently}
+							class="rounded-lg border border-red-400/30 px-4 py-2 text-red-400 transition-colors hover:bg-red-500/10"
+						>
+							Eliminar permanentemente
+						</button>
+					{/if}
 				</div>
 			</div>
 		</ContainerModal>

@@ -1,0 +1,1 @@
+ALTER TABLE "product_variant" ADD COLUMN "deactivated_at" timestamp with time zone;

@@ -6,6 +6,7 @@ import {
 	deleteProduct,
 	getImgs,
 	getProducts,
+	setProductActive,
 	updateProduct
 } from '$lib/server/product';
 import { addProductToCatalog, getCatalogs, removeProductFromCatalog } from '$lib/server/catalog';
@@ -18,7 +19,7 @@ export const load: PageServerLoad = async (event) => {
 
 	const catalogId = event.locals.catalogId;
 
-	const pagination = await getProducts({ catalogId });
+	const pagination = await getProducts({ visibility: 'all', catalogId });
 	const catalogs = await getCatalogs();
 
 	return {
@@ -41,8 +42,8 @@ export const actions: Actions = {
 	},
 	get_products: async (event) => {
 		const catalogId = event.locals.catalogId;
-		const pagination = await getProducts({ limit: 9999999 });
-		const paginationOfCatalog = await getProducts({ limit: 999999, catalogId });
+		const pagination = await getProducts({ visibility: 'all', limit: 9999999 });
+		const paginationOfCatalog = await getProducts({ visibility: 'all', limit: 999999, catalogId });
 
 		const totalList: ProductComplete[] = pagination.products;
 		const productsInCatalog: ProductComplete[] = paginationOfCatalog.products;
@@ -58,7 +59,7 @@ export const actions: Actions = {
 	},
 	get_products_in_catalog: async (event) => {
 		const catalogId = event.locals.catalogId;
-		const pagination = await getProducts({ limit: 999999, catalogId });
+		const pagination = await getProducts({ visibility: 'all', limit: 999999, catalogId });
 		return {
 			pagination
 		};
@@ -83,7 +84,7 @@ export const actions: Actions = {
 			return fail(404, { message: 'Page not found' });
 		}
 		const nextPage = currentPage - 1;
-		const pagination = await getProducts({ page: nextPage, catalogId });
+		const pagination = await getProducts({ visibility: 'all', page: nextPage, catalogId });
 
 		return {
 			pagination: pagination
@@ -109,7 +110,7 @@ export const actions: Actions = {
 			return fail(404, { message: 'Page not found' });
 		}
 		const nextPage = currentPage + 1;
-		const pagination = await getProducts({ page: nextPage, catalogId });
+		const pagination = await getProducts({ visibility: 'all', page: nextPage, catalogId });
 
 		return {
 			pagination: pagination
@@ -129,7 +130,7 @@ export const actions: Actions = {
 			return fail(400, { message: 'Invalid pagination params' });
 		}
 
-		const pagination = await getProducts({ page: gotoPage, catalogId });
+		const pagination = await getProducts({ visibility: 'all', page: gotoPage, catalogId });
 
 		return {
 			pagination: pagination
@@ -154,7 +155,7 @@ export const actions: Actions = {
 				secure: event.url.protocol === 'https:'
 			});
 		}
-		const pagination = await getProducts({ catalogId });
+		const pagination = await getProducts({ visibility: 'all', catalogId });
 
 		return {
 			pagination: pagination
@@ -183,22 +184,45 @@ export const actions: Actions = {
 			return fail(500, { message: 'Internal server error' });
 		}
 
-		const pagination = await getProducts({ catalogId });
+		const pagination = await getProducts({ visibility: 'all', catalogId });
 		return { pagination: pagination };
 	},
+	set_product_active: async (event) => {
+		const formData = await event.request.formData();
+		const productId = formData.get('product_id');
+		const active = formData.get('active') === 'true';
+		const catalogId = event.locals.catalogId;
+
+		// Soft delete: the row and everything referencing it survive, the
+		// storefront just stops listing it.
+		const result = await setProductActive(productId as string, active);
+		if (!result.success) {
+			return fail(400, { message: result.error.message });
+		}
+
+		const pagination = await getProducts({ visibility: 'all', catalogId });
+		return {
+			pagination: pagination
+		};
+	},
+	// Permanent removal, offered only once the product is inactive. Same
+	// pagination payload as set_product_active so DeleteProductModal's single
+	// enhance callback drives both actions unchanged.
 	delete_product: async (event) => {
 		const formData = await event.request.formData();
 		const productId = formData.get('product_id');
 		const catalogId = event.locals.catalogId;
 
-		try {
-			await deleteProduct(productId as string);
-		} catch (error) {
-			console.log(error);
-			return fail(500, { message: 'Internal server error' });
+		if (!productId) {
+			return fail(400, { message: 'Invalid product id' });
 		}
 
-		const pagination = await getProducts({ catalogId });
+		const result = await deleteProduct(productId as string);
+		if (!result.success) {
+			return fail(400, { message: result.error.message });
+		}
+
+		const pagination = await getProducts({ visibility: 'all', catalogId });
 		return {
 			pagination: pagination
 		};
@@ -252,7 +276,7 @@ export const actions: Actions = {
 			return fail(500, { message: 'Internal server error' });
 		}
 
-		const pagination = await getProducts({ catalogId });
+		const pagination = await getProducts({ visibility: 'all', catalogId });
 		return {
 			pagination: pagination
 		};
@@ -276,7 +300,7 @@ export const actions: Actions = {
 			console.log(e);
 		}
 
-		const pagination = await getProducts({ catalogId });
+		const pagination = await getProducts({ visibility: 'all', catalogId });
 		return {
 			pagination: pagination
 		};
@@ -297,7 +321,7 @@ export const actions: Actions = {
 			return fail(500, { message: 'Internal server error' });
 		}
 
-		const pagination = await getProducts({ catalogId });
+		const pagination = await getProducts({ visibility: 'all', catalogId });
 		return {
 			pagination: pagination
 		};

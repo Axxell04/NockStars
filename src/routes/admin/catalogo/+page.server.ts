@@ -12,8 +12,11 @@ import {
 } from '$lib/server/catalog';
 import {
 	createProduct,
-	updateProduct,
 	deleteProduct,
+	setProductActive,
+	purgeInactiveProducts,
+	setVariantActive,
+	purgeInactiveVariants,
 	getVariantsByProduct,
 	updateVariant,
 	deleteVariant
@@ -51,7 +54,8 @@ export const load: PageServerLoad = async (event) => {
 		// A deleted or mistyped id still lands on the Variantes tab with its
 		// empty state — better than silently showing nothing happened.
 		const product = candidates.find((entry) => entry.product.id === productId) ?? null;
-		const variants = product ? await getVariantsByProduct(productId) : [];
+		// Admin list: deactivated variants stay listed so they can be toggled back.
+		const variants = product ? await getVariantsByProduct(productId, { visibility: 'all' }) : [];
 
 		deepLink = { tab: 'variants', catalogId, product, variants };
 	}
@@ -160,25 +164,25 @@ export const actions: Actions = {
 			return fail(500, { message: 'Error interno del servidor' });
 		}
 	},
-	update_product: async (event) => {
+	set_product_active: async (event) => {
 		const formData = await event.request.formData();
 		const productId = formData.get('productId') as string;
-		const name = formData.get('name') as string;
-		const price = parseFloat(formData.get('price') as string);
-		const stock = parseInt(formData.get('stock') as string) || 0;
+		const active = formData.get('active') === 'true';
 
-		if (!productId || !name || isNaN(price)) {
-			return fail(400, { message: 'Datos de producto inválidos' });
+		if (!productId) {
+			return fail(400, { message: 'Identificador de producto inválido' });
 		}
 
-		try {
-			await updateProduct({ product_id: productId, name, price, stock });
-			return { success: true };
-		} catch (error) {
-			console.log(error);
-			return fail(500, { message: 'Error interno del servidor' });
+		const result = await setProductActive(productId, active);
+		if (!result.success) {
+			return fail(400, { message: result.error.message });
 		}
+
+		return { success: true, active };
 	},
+	// Permanent removal, offered only once the product is inactive. The guards
+	// live in deleteProduct: still referenced by an order or a cart comes back
+	// as a failure instead of silently cascading those rows away.
 	delete_product: async (event) => {
 		const formData = await event.request.formData();
 		const productId = formData.get('productId') as string;
@@ -187,15 +191,48 @@ export const actions: Actions = {
 			return fail(400, { message: 'Identificador de producto inválido' });
 		}
 
-		try {
-			await deleteProduct(productId);
-			return { success: true };
-		} catch (error) {
-			console.log(error);
-			return fail(500, { message: 'Error interno del servidor' });
+		const result = await deleteProduct(productId);
+		if (!result.success) {
+			return fail(400, { message: result.error.message });
 		}
+
+		return { success: true };
+	},
+	// Removes inactive products and variants once they have been out of the
+	// catalogue for a while. Referenced ones come back as `skipped`: their rows
+	// are what keeps the order history readable, so they are never forced out.
+	purge_inactive_products: async () => {
+		const { purged, skipped } = await purgeInactiveProducts();
+		const { purged: purgedVariants, skipped: skippedVariants } = await purgeInactiveVariants();
+		return {
+			success: true,
+			purged: purged.length,
+			skipped: skipped.length,
+			purgedVariants: purgedVariants.length,
+			skippedVariants: skippedVariants.length
+		};
 	},
 	// Variant actions
+	set_variant_active: async (event) => {
+		const formData = await event.request.formData();
+		const variantId = formData.get('variantId') as string;
+		const productId = formData.get('productId') as string;
+		const active = formData.get('active') === 'true';
+
+		if (!variantId || !productId) {
+			return fail(400, { message: 'Identificador de variante o producto inválido' });
+		}
+
+		const result = await setVariantActive(variantId, active);
+		if (!result.success) {
+			return fail(400, { message: result.error.message });
+		}
+
+		// The modal refreshes its list from this payload, and the list is the
+		// admin one: deactivated rows stay in it, flagged.
+		const variants = await getVariantsByProduct(productId, { visibility: 'all' });
+		return { success: true, active, variants };
+	},
 	update_variant: async (event) => {
 		const formData = await event.request.formData();
 		const variantId = formData.get('variantId') as string;
@@ -246,10 +283,14 @@ export const actions: Actions = {
 			return fail(400, { message: result.error.message });
 		}
 
-		// Return updated variants list
-		const variants = await getVariantsByProduct(result.data.productId);
+		// Return updated variants list (admin view: inactive rows stay listed)
+		const variants = await getVariantsByProduct(result.data.productId, {
+			visibility: 'all'
+		});
 		return { success: true, variants };
 	},
+	// Still reachable: `VariantModal` rolls back a failed create through this
+	// action, so it cannot be removed even though the table no longer posts to it.
 	delete_variant: async (event) => {
 		const formData = await event.request.formData();
 		const variantId = formData.get('variantId') as string;
@@ -265,8 +306,8 @@ export const actions: Actions = {
 			return fail(400, { message: result.error.message });
 		}
 
-		// Return updated variants list
-		const variants = await getVariantsByProduct(productId);
+		// Return updated variants list (admin view: inactive rows stay listed)
+		const variants = await getVariantsByProduct(productId, { visibility: 'all' });
 		return { success: true, variants };
 	}
 };

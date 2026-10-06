@@ -226,6 +226,12 @@ export async function addCartItem(
 			return failure(CartErrorCode.INVALID_VARIANT, 'Variant does not belong to this product');
 		}
 
+		// A deactivated variant is no longer sellable. Cart history and order
+		// history keep resolving it on purpose — only new additions are blocked.
+		if (variantRow.deactivatedAt) {
+			return failure(CartErrorCode.INVALID_VARIANT, 'Variant is no longer available');
+		}
+
 		const images = await getDb()
 			.select()
 			.from(table.variantImg)

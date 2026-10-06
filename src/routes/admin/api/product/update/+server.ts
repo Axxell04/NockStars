@@ -56,7 +56,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			return json({ success: false, message: 'Error en la actualización del producto' });
 		}
 
-		const pagination = await getProducts({ catalogId });
+		const pagination = await getProducts({ visibility: 'all', catalogId });
 		return json({ success: true, pagination: pagination });
 	}
 	return json({ success: false, message: "Parámetro 'phase' es incorrecto" });
