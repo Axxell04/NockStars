@@ -680,14 +680,16 @@
 						Gestionar variantes
 					</button>
 
-					<a
-						href={`/producto/${data.product.id}`}
-						class="text-text-secondary hover:bg-surface-2 hover:text-text-primary flex w-full items-center gap-2 rounded-lg border border-white/10 px-3 py-2 transition-colors"
-						target="_blank"
-					>
-						<Icon icon="mdi:open-in-new" class="text-lg" />
-						Ver en tienda
-					</a>
+					{#if !data.product.deactivatedAt}
+						<a
+							href={`/producto/${data.product.id}`}
+							class="text-text-secondary hover:bg-surface-2 hover:text-text-primary flex w-full items-center gap-2 rounded-lg border border-white/10 px-3 py-2 transition-colors"
+							target="_blank"
+						>
+							<Icon icon="mdi:open-in-new" class="text-lg" />
+							Ver en tienda
+						</a>
+					{/if}
 
 					<button
 						onclick={() => toggleDeleteProductModalIsVisible(true)}

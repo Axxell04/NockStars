@@ -54,10 +54,13 @@
 
 	function navigateToProduct() {
 		const returnTo = isAdminRoute ? page.url.pathname + page.url.search : undefined;
-		const target = returnTo
-			? `/producto/${product.product.id}?returnTo=${encodeURIComponent(returnTo)}`
-			: `/producto/${product.product.id}`;
-		goto(target);
+		// Admin cards: an inactive product has no storefront page (404 by design),
+		// so the card opens the backoffice editor instead.
+		const target =
+			isAdminRoute && product.product.deactivatedAt
+				? `/admin/producto/${product.product.id}`
+				: `/producto/${product.product.id}`;
+		goto(returnTo ? `${target}?returnTo=${encodeURIComponent(returnTo)}` : target);
 	}
 
 	function goToEditProduct() {
