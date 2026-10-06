@@ -314,8 +314,12 @@ export async function updateOrder(
 
 export async function deleteOrder(id: string) {
 	const [order] = await getDb().select().from(table.order).where(eq(table.order.id, id)).execute();
-	if (order.revenueId) {
-		await getDb().delete(table.revenue).where(eq(table.order.revenueId, order.revenueId));
-	}
+	// The order holds the FK to revenue, so it has to go first: deleting the
+	// revenue row while `order.revenue_id` still points at it trips
+	// order_revenue_id_revenue_id_fk. `updateOrder` detaches before deleting
+	// for the same reason.
 	await getDb().delete(table.order).where(eq(table.order.id, id));
+	if (order?.revenueId) {
+		await getDb().delete(table.revenue).where(eq(table.revenue.id, order.revenueId));
+	}
 }
