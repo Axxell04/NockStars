@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { createVariant } from '$lib/server/product';
 import { bindVariantImg } from '$lib/server/product';
 import { deleteVariantImg } from '$lib/server/product';
+import { reorderVariantImgs } from '$lib/server/product';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) {
@@ -91,6 +92,34 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		} catch (e) {
 			console.error('Variant image delete error:', e);
 			return json({ success: false, message: 'Error al eliminar la imagen' });
+		}
+	} else if (phase === '5') {
+		// Reorder the variant's saved images
+		const variantId = formData.get('variant-id') as string;
+		const rawIds = formData.get('image-ids') as string | null;
+		if (!variantId) {
+			return json({ success: false, message: "Parámetro 'variant-id' no encontrado" });
+		}
+
+		let imageIds: unknown[] = [];
+		if (rawIds) {
+			try {
+				const parsed = JSON.parse(rawIds);
+				imageIds = Array.isArray(parsed) ? parsed : [];
+			} catch {
+				return json({ success: false, message: 'Orden de imágenes inválido' });
+			}
+		}
+		if (imageIds.length === 0 || !imageIds.every((id) => typeof id === 'string')) {
+			return json({ success: false, message: 'Orden de imágenes inválido' });
+		}
+
+		try {
+			await reorderVariantImgs(variantId, imageIds as string[]);
+			return json({ success: true });
+		} catch (e) {
+			console.error('Variant image reorder error:', e);
+			return json({ success: false, message: 'Error al guardar el orden' });
 		}
 	}
 

@@ -5,6 +5,7 @@
 	import { deserialize } from '$app/forms';
 	import { fade, scale } from 'svelte/transition';
 	import ContainerModal from '../ContainerModal.svelte';
+	import ImageMoveButtons from '../../ImageMoveButtons.svelte';
 	import Icon from '@iconify/svelte';
 	import imageComression from 'browser-image-compression';
 
@@ -36,6 +37,7 @@
 	let imgsList: File[] = $state([]);
 	let existingImages: VariantImg[] = $state([]);
 	let uploading = $state(false);
+	let reorderingImages = $state(false);
 	let variantId = $state(variantToEdit?.id ?? '');
 
 	let inputImgs: HTMLInputElement | undefined = $state();
@@ -265,6 +267,54 @@
 		}
 	}
 
+	/**
+	 * Swaps a saved image with its neighbour and persists the new order.
+	 *
+	 * The swap is optimistic so the grid responds instantly; a failed save
+	 * restores the previous list, which is the order the server still holds.
+	 */
+	async function moveExistingImage(index: number, offset: -1 | 1) {
+		const target = index + offset;
+		if (target < 0 || target >= existingImages.length || reorderingImages || uploading) return;
+
+		const previous = existingImages;
+		const next = [...previous];
+		[next[index], next[target]] = [next[target], next[index]];
+		existingImages = next;
+
+		reorderingImages = true;
+		try {
+			const formData = new FormData();
+			formData.append('variant-id', variantId);
+			formData.append('image-ids', JSON.stringify(existingImages.map((img) => img.id)));
+			const res = await fetch('/admin/api/variant/upload', { method: 'POST', body: formData });
+			const json = await res.json();
+			if (!json.success) {
+				existingImages = previous;
+				formMessage = json.message || 'Error al guardar el orden';
+				return;
+			}
+			onSuccess();
+		} catch {
+			existingImages = previous;
+			formMessage = 'Error al guardar el orden';
+		} finally {
+			reorderingImages = false;
+		}
+	}
+
+	/**
+	 * Swaps a not-yet-uploaded preview. Its position is the upload order, so
+	 * the sequence the admin picks here is the sequence the server stores.
+	 */
+	function movePendingImage(index: number, offset: -1 | 1) {
+		const target = index + offset;
+		if (target < 0 || target >= imgsList.length) return;
+		const next = [...imgsList];
+		[next[index], next[target]] = [next[target], next[index]];
+		imgsList = next;
+	}
+
 	$effect(() => {
 		if (formMessage) {
 			const timeout = setTimeout(() => {
@@ -430,7 +480,7 @@
 						<div class="flex flex-col place-items-center gap-2">
 							<span class="text-text-secondary mb-1 block w-full text-sm">Imágenes actuales</span>
 							<div class="grid w-full grid-cols-3 gap-2">
-								{#each existingImages as img (img.id)}
+								{#each existingImages as img, index (img.id)}
 									<div
 										class="relative aspect-square overflow-hidden rounded-lg border border-white/4"
 									>
@@ -447,6 +497,12 @@
 										>
 											<Icon icon="material-symbols:close-rounded" class="text-base" />
 										</button>
+										<ImageMoveButtons
+											position={index + 1}
+											count={existingImages.length}
+											disabled={reorderingImages || uploading}
+											onMove={(offset) => moveExistingImage(index, offset)}
+										/>
 									</div>
 								{/each}
 							</div>
@@ -481,6 +537,12 @@
 									>
 										<Icon icon="material-symbols:close" class="text-xs" />
 									</button>
+									<ImageMoveButtons
+										position={i + 1}
+										count={imgsList.length}
+										disabled={uploading}
+										onMove={(offset) => movePendingImage(i, offset)}
+									/>
 								</div>
 							{/each}
 						</div>

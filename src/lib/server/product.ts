@@ -801,3 +801,53 @@ export async function bindVariantImg(
 
 	await getDb().insert(table.variantImg).values(variantImg).execute();
 }
+
+/**
+ * Rewrites the whole image order of a variant from a list of ids.
+ *
+ * Same contract as `reorderImgs`: the payload must be exactly the variant's
+ * image set — duplicated, missing or foreign ids are rejected before the first
+ * write, so a bad payload leaves the stored order untouched.
+ *
+ * Unlike `img`, `variant_img` carries `variant_img_unique_variant_sort_order`,
+ * so `reorderImgs`' in-place rewrite would trip the index on the very first
+ * swap (moving a row onto a position its neighbour still holds). Two passes
+ * inside one transaction avoid that: park every row on a distinct negative
+ * position first, then write the final 0..n-1. Stored orders are never
+ * negative — `bindVariantImg` appends from max + 1 and reorders write 0..n-1 —
+ * so the parked values cannot collide with a row left behind.
+ */
+export async function reorderVariantImgs(variantId: string, orderedIds: string[]) {
+	const current = await getVariantImgs(variantId);
+	const currentIds = new Set(current.map((img) => img.id));
+	const uniqueIds = new Set(orderedIds);
+	const isExactSet =
+		uniqueIds.size === orderedIds.length &&
+		currentIds.size === orderedIds.length &&
+		orderedIds.every((id) => currentIds.has(id));
+
+	if (!isExactSet) {
+		throw new Error('Image order does not match this variant images');
+	}
+
+	await getDb().transaction(async (tx) => {
+		for (let i = 0; i < orderedIds.length; i++) {
+			await tx
+				.update(table.variantImg)
+				.set({ sortOrder: -(i + 1) })
+				.where(
+					and(eq(table.variantImg.id, orderedIds[i]), eq(table.variantImg.variantId, variantId))
+				)
+				.execute();
+		}
+		for (let i = 0; i < orderedIds.length; i++) {
+			await tx
+				.update(table.variantImg)
+				.set({ sortOrder: i })
+				.where(
+					and(eq(table.variantImg.id, orderedIds[i]), eq(table.variantImg.variantId, variantId))
+				)
+				.execute();
+		}
+	});
+}
