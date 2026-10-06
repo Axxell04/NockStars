@@ -28,6 +28,11 @@ export default defineConfig({
 		include: ['src/**/*.integration.test.ts', 'src/**/*.integration.test.js'],
 		setupFiles: ['src/test/integration-setup.ts'],
 		testTimeout: 30000,
+		// The shared setup wipes the whole catalog/cart/order set before every
+		// test. Files running in parallel wipe each other's fixtures mid-test,
+		// which surfaces as foreign-key violations and rows that vanish between
+		// the insert and the assertion. Integration files must run one at a time.
+		fileParallelism: false,
 		resolve: {
 			alias: {
 				$lib: path.resolve(__dirname, './src/lib'),
