@@ -59,6 +59,16 @@ export interface ProductWithVariantsJsonLdInput {
 }
 
 /**
+ * `img.url` stores the absolute Cloudinary `secure_url`, while a pre-migration
+ * row can still hold a site-relative path. Prefixing blindly would emit
+ * `https://site.examplehttps://res.cloudinary.com/...` into the structured
+ * data, so only relative references receive the base.
+ */
+function absoluteImageUrl(baseUrl: string, url: string): string {
+	return /^https?:\/\//i.test(url) ? url : `${baseUrl}${url}`;
+}
+
+/**
  * Builds a schema.org Product JSON-LD object for a product detail page with variant offers.
  * Uses the selected variant for price, availability, and description in the main product,
  * and includes all variants as separate offers.
@@ -69,7 +79,8 @@ export function buildProductWithVariantsJsonLd(input: ProductWithVariantsJsonLdI
 	// Use selected variant images if available. Product-level images are not
 	// available to this builder (its input carries no `productImages`), so a
 	// variant with no images yields no `image` key rather than an empty one.
-	const selectedVariantImages = selectedVariant?.images?.map((img) => `${baseUrl}${img.url}`) ?? [];
+	const selectedVariantImages =
+		selectedVariant?.images?.map((img) => absoluteImageUrl(baseUrl, img.url)) ?? [];
 
 	const mainDescription = selectedVariant?.description ?? product.description ?? product.name;
 
@@ -144,7 +155,7 @@ export function buildProductJsonLd(input: ProductJsonLdInput): object {
 
 	// Use variant images if available, otherwise fall back to product images
 	// Note: product images would need to be passed separately if variant has none
-	const images = variant?.images?.map((img) => `${baseUrl}${img.url}`) ?? [];
+	const images = variant?.images?.map((img) => absoluteImageUrl(baseUrl, img.url)) ?? [];
 
 	const price =
 		variant?.priceOverride !== null && variant?.priceOverride !== undefined
