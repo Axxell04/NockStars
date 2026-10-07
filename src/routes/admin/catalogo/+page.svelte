@@ -14,6 +14,7 @@
 	import VariantModal from '$lib/components/modals/admin/VariantModal.svelte';
 	import DeleteVariantModal from '$lib/components/modals/admin/catalogo/DeleteVariantModal.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
+	import { imageUrl } from '$lib/cloudinary';
 
 	let { data }: PageProps = $props();
 
@@ -520,8 +521,9 @@
 			<div class="bg-surface-2 h-24 w-24 flex-shrink-0 overflow-hidden rounded-xl">
 				{#if product.imgs.length > 0}
 					<img
-						src={product.imgs[0].url}
+						src={imageUrl(product.imgs[0].url, 'thumb')}
 						alt={product.product.name}
+						loading="lazy"
 						class="h-full w-full object-cover"
 					/>
 				{:else}
@@ -749,14 +751,16 @@
 											<td class="px-2 py-3">
 												{#if variant.images.length > 0}
 													<img
-														src={variant.images[0].url}
+														src={imageUrl(variant.images[0].url, 'thumb')}
 														alt={variant.images[0].alt}
+														loading="lazy"
 														class="h-12 w-12 rounded-lg object-cover"
 													/>
 												{:else if productSelected.imgs.length > 0}
 													<img
-														src={productSelected.imgs[0].url}
+														src={imageUrl(productSelected.imgs[0].url, 'thumb')}
 														alt={productSelected.product.name}
+														loading="lazy"
 														class="h-12 w-12 rounded-lg object-cover"
 													/>
 												{:else}

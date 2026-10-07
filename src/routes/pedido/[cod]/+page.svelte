@@ -2,6 +2,7 @@
 	import { fade } from 'svelte/transition';
 	import type { PageProps } from './$types';
 	import Icon from '@iconify/svelte';
+	import { imageUrl } from '$lib/cloudinary';
 
 	let { data }: PageProps = $props();
 
@@ -50,13 +51,13 @@
 							<div class="bg-surface-2 h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl">
 								{#if item.product?.images?.[0]?.url}
 									<img
-										src={item.product.images[0].url}
+										src={imageUrl(item.product.images[0].url, 'thumb')}
 										alt={item.product.name}
 										class="h-full w-full object-cover"
 									/>
 								{:else if item.imageUrls?.[0]}
 									<img
-										src={item.imageUrls[0]}
+										src={imageUrl(item.imageUrls[0], 'thumb')}
 										alt={item.productNameSnapshot}
 										class="h-full w-full object-cover"
 									/>

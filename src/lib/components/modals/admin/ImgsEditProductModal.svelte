@@ -3,6 +3,7 @@
 	import { fade, scale } from 'svelte/transition';
 	import ContainerModal from '../ContainerModal.svelte';
 	import Icon from '@iconify/svelte';
+	import { imageUrl } from '$lib/cloudinary';
 
 	interface Props {
 		productSelected?: ProductComplete;
@@ -105,7 +106,9 @@
 						{#key imgIndex}
 							<img
 								class="h-full w-full object-contain"
-								src={productSelected?.imgs[imgIndex].url}
+								src={productSelected?.imgs[imgIndex]
+									? imageUrl(productSelected.imgs[imgIndex].url, 'hero')
+									: undefined}
 								alt={productSelected?.product.name}
 								draggable="false"
 								transition:fade={{ duration: 200 }}

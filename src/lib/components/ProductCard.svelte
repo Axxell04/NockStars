@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import type { ProductComplete } from '$lib/interfaces/product';
-	import { withCloudinaryTransform } from '$lib/cloudinary';
+	import { imageUrl } from '$lib/cloudinary';
 	import Icon from '@iconify/svelte';
 	import { scale } from 'svelte/transition';
 	import { onMount, onDestroy } from 'svelte';
@@ -161,7 +161,7 @@
 	>
 		{#each product.imgs as imgProduct, i}
 			<img
-				src={withCloudinaryTransform(imgProduct.url, 'w_576,f_auto,q_auto')}
+				src={imageUrl(imgProduct.url, 'card')}
 				alt={imgProduct.id}
 				class="h-full w-72 flex-shrink-0 snap-center object-cover transition-all duration-700 ease-out group-hover/card:scale-[1.06] group-hover/card:brightness-110"
 				loading={priority && i === 0 ? 'eager' : 'lazy'}

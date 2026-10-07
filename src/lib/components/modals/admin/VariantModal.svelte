@@ -8,6 +8,7 @@
 	import ImageMoveButtons from '../../ImageMoveButtons.svelte';
 	import Icon from '@iconify/svelte';
 	import imageComression from 'browser-image-compression';
+	import { imageUrl } from '$lib/cloudinary';
 
 	interface Props {
 		productSelected: ProductComplete;
@@ -485,8 +486,9 @@
 										class="relative aspect-square overflow-hidden rounded-lg border border-white/4"
 									>
 										<img
-											src={img.url}
+											src={imageUrl(img.url, 'thumb')}
 											alt={img.alt || `${name} ${color}`}
+											loading="lazy"
 											class="h-full w-full object-cover"
 										/>
 										<button

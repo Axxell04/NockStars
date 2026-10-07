@@ -9,6 +9,7 @@
 	import SendCartModal from '$lib/components/modals/carrito/SendCartModal.svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import { getVariantDisplayName, stockLimitMessage } from '$lib/variant';
+	import { imageUrl } from '$lib/cloudinary';
 	import { toast } from '$lib/toast.svelte.js';
 	import { CartErrorCode } from '$lib/actions';
 	import type { CartItemWithProduct } from '$lib/actions';
@@ -203,13 +204,13 @@
 				>
 					{#if item.variant && item.variant.images?.length > 0}
 						<img
-							src={item.variant.images[0].url}
+							src={imageUrl(item.variant.images[0].url, 'thumb')}
 							alt={item.variant.images[0].alt ?? item.product.name}
 							class="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
 						/>
 					{:else if item.productImages?.length > 0}
 						<img
-							src={item.productImages[0].url}
+							src={imageUrl(item.productImages[0].url, 'thumb')}
 							alt={item.product.name}
 							class="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
 						/>

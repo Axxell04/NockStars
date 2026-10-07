@@ -7,6 +7,7 @@
 	import { cubicOut } from 'svelte/easing';
 	import { lineKey, setLineAmounts, toOrderLines, type OrderLine } from '$lib/order-content';
 	import ContainerModal from '$lib/components/modals/ContainerModal.svelte';
+	import { imageUrl } from '$lib/cloudinary';
 
 	let { data }: PageProps = $props();
 
@@ -273,7 +274,7 @@
 		{#each orderLines as line}
 			{@const lineDisplay = data.display[lineKey(line)] ?? null}
 			{@const imageUrls = lineDisplay?.imageUrls ?? []}
-			{@const thumb = imageUrls[0] ?? null}
+			{@const thumb = imageUrls[0] ? imageUrl(imageUrls[0], 'thumb') : null}
 			<div
 				class="flex min-w-0 flex-row gap-3 rounded-xl border px-2 py-2 transition-colors duration-150 {selectedLine &&
 				lineKey(selectedLine) === lineKey(line)
@@ -512,7 +513,7 @@
 		<ContainerModal toggleModal={() => (viewer = null)} maxWidth="max-w-3xl">
 			<figure class="relative">
 				<img
-					src={viewer.urls[viewer.index]}
+					src={imageUrl(viewer.urls[viewer.index], 'hero')}
 					alt="Imagen {viewer.index + 1} de {viewer.urls.length} de {viewer.name}"
 					class="max-h-[75vh] w-auto max-w-full rounded-2xl object-contain"
 				/>

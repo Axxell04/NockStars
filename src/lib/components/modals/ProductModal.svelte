@@ -3,6 +3,7 @@
 	import ContainerModal from './ContainerModal.svelte';
 	import type { ProductComplete } from '$lib/interfaces/product';
 	import Icon from '@iconify/svelte';
+	import { imageUrl } from '$lib/cloudinary';
 
 	interface Props {
 		productModalIsVisible: boolean;
@@ -28,7 +29,7 @@
 					<Icon icon="material-symbols:close-rounded" class="text-xl" />
 				</button>
 				<img
-					src={productSelected?.imgs[0]?.url}
+					src={productSelected?.imgs[0] ? imageUrl(productSelected.imgs[0].url, 'hero') : undefined}
 					alt={productSelected?.product?.name ?? 'Imagen de producto'}
 					loading="lazy"
 					class="max-h-[80vh] w-auto max-w-full rounded-lg object-contain"

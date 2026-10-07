@@ -19,6 +19,7 @@
 	import { totalStock } from '$lib/variant';
 	import { variantManagerUrl } from '$lib/admin-links';
 	import ImageMoveButtons from '$lib/components/ImageMoveButtons.svelte';
+	import { imageUrl } from '$lib/cloudinary';
 
 	interface ProductData {
 		id: string;
@@ -643,7 +644,12 @@
 						<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
 							{#each productImages as img, index (img.id)}
 								<div class="bg-surface-2 relative aspect-square overflow-hidden rounded-lg">
-									<img src={img.url} alt="Imagen del producto" class="h-full w-full object-cover" />
+									<img
+										src={imageUrl(img.url, 'thumb')}
+										alt="Imagen del producto"
+										loading="lazy"
+										class="h-full w-full object-cover"
+									/>
 									<button
 										onclick={() => deleteImage(img.id)}
 										class="absolute top-2 right-2 rounded-full bg-red-500/90 p-1.5 text-white transition-colors hover:bg-red-500"
