@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { goto } from '$app/navigation';
+	import { deserialize } from '$app/forms';
 	import { page } from '$app/state';
+	import type { ActionResult } from '@sveltejs/kit';
 	import Icon from '@iconify/svelte';
 	import { fade } from 'svelte/transition';
 	import ContainerModal from '$lib/components/modals/ContainerModal.svelte';
@@ -81,6 +83,24 @@
 
 	function goBack() {
 		goto(resolveReturnTarget());
+	}
+
+	// Action results arrive with `data` devalue-serialized; `deserialize`
+	// restores it so failure messages reach the toast instead of being lost
+	// on a raw string.
+	type EditorActionData = { success?: boolean; message?: string };
+
+	async function readActionResult(res: Response) {
+		return deserialize(await res.text()) as ActionResult<EditorActionData, EditorActionData>;
+	}
+
+	function failureMessage(
+		result: ActionResult<EditorActionData, EditorActionData>,
+		fallback: string
+	) {
+		if (result.type === 'failure' && result.data?.message) return result.data.message;
+		if (result.type === 'error' && result.error?.message) return result.error.message;
+		return fallback;
 	}
 
 	// Form fields
@@ -204,10 +224,9 @@
 				method: 'POST',
 				body: formData
 			});
-			const payload = await res.json();
-			const result = payload?.data ?? payload;
-			if (!res.ok || (payload?.type !== 'success' && !result?.success)) {
-				toast(result?.message || payload?.message || 'Error al guardar el orden');
+			const actionResult = await readActionResult(res);
+			if (actionResult.type !== 'success' || !actionResult.data?.success) {
+				toast(failureMessage(actionResult, 'Error al guardar el orden'));
 			}
 		} catch {
 			toast('Error al guardar el orden');
@@ -255,10 +274,9 @@
 				method: 'POST',
 				body: formData
 			});
-			const payload = await res.json();
-			const result = payload?.data ?? payload;
-			if (!res.ok || (payload?.type !== 'success' && !result?.success)) {
-				toast(result?.message || payload?.message || 'Error al subir imagen');
+			const actionResult = await readActionResult(res);
+			if (actionResult.type !== 'success' || !actionResult.data?.success) {
+				toast(failureMessage(actionResult, 'Error al subir imagen'));
 				return;
 			}
 			toast('Imágenes subidas correctamente');
@@ -281,12 +299,11 @@
 			method: 'POST',
 			body: formData
 		});
-		const payload = await res.json();
-		const result = payload?.data ?? payload ?? {};
-		if (res.ok && (payload?.type === 'success' || result?.success)) {
+		const actionResult = await readActionResult(res);
+		if (actionResult.type === 'success' && actionResult.data?.success) {
 			await invalidateAll();
 		} else {
-			toast(result?.message || payload?.message || 'Error al eliminar imagen');
+			toast(failureMessage(actionResult, 'Error al eliminar imagen'));
 		}
 	}
 
@@ -308,16 +325,15 @@
 				method: 'POST',
 				body: formData
 			});
-			const payload = await res.json();
-			const result = payload?.data ?? payload;
-			if (res.ok && (payload?.type === 'success' || result?.success)) {
+			const actionResult = await readActionResult(res);
+			if (actionResult.type === 'success' && actionResult.data?.success) {
 				const returnTarget = resolveReturnTarget();
 				toast('Producto actualizado correctamente');
 				setTimeout(() => {
 					goto(returnTarget);
 				}, 450);
 			} else {
-				toast(result?.message || payload?.message || 'Error al actualizar');
+				toast(failureMessage(actionResult, 'Error al actualizar'));
 			}
 		} catch {
 			toast('Error al actualizar');
@@ -334,15 +350,14 @@
 			method: 'POST',
 			body: formData
 		});
-		const payload = await res.json();
-		const result = payload?.data ?? payload ?? {};
-		if (res.ok && (payload?.type === 'success' || result?.success)) {
+		const actionResult = await readActionResult(res);
+		if (actionResult.type === 'success' && actionResult.data?.success) {
 			toggleDeleteProductModalIsVisible(false);
 			toast(active ? 'Producto reactivado' : 'Producto desactivado');
 			// Re-runs `load` so the badge and the action follow the new state.
 			await invalidateAll();
 		} else {
-			toast(result?.message || payload?.message || 'Error al cambiar el estado del producto');
+			toast(failureMessage(actionResult, 'Error al cambiar el estado del producto'));
 		}
 	}
 
@@ -355,13 +370,12 @@
 			method: 'POST',
 			body: formData
 		});
-		const payload = await res.json();
-		const result = payload?.data ?? payload ?? {};
-		if (res.ok && (payload?.type === 'success' || result?.success)) {
+		const actionResult = await readActionResult(res);
+		if (actionResult.type === 'success' && actionResult.data?.success) {
 			goto(resolveReturnTarget());
 			return;
 		}
-		toast(result?.message || payload?.message || 'Error al eliminar el producto');
+		toast(failureMessage(actionResult, 'Error al eliminar el producto'));
 	}
 
 	function goToVariants() {
