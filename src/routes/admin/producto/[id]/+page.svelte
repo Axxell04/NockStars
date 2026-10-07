@@ -127,13 +127,23 @@
 		productImages = [...data.product.productImages];
 	});
 
-	// Delete modal
+	// Activation modal (reactivate / deactivate)
 	let deleteProductModalIsVisible = $state(false);
 	function toggleDeleteProductModalIsVisible(visible?: boolean) {
 		if (typeof visible !== 'undefined') {
 			deleteProductModalIsVisible = visible;
 		} else {
 			deleteProductModalIsVisible = !deleteProductModalIsVisible;
+		}
+	}
+
+	// Permanent delete confirmation modal
+	let confirmPermanentDeleteIsVisible = $state(false);
+	function toggleConfirmPermanentDeleteIsVisible(visible?: boolean) {
+		if (typeof visible !== 'undefined') {
+			confirmPermanentDeleteIsVisible = visible;
+		} else {
+			confirmPermanentDeleteIsVisible = !confirmPermanentDeleteIsVisible;
 		}
 	}
 
@@ -704,6 +714,16 @@
 						/>
 						{data.product.deactivatedAt ? 'Reactivar producto' : 'Desactivar producto'}
 					</button>
+
+					{#if data.product.deactivatedAt}
+						<button
+							onclick={() => toggleConfirmPermanentDeleteIsVisible(true)}
+							class="flex w-full items-center gap-2 rounded-lg border border-red-400/30 px-3 py-2 text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+						>
+							<Icon icon="mdi:delete-outline" class="text-lg" />
+							Eliminar permanentemente
+						</button>
+					{/if}
 				</fieldset>
 
 				<!-- Save Button -->
@@ -766,6 +786,39 @@
 							Eliminar permanentemente
 						</button>
 					{/if}
+				</div>
+			</div>
+		</ContainerModal>
+	</div>
+{/if}
+
+<!-- Permanent delete confirmation modal -->
+{#if confirmPermanentDeleteIsVisible}
+	<div transition:fade={{ duration: 200 }}>
+		<ContainerModal toggleModal={toggleConfirmPermanentDeleteIsVisible} cancelClick={true}>
+			<div class="bg-surface-1 max-w-md space-y-4 rounded-xl border border-white/10 p-6">
+				<h2 class="text-text-primary text-lg font-semibold">Eliminar permanentemente</h2>
+				<p class="text-text-secondary">
+					¿Eliminar permanentemente <strong>"{data.product.name}"</strong>? Esta acción es
+					irreversible. Solo se elimina si ningún pedido ni carrito lo referencia; si lo
+					referencian, la operación fallará.
+				</p>
+				{#if formMessage}
+					<p class="text-text-error text-sm">{formMessage}</p>
+				{/if}
+				<div class="flex flex-wrap justify-end gap-3 pt-2">
+					<button
+						onclick={() => toggleConfirmPermanentDeleteIsVisible(false)}
+						class="text-text-secondary hover:bg-surface-2 hover:text-text-primary rounded-lg border border-white/10 px-4 py-2 transition-colors"
+					>
+						Cancelar
+					</button>
+					<button
+						onclick={deleteProductPermanently}
+						class="rounded-lg bg-red-500 px-4 py-2 text-white transition-colors hover:bg-red-600"
+					>
+						Eliminar permanentemente
+					</button>
 				</div>
 			</div>
 		</ContainerModal>
