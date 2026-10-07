@@ -20,6 +20,7 @@
 	import { variantManagerUrl } from '$lib/admin-links';
 	import ImageMoveButtons from '$lib/components/ImageMoveButtons.svelte';
 	import { imageUrl } from '$lib/cloudinary';
+	import { preprocessImage, uploadToCloudinary } from '$lib/image-upload';
 
 	interface ProductData {
 		id: string;
@@ -172,17 +173,24 @@
 		}
 	}
 
+	// Files are fully processed before either state is touched, so `imageFiles`
+	// and `imagePreviews` stay index-aligned for the reorder controls.
 	async function handleFileChange(e: Event) {
 		const target = e.target as HTMLInputElement;
 		const files = target.files;
 		if (!files || !files.length) return;
-		// Accumulates instead of replacing: a second selection must not wipe
-		// what is already queued for upload in a chosen order.
-		const added = Array.from(files);
-		imageFiles = [...imageFiles, ...added];
-		imagePreviews = [...imagePreviews, ...added.map((file) => URL.createObjectURL(file))];
 		// Reset so picking the same file again still fires change.
 		target.value = '';
+
+		const processed: File[] = [];
+		for (const file of files) {
+			processed.push(await preprocessImage(file));
+		}
+
+		// Accumulates instead of replacing: a second selection must not wipe
+		// what is already queued for upload in a chosen order.
+		imageFiles = [...imageFiles, ...processed];
+		imagePreviews = [...imagePreviews, ...processed.map((f) => URL.createObjectURL(f))];
 	}
 
 	function removePendingImage(index: number) {
@@ -236,27 +244,6 @@
 			await invalidateAll();
 			reorderingImages = false;
 		}
-	}
-
-	async function uploadToCloudinary(file: File): Promise<string> {
-		const sigRes = await fetch('/api/cloudinary/signature');
-		if (!sigRes.ok) throw new Error('Failed to get upload signature');
-		const sig = await sigRes.json();
-
-		const formData = new FormData();
-		formData.append('file', file);
-		formData.append('api_key', sig.api_key);
-		formData.append('timestamp', sig.timestamp);
-		formData.append('folder', sig.folder);
-		formData.append('signature', sig.signature);
-
-		const uploadRes = await fetch(
-			`https://api.cloudinary.com/v1_1/${sig.cloud_name}/image/upload`,
-			{ method: 'POST', body: formData }
-		);
-		if (!uploadRes.ok) throw new Error('Cloudinary upload failed');
-		const data = await uploadRes.json();
-		return data.secure_url;
 	}
 
 	async function uploadImages() {

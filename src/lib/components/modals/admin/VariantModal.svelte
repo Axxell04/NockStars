@@ -7,8 +7,8 @@
 	import ContainerModal from '../ContainerModal.svelte';
 	import ImageMoveButtons from '../../ImageMoveButtons.svelte';
 	import Icon from '@iconify/svelte';
-	import imageComression from 'browser-image-compression';
 	import { imageUrl } from '$lib/cloudinary';
+	import { preprocessImage, uploadToCloudinary } from '$lib/image-upload';
 
 	interface Props {
 		productSelected: ProductComplete;
@@ -52,44 +52,14 @@
 		}
 	}
 
-	async function compress(file: File) {
-		const compressedFile = await imageComression(file, {
-			maxWidthOrHeight: 800,
-			maxSizeMB: 0.5,
-			useWebWorker: true
-		});
-		return compressedFile;
-	}
-
 	async function handleFile(e: Event) {
 		const target = e.target as HTMLInputElement;
 		const files = target.files;
 		if (!files || !files.length) return;
 		imgsList = [];
 		for (const file of files) {
-			imgsList.push(await compress(file));
+			imgsList.push(await preprocessImage(file));
 		}
-	}
-
-	async function uploadToCloudinary(file: File, variantId: string): Promise<string> {
-		const sigRes = await fetch(`/api/cloudinary/signature?type=variant&variantId=${variantId}`);
-		if (!sigRes.ok) throw new Error('Failed to get upload signature');
-		const sig = await sigRes.json();
-
-		const formData = new FormData();
-		formData.append('file', file);
-		formData.append('api_key', sig.api_key);
-		formData.append('timestamp', sig.timestamp);
-		formData.append('folder', sig.folder);
-		formData.append('signature', sig.signature);
-
-		const uploadRes = await fetch(
-			`https://api.cloudinary.com/v1_1/${sig.cloud_name}/image/upload`,
-			{ method: 'POST', body: formData }
-		);
-		if (!uploadRes.ok) throw new Error('Cloudinary upload failed');
-		const data = await uploadRes.json();
-		return data.secure_url;
 	}
 
 	/**

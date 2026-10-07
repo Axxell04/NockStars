@@ -13,6 +13,7 @@
 	} from '$lib/product-specs';
 	import { variantManagerUrl } from '$lib/admin-links';
 	import ImageMoveButtons from '$lib/components/ImageMoveButtons.svelte';
+	import { preprocessImage, uploadToCloudinary } from '$lib/image-upload';
 
 	let { data }: { data: { catalogs: { id: string; name: string }[] } } = $props();
 
@@ -92,25 +93,22 @@
 		imagePreviewUrls = [];
 	}
 
-	async function uploadToCloudinary(file: File): Promise<string> {
-		const sigRes = await fetch('/api/cloudinary/signature');
-		if (!sigRes.ok) throw new Error('Failed to get upload signature');
-		const sig = await sigRes.json();
+	// Files are fully processed before either state is touched, so `imageFiles`
+	// and `imagePreviewUrls` stay index-aligned for the reorder controls.
+	async function handleFiles(e: Event) {
+		const target = e.target as HTMLInputElement;
+		const files = target.files;
+		if (!files || !files.length) return;
+		// Reset so picking the same file again still fires change.
+		target.value = '';
 
-		const formData = new FormData();
-		formData.append('file', file);
-		formData.append('api_key', sig.api_key);
-		formData.append('timestamp', sig.timestamp);
-		formData.append('folder', sig.folder);
-		formData.append('signature', sig.signature);
+		const processed: File[] = [];
+		for (const file of files) {
+			processed.push(await preprocessImage(file));
+		}
 
-		const uploadRes = await fetch(
-			`https://api.cloudinary.com/v1_1/${sig.cloud_name}/image/upload`,
-			{ method: 'POST', body: formData }
-		);
-		if (!uploadRes.ok) throw new Error('Cloudinary upload failed');
-		const data = await uploadRes.json();
-		return data.secure_url;
+		imageFiles = [...imageFiles, ...processed];
+		imagePreviewUrls = [...imagePreviewUrls, ...processed.map((f) => URL.createObjectURL(f))];
 	}
 
 	async function createProduct() {
@@ -397,21 +395,7 @@
 								accept="image/*"
 								multiple
 								class="hidden"
-								onchange={(e) => {
-									const target = e.target as HTMLInputElement;
-									const files = target.files;
-									if (!files || !files.length) return;
-									// Accumulates instead of replacing: a second selection
-									// must not wipe what is already queued for reordering.
-									const added = Array.from(files);
-									imageFiles = [...imageFiles, ...added];
-									imagePreviewUrls = [
-										...imagePreviewUrls,
-										...added.map((file) => URL.createObjectURL(file))
-									];
-									// Reset so picking the same file again still fires change.
-									target.value = '';
-								}}
+								onchange={handleFiles}
 								bind:this={inputImages}
 							/>
 							<button
