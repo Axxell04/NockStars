@@ -117,6 +117,23 @@ async function seedCartItemWithVariant(productId: string, variantId: string): Pr
 		.execute();
 }
 
+async function countCartItems(variantId: string): Promise<number> {
+	const rows = await getDb()
+		.select()
+		.from(table.cartItem)
+		.where(eq(table.cartItem.variantId, variantId))
+		.execute();
+	return rows.length;
+}
+
+async function orderItemForVariant(variantId: string) {
+	return getDb()
+		.select()
+		.from(table.orderItem)
+		.where(eq(table.orderItem.variantId, variantId))
+		.execute();
+}
+
 describe('getVariantsByProduct visibility', () => {
 	it('hides deactivated variants from the default list but shows them with visibility all', async () => {
 		const productId = await seedProduct();
@@ -168,6 +185,69 @@ describe('setVariantActive', () => {
 		expect(await readDeactivatedAt(variantId)).toBeNull();
 	});
 
+	it('purges the variant cart lines when deactivated', async () => {
+		const productId = await seedProduct();
+		const variantId = await seedVariant(productId, { size: 'M' });
+		await seedCartItemWithVariant(productId, variantId);
+		expect(await countCartItems(variantId)).toBe(1);
+
+		const result = await setVariantActive(variantId, false);
+
+		expect(result.success).toBe(true);
+		expect(await countCartItems(variantId)).toBe(0);
+		// The variant itself stays: deactivation is soft-delete.
+		expect(await variantExists(variantId)).toBe(true);
+	});
+
+	it('snapshots order line images on deactivation', async () => {
+		const productId = await seedProduct();
+		const variantId = await seedVariant(productId, { size: 'M' });
+		const url = 'https://res.cloudinary.com/demo/image/upload/variant-visibility.jpg';
+		await getDb()
+			.insert(table.img)
+			.values({ id: crypto.randomUUID(), url, productId, sortOrder: 0 })
+			.execute();
+
+		const orderId = `itest-order-${crypto.randomUUID()}`;
+		await getDb()
+			.insert(table.order)
+			.values({
+				id: orderId,
+				content: {
+					items: [
+						{
+							productId,
+							variantId,
+							productNameSnapshot: 'Variant visibility test product',
+							variantSizeSnapshot: 'M',
+							variantColorSnapshot: 'Negro',
+							variantCutSnapshot: 'oversize',
+							unitPriceSnapshot: '10.00',
+							quantity: 1
+						}
+					]
+				},
+				clientName: 'Integration test'
+			})
+			.execute();
+		await getDb()
+			.insert(table.orderItem)
+			.values({
+				orderId,
+				productId,
+				variantId,
+				productNameSnapshot: 'Variant visibility test product',
+				unitPriceSnapshot: '10.00',
+				quantity: 1
+			})
+			.execute();
+
+		await setVariantActive(variantId, false);
+
+		const [item] = await orderItemForVariant(variantId);
+		expect(item.imageUrls).toEqual([url]);
+	});
+
 	it('reports an unknown variant as not found', async () => {
 		const result = await setVariantActive(crypto.randomUUID(), false);
 		expect(result.success).toBe(false);
@@ -209,7 +289,7 @@ describe('getProductWithVariants', () => {
 });
 
 describe('deleteVariant', () => {
-	it('refuses to delete a variant that appears in an order or a cart', async () => {
+	it('refuses to delete a variant that appears in an order or a cart while active', async () => {
 		const productId = await seedProduct();
 		const inOrder = await seedVariant(productId, { size: 'M' });
 		const inCart = await seedVariant(productId, { size: 'L' });
@@ -236,10 +316,47 @@ describe('deleteVariant', () => {
 		expect(result.success).toBe(true);
 		expect(await variantExists(variantId)).toBe(false);
 	});
+
+	it('deletes an inactive variant that appears in an order, keeping the order row', async () => {
+		const productId = await seedProduct();
+		const variantId = await seedVariant(productId, { size: 'M' });
+		await seedOrderWithVariantItem(productId, variantId);
+		await setVariantActive(variantId, false);
+
+		const result = await deleteVariant(variantId);
+
+		expect(result.success).toBe(true);
+		expect(await variantExists(variantId)).toBe(false);
+		// The order item survives with its snapshots; the FK nulls the dangling
+		// variant id instead of cascading the row away.
+		const items = await getDb()
+			.select()
+			.from(table.orderItem)
+			.where(eq(table.orderItem.productNameSnapshot, 'Variant visibility test product'))
+			.execute();
+		expect(items.length).toBe(1);
+		expect(items[0].variantId).toBeNull();
+		expect(items[0].productId).toBe(productId);
+	});
+
+	it('deletes an inactive variant that sits in a cart, purging the cart lines', async () => {
+		const productId = await seedProduct();
+		const variantId = await seedVariant(productId, { size: 'M' });
+		await seedCartItemWithVariant(productId, variantId);
+		// Raw deactivation: setVariantActive would already purge the lines, and
+		// this test covers deleteVariant's own purge path.
+		await deactivateAt(variantId, new Date(Date.now() - DAY));
+
+		const result = await deleteVariant(variantId);
+
+		expect(result.success).toBe(true);
+		expect(await variantExists(variantId)).toBe(false);
+		expect(await countCartItems(variantId)).toBe(0);
+	});
 });
 
 describe('purgeInactiveVariants', () => {
-	it('removes old inactive variants and keeps the recent and the referenced ones', async () => {
+	it('removes old inactive variants, purging referenced ones too', async () => {
 		const productId = await seedProduct();
 		const oldUnreferenced = await seedVariant(productId, { size: 'M', color: 'Negro' });
 		const oldInOrder = await seedVariant(productId, { size: 'L', color: 'Negro' });
@@ -256,13 +373,22 @@ describe('purgeInactiveVariants', () => {
 
 		const { purged, skipped } = await purgeInactiveVariants();
 
-		expect(purged).toEqual([oldUnreferenced]);
-		expect([...skipped].sort()).toEqual([oldInCart, oldInOrder].sort());
+		// Candidates come back in no guaranteed order.
+		expect(purged.sort()).toEqual([oldInCart, oldInOrder, oldUnreferenced].sort());
+		expect(skipped).toEqual([]);
 		expect(await variantExists(oldUnreferenced)).toBe(false);
-		expect(await variantExists(oldInOrder)).toBe(true);
-		expect(await variantExists(oldInCart)).toBe(true);
+		expect(await variantExists(oldInOrder)).toBe(false);
+		expect(await variantExists(oldInCart)).toBe(false);
 		expect(await variantExists(recent)).toBe(true);
 		expect(await variantExists(active)).toBe(true);
+		// The order history survives the purge with its snapshots.
+		const items = await getDb()
+			.select()
+			.from(table.orderItem)
+			.where(eq(table.orderItem.productNameSnapshot, 'Variant visibility test product'))
+			.execute();
+		expect(items.length).toBe(1);
+		expect(items[0].variantId).toBeNull();
 	});
 
 	it('does nothing when no inactive variant is old enough', async () => {

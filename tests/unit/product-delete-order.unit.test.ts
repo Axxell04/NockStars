@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // has to close over state the test body fills in afterwards.
 const db = vi.hoisted(() => ({
 	deleteMock: vi.fn(),
+	updateMock: vi.fn(),
 	whereMock: vi.fn(),
 	executeMock: vi.fn(),
 	// Rows returned per table, so a test can say "this product exists" or
@@ -24,6 +25,7 @@ vi.mock('$lib/server/db', () => ({
 					})
 				})
 			}),
+			update: db.updateMock,
 			delete: db.deleteMock
 		};
 	}
@@ -51,6 +53,7 @@ import { deleteProduct } from '$lib/server/product';
 describe('deleteProduct', () => {
 	beforeEach(() => {
 		db.deleteMock.mockReset();
+		db.updateMock.mockReset();
 		db.whereMock.mockReset();
 		db.executeMock.mockReset();
 		db.rowsByTable.clear();
@@ -64,16 +67,20 @@ describe('deleteProduct', () => {
 			};
 			return result;
 		});
+		db.updateMock.mockImplementation(() => ({
+			set: () => ({
+				where: () => ({ execute: db.executeMock })
+			})
+		}));
 	});
 
-	it('removes product catalog links before deleting the product row', async () => {
+	it('purges cart lines, then removes catalog links before the product row', async () => {
 		db.rowsByTable.set(schema.product, [{ id: 'product-123', deactivatedAt: new Date() }]);
 
 		await deleteProduct('product-123');
 
-		expect(db.deleteMock.mock.calls[0]?.[0]).toBe(schema.productCatalog);
-		expect(db.deleteMock.mock.calls[1]?.[0]).toBe(schema.product);
-		expect(db.whereMock).toHaveBeenCalledTimes(2);
+		const deletedTables = db.deleteMock.mock.calls.map((call) => call[0]);
+		expect(deletedTables).toEqual([schema.cartItem, schema.productCatalog, schema.product]);
 	});
 
 	it('refuses to delete a product that is still active', async () => {
@@ -88,24 +95,40 @@ describe('deleteProduct', () => {
 		expect(db.deleteMock).not.toHaveBeenCalled();
 	});
 
-	it('deletes nothing while an order line still points at the product', async () => {
+	it('deletes a product an order references, keeping the order row', async () => {
 		db.rowsByTable.set(schema.product, [{ id: 'product-123', deactivatedAt: new Date() }]);
-		db.rowsByTable.set(schema.orderItem, [{ id: 'order-item-1' }]);
+		db.rowsByTable.set(schema.orderItem, [
+			{
+				id: 'order-item-1',
+				orderId: 'order-1',
+				productId: 'product-123',
+				variantId: null
+			}
+		]);
+		// No order row: the content mirror is skipped when the order is missing.
+		db.rowsByTable.set(schema.order, []);
 
 		const result = await deleteProduct('product-123');
 
-		expect(result.success).toBe(false);
-		expect(db.deleteMock).not.toHaveBeenCalled();
+		// Referenced products are no longer blocked: the FK nulls the dangling
+		// id and the snapshots keep history readable.
+		expect(result.success).toBe(true);
+		// The final snapshot ran (order_item update) before the row deletes.
+		expect(db.updateMock).toHaveBeenCalled();
+		const deletedTables = db.deleteMock.mock.calls.map((call) => call[0]);
+		expect(deletedTables).toContain(schema.product);
+		expect(deletedTables).toContain(schema.cartItem);
 	});
 
-	it('deletes nothing while a cart line still points at the product', async () => {
+	it('deletes a product a cart line points at, purging the cart lines', async () => {
 		db.rowsByTable.set(schema.product, [{ id: 'product-123', deactivatedAt: new Date() }]);
 		db.rowsByTable.set(schema.cartItem, [{ id: 'cart-item-1' }]);
 
 		const result = await deleteProduct('product-123');
 
-		expect(result.success).toBe(false);
-		expect(db.deleteMock).not.toHaveBeenCalled();
+		expect(result.success).toBe(true);
+		const deletedTables = db.deleteMock.mock.calls.map((call) => call[0]);
+		expect(deletedTables[0]).toBe(schema.cartItem);
 	});
 
 	it('reports a missing product without touching any table', async () => {

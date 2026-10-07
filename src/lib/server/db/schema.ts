@@ -61,8 +61,9 @@ export const product = pgTable('product', {
 	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 	// Soft delete: NULL means the product is active, a timestamp means it was
 	// deactivated (and when — the purge uses that age). Keeping the row is what
-	// lets a product vanish from the storefront while its order and cart lines
-	// keep resolving it.
+	// lets a product vanish from the storefront while order lines keep resolving
+	// their snapshots; deactivation also purges the product's cart lines, and a
+	// later hard delete nulls any remaining order references.
 	deactivatedAt: timestamp('deactivated_at', { withTimezone: true, mode: 'date' })
 });
 
@@ -166,9 +167,10 @@ export const cartItem = pgTable('cart_item', {
 	cartId: uuid('cart_id')
 		.notNull()
 		.references(() => cart.id, { onDelete: 'cascade' }),
-	productId: text('product_id')
-		.notNull()
-		.references(() => product.id, { onDelete: 'cascade' }),
+	// Nullable with ON DELETE SET NULL: deactivating a product purges its cart
+	// lines, and a hard delete nulls any straggler instead of cascading the row
+	// away. Display data for a surviving line lives in the snapshots below.
+	productId: text('product_id').references(() => product.id, { onDelete: 'set null' }),
 	variantId: uuid('variant_id').references(() => productVariant.id, { onDelete: 'set null' }),
 	quantity: integer('quantity').notNull(),
 	unitPriceSnapshot: decimal('unit_price_snapshot', { precision: 10, scale: 2 }).notNull(),
@@ -190,9 +192,12 @@ export const orderItem = pgTable('order_item', {
 	orderId: text('order_id')
 		.notNull()
 		.references(() => order.id, { onDelete: 'cascade' }),
-	productId: text('product_id')
-		.notNull()
-		.references(() => product.id, { onDelete: 'cascade' }),
+	// Nullable with ON DELETE SET NULL: the snapshots below are what keeps the
+	// history readable once the product row is gone. The id itself stays as a
+	// dangling pointer until the hard delete nulls it, so `deleteProduct` can
+	// still tell "has order history" (and skip destroying image assets) at the
+	// moment it runs.
+	productId: text('product_id').references(() => product.id, { onDelete: 'set null' }),
 	variantId: uuid('variant_id').references(() => productVariant.id, { onDelete: 'set null' }),
 	productNameSnapshot: text('product_name_snapshot').notNull(),
 	variantSizeSnapshot: text('variant_size_snapshot'),
@@ -200,6 +205,10 @@ export const orderItem = pgTable('order_item', {
 	variantCutSnapshot: text('variant_cut_snapshot'),
 	unitPriceSnapshot: decimal('unit_price_snapshot', { precision: 10, scale: 2 }).notNull(),
 	quantity: integer('quantity').notNull(),
+	// Display image URLs snapshotted at deactivation/deletion time, when the
+	// live `img`/`variant_img` rows still exist. Preferred over live lookups by
+	// `getOrderLineDisplay` once the product row is gone.
+	imageUrls: jsonb('image_urls').$type<string[] | null>(),
 	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
 });
 

@@ -55,6 +55,13 @@ async function deactivateAt(productId: string, when: Date): Promise<void> {
 		.execute();
 }
 
+async function seedProductImg(productId: string, url: string): Promise<void> {
+	await getDb()
+		.insert(table.img)
+		.values({ id: crypto.randomUUID(), url, productId, sortOrder: 0 })
+		.execute();
+}
+
 async function seedOrderWithItem(productId: string): Promise<void> {
 	const orderId = `itest-order-${crypto.randomUUID()}`;
 	await getDb()
@@ -73,7 +80,27 @@ async function seedOrderWithItem(productId: string): Promise<void> {
 		.execute();
 }
 
-async function seedCartItem(productId: string): Promise<void> {
+async function orderItemRow(productId: string) {
+	const rows = await getDb()
+		.select()
+		.from(table.orderItem)
+		.where(eq(table.orderItem.productId, productId))
+		.execute();
+	return rows;
+}
+
+async function countOrderItemsForProduct(): Promise<number> {
+	// After a hard delete the FK nulls the id, so count every order item that
+	// still carries the product's name snapshot — the durable signature.
+	const rows = await getDb()
+		.select()
+		.from(table.orderItem)
+		.where(eq(table.orderItem.productNameSnapshot, 'Visibility test product'))
+		.execute();
+	return rows.length;
+}
+
+async function seedCartItem(productId: string): Promise<string> {
 	const sessionId = crypto.randomUUID();
 	await getDb().insert(table.cart).values({ sessionId }).execute();
 	const [cart] = await getDb()
@@ -85,6 +112,16 @@ async function seedCartItem(productId: string): Promise<void> {
 		.insert(table.cartItem)
 		.values({ cartId: cart.id, productId, quantity: 1, unitPriceSnapshot: '10.00' })
 		.execute();
+	return cart.id;
+}
+
+async function countCartItems(productId: string): Promise<number> {
+	const rows = await getDb()
+		.select()
+		.from(table.cartItem)
+		.where(eq(table.cartItem.productId, productId))
+		.execute();
+	return rows.length;
 }
 
 describe('getProducts visibility', () => {
@@ -125,6 +162,69 @@ describe('setProductActive', () => {
 		expect(await readDeactivatedAt(productId)).toBeNull();
 	});
 
+	it('purges the product cart lines when deactivated', async () => {
+		const productId = await seedProduct();
+		await seedCartItem(productId);
+		await seedCartItem(productId);
+		expect(await countCartItems(productId)).toBe(2);
+
+		const result = await setProductActive(productId, false);
+
+		expect(result.success).toBe(true);
+		expect(await countCartItems(productId)).toBe(0);
+		// The product itself stays: deactivation is soft-delete.
+		expect(await productExists(productId)).toBe(true);
+	});
+
+	it('snapshots order line images on deactivation', async () => {
+		const productId = await seedProduct();
+		const url = 'https://res.cloudinary.com/demo/image/upload/visibility-test.jpg';
+		await seedProductImg(productId, url);
+
+		const orderId = `itest-order-${crypto.randomUUID()}`;
+		await getDb()
+			.insert(table.order)
+			.values({
+				id: orderId,
+				content: {
+					items: [
+						{
+							productId,
+							variantId: null,
+							productNameSnapshot: 'Visibility test product',
+							unitPriceSnapshot: '10.00',
+							quantity: 1
+						}
+					]
+				},
+				clientName: 'Integration test'
+			})
+			.execute();
+		await getDb()
+			.insert(table.orderItem)
+			.values({
+				orderId,
+				productId,
+				productNameSnapshot: 'Visibility test product',
+				unitPriceSnapshot: '10.00',
+				quantity: 1
+			})
+			.execute();
+
+		await setProductActive(productId, false);
+
+		const [item] = await orderItemRow(productId);
+		expect(item.imageUrls).toEqual([url]);
+
+		const [order] = await getDb()
+			.select()
+			.from(table.order)
+			.where(eq(table.order.id, orderId))
+			.execute();
+		const content = order.content as { items?: { imageUrls?: string[] }[] };
+		expect(content.items?.[0]?.imageUrls).toEqual([url]);
+	});
+
 	it('reports an unknown product as not found', async () => {
 		const result = await setProductActive('itest-missing-product', false);
 		expect(result.success).toBe(false);
@@ -147,36 +247,6 @@ describe('getProductWithVariants', () => {
 });
 
 describe('deleteProduct', () => {
-	it('refuses to delete a product that appears in an order', async () => {
-		const productId = await seedProduct();
-		await seedOrderWithItem(productId);
-
-		const result = await deleteProduct(productId);
-
-		expect(result.success).toBe(false);
-		if (!result.success) {
-			expect(result.error.code).toBe(ProductErrorCode.REFERENTIAL_INTEGRITY);
-		}
-		expect(await productExists(productId)).toBe(true);
-		expect(
-			(await getDb().select().from(table.orderItem).where(eq(table.orderItem.productId, productId)))
-				.length
-		).toBe(1);
-	});
-
-	it('refuses to delete a product that sits in a cart', async () => {
-		const productId = await seedProduct();
-		await seedCartItem(productId);
-
-		const result = await deleteProduct(productId);
-
-		expect(result.success).toBe(false);
-		if (!result.success) {
-			expect(result.error.code).toBe(ProductErrorCode.REFERENTIAL_INTEGRITY);
-		}
-		expect(await productExists(productId)).toBe(true);
-	});
-
 	it('refuses to delete a product that is still active', async () => {
 		const productId = await seedProduct();
 
@@ -189,7 +259,7 @@ describe('deleteProduct', () => {
 		expect(await productExists(productId)).toBe(true);
 	});
 
-	it('deletes a product nothing references', async () => {
+	it('deletes a deactivated product nothing references', async () => {
 		const productId = await seedProduct();
 		await setProductActive(productId, false);
 
@@ -198,10 +268,45 @@ describe('deleteProduct', () => {
 		expect(result.success).toBe(true);
 		expect(await productExists(productId)).toBe(false);
 	});
+
+	it('deletes a product that appears in an order, keeping the order row', async () => {
+		const productId = await seedProduct();
+		await seedOrderWithItem(productId);
+		await setProductActive(productId, false);
+
+		const result = await deleteProduct(productId);
+
+		expect(result.success).toBe(true);
+		expect(await productExists(productId)).toBe(false);
+		// The order item survives with its name/price snapshots; the FK nulls
+		// the dangling product id instead of cascading the row away.
+		const items = await getDb()
+			.select()
+			.from(table.orderItem)
+			.where(eq(table.orderItem.productNameSnapshot, 'Visibility test product'))
+			.execute();
+		expect(items.length).toBe(1);
+		expect(items[0].productId).toBeNull();
+		expect(items[0].productNameSnapshot).toBe('Visibility test product');
+	});
+
+	it('deletes a product that sits in a cart, purging the cart lines', async () => {
+		const productId = await seedProduct();
+		await seedCartItem(productId);
+		// Raw deactivation: setProductActive would already purge the lines, and
+		// this test covers deleteProduct's own purge path.
+		await deactivateAt(productId, new Date(Date.now() - DAY));
+
+		const result = await deleteProduct(productId);
+
+		expect(result.success).toBe(true);
+		expect(await productExists(productId)).toBe(false);
+		expect(await countCartItems(productId)).toBe(0);
+	});
 });
 
 describe('purgeInactiveProducts', () => {
-	it('removes old inactive products and keeps the recent and the referenced ones', async () => {
+	it('removes old inactive products, purging referenced ones too', async () => {
 		const oldUnreferenced = await seedProduct('Old unreferenced');
 		const oldReferenced = await seedProduct('Old referenced');
 		const recent = await seedProduct('Recently deactivated');
@@ -214,12 +319,15 @@ describe('purgeInactiveProducts', () => {
 
 		const { purged, skipped } = await purgeInactiveProducts();
 
-		expect(purged).toEqual([oldUnreferenced]);
-		expect(skipped).toEqual([oldReferenced]);
+		// Candidates come back in no guaranteed order.
+		expect(purged.sort()).toEqual([oldReferenced, oldUnreferenced].sort());
+		expect(skipped).toEqual([]);
 		expect(await productExists(oldUnreferenced)).toBe(false);
-		expect(await productExists(oldReferenced)).toBe(true);
+		expect(await productExists(oldReferenced)).toBe(false);
 		expect(await productExists(recent)).toBe(true);
 		expect(await productExists(active)).toBe(true);
+		// The order history survives the purge with its snapshots.
+		expect(await countOrderItemsForProduct()).toBe(1);
 	});
 
 	it('does nothing when no inactive product is old enough', async () => {

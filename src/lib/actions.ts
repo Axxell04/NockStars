@@ -51,7 +51,11 @@ export interface CartWithItems extends Cart {
 	items: CartItemWithProduct[];
 }
 
-export interface CartItemWithProduct extends CartItem {
+export interface CartItemWithProduct extends Omit<CartItem, 'productId'> {
+	// The schema id is nullable (ON DELETE SET NULL), but enrichment only
+	// returns rows whose product row resolved — so this boundary narrows it
+	// back to a live string.
+	productId: string;
 	product: Product;
 	productImages: Img[];
 	variant: (ProductVariant & { images: VariantImg[] }) | null;

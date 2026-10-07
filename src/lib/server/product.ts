@@ -375,11 +375,112 @@ export async function updateProduct(options: UpdateProductOptions) {
 }
 
 /**
+ * Snapshots display image URLs onto the order lines of a product (or of one
+ * variant of it) while the live `img`/`variant_img` rows still exist.
+ *
+ * Variant images win, product images are the fallback — the same rule
+ * `getOrderLineDisplay` applies live. The snapshot is written to both
+ * `order_item.image_urls` and the matching `order.content` items, so history
+ * keeps showing photos once the product row and its Cloudinary assets are
+ * gone. Idempotent: re-running refreshes the snapshot to the current images.
+ */
+async function snapshotOrderLineImages(productId: string, variantId?: string): Promise<void> {
+	const productImgs = await getDb()
+		.select()
+		.from(table.img)
+		.where(eq(table.img.productId, productId))
+		.orderBy(asc(table.img.sortOrder))
+		.execute();
+	const productUrls = productImgs.map((img) => img.url);
+
+	let urlsByLine = new Map<string, string[]>();
+
+	const variantIds = variantId
+		? [variantId]
+		: (
+				await getDb()
+					.select({ id: table.productVariant.id })
+					.from(table.productVariant)
+					.where(eq(table.productVariant.productId, productId))
+					.execute()
+			).map((variant) => variant.id);
+
+	if (variantIds.length > 0) {
+		const variantImgs = await getDb()
+			.select()
+			.from(table.variantImg)
+			.where(inArray(table.variantImg.variantId, variantIds))
+			.orderBy(asc(table.variantImg.sortOrder))
+			.execute();
+		urlsByLine = new Map<string, string[]>();
+		for (const img of variantImgs) {
+			const urls = urlsByLine.get(img.variantId);
+			if (urls) urls.push(img.url);
+			else urlsByLine.set(img.variantId, [img.url]);
+		}
+	}
+
+	const orderItems = await getDb()
+		.select()
+		.from(table.orderItem)
+		.where(
+			variantId
+				? and(eq(table.orderItem.productId, productId), eq(table.orderItem.variantId, variantId))
+				: eq(table.orderItem.productId, productId)
+		)
+		.execute();
+	if (orderItems.length === 0) return;
+
+	const urlsForLine = (pid: string, vid: string | null): string[] =>
+		vid ? (urlsByLine.get(vid) ?? productUrls) : productUrls;
+
+	for (const item of orderItems) {
+		const pid = item.productId ?? productId;
+		await getDb()
+			.update(table.orderItem)
+			.set({ imageUrls: urlsForLine(pid, item.variantId) })
+			.where(eq(table.orderItem.id, item.id))
+			.execute();
+	}
+
+	// Mirror the snapshot into `order.content`, the shape the admin UI renders.
+	const orderIds = [...new Set(orderItems.map((item) => item.orderId))];
+	for (const orderId of orderIds) {
+		const [order] = await getDb()
+			.select({ content: table.order.content })
+			.from(table.order)
+			.where(eq(table.order.id, orderId))
+			.execute();
+		if (!order || typeof order.content !== 'object' || order.content === null) continue;
+		const live = order.content as Record<string, unknown>;
+		if (!Array.isArray(live.items)) continue;
+
+		const items = live.items.map((raw) => {
+			if (typeof raw !== 'object' || raw === null) return raw;
+			const item = raw as Record<string, unknown>;
+			const pid = typeof item.productId === 'string' ? item.productId : '';
+			if (pid !== productId) return item;
+			if (variantId && item.variantId !== variantId) return item;
+			const vid = typeof item.variantId === 'string' ? item.variantId : null;
+			return { ...item, imageUrls: urlsForLine(pid, vid) };
+		});
+
+		await getDb()
+			.update(table.order)
+			.set({ content: { ...live, items } })
+			.where(eq(table.order.id, orderId))
+			.execute();
+	}
+}
+
+/**
  * Toggles the soft-delete flag of a product.
  *
- * Deactivating is what the admin "eliminar" flow now does: the row (and every
- * order or cart line that points at it) survives, the storefront stops listing
- * it, and the backoffice keeps showing it flagged as inactive.
+ * Deactivating is what the admin "eliminar" flow does first: the storefront
+ * stops listing the product and the backoffice keeps it flagged as inactive.
+ * It also purges the product's cart lines (they can never be purchased again)
+ * and snapshots the display images of its order lines, so a later hard delete
+ * loses nothing the history needs.
  */
 export async function setProductActive(
 	productId: string,
@@ -401,19 +502,25 @@ export async function setProductActive(
 		.where(eq(table.product.id, productId))
 		.execute();
 
+	if (!active) {
+		await getDb().delete(table.cartItem).where(eq(table.cartItem.productId, productId)).execute();
+		await snapshotOrderLineImages(productId);
+	}
+
 	return success(undefined);
 }
 
 /**
- * Permanently deletes a product, refusing when it is still active or when
- * anything references it.
+ * Permanently deletes a deactivated product.
  *
- * `order_item.product_id` and `cart_item.product_id` are ON DELETE CASCADE, so
- * a bare delete would take those rows along: order lines would silently vanish
- * from history and cart lines from the session. That is the exact damage
- * soft-delete exists to prevent, so a referenced product must stay even when
- * deactivated, and an active one must be deactivated before anything else.
- * Only unreferenced inactive products are removed.
+ * Order lines no longer block the delete: they keep their name/price/variant
+ * snapshots (and now their image snapshots), and the `ON DELETE SET NULL`
+ * foreign key nulls their dangling ids when the product row goes. Cart lines
+ * for the product are purged — a hard-deleted product can never be purchased.
+ *
+ * Cloudinary assets are destroyed only when no order line references the
+ * product: with references, the snapshotted image URLs are the only photos
+ * the history will ever get again, so the assets must outlive the row.
  */
 export async function deleteProduct(id: string): Promise<ProductActionResult<void>> {
 	const [product] = await getDb()
@@ -426,38 +533,6 @@ export async function deleteProduct(id: string): Promise<ProductActionResult<voi
 		return failure(ProductErrorCode.NOT_FOUND, 'Producto no encontrado');
 	}
 
-	const [orderRef] = await getDb()
-		.select({ id: table.orderItem.id })
-		.from(table.orderItem)
-		.where(eq(table.orderItem.productId, id))
-		.limit(1)
-		.execute();
-	if (orderRef) {
-		return failure(
-			ProductErrorCode.REFERENTIAL_INTEGRITY,
-			product.deactivatedAt
-				? 'No se puede eliminar el producto: figura en pedidos y el historial depende de él.'
-				: 'No se puede eliminar el producto: figura en pedidos. Desactivalo en su lugar.'
-		);
-	}
-
-	const [cartRef] = await getDb()
-		.select({ id: table.cartItem.id })
-		.from(table.cartItem)
-		.where(eq(table.cartItem.productId, id))
-		.limit(1)
-		.execute();
-	if (cartRef) {
-		return failure(
-			ProductErrorCode.REFERENTIAL_INTEGRITY,
-			product.deactivatedAt
-				? 'No se puede eliminar el producto: está en un carrito y el carrito depende de él.'
-				: 'No se puede eliminar el producto: está en un carrito. Desactivalo en su lugar.'
-		);
-	}
-
-	// Reference checks come first: they are the harder blocker, since the row
-	// must stay even after deactivation. This one is the "prescindible" gate.
 	if (!product.deactivatedAt) {
 		return failure(
 			ProductErrorCode.NOT_INACTIVE,
@@ -465,20 +540,49 @@ export async function deleteProduct(id: string): Promise<ProductActionResult<voi
 		);
 	}
 
-	const imgs = await getImgs(id);
-	for (const img of imgs) {
-		await deleteImg(img.id);
+	// Order history is what decides asset destruction. The check runs before
+	// any snapshot or delete: it is the only moment the dangling ids are still
+	// queryable as live references.
+	const [orderRef] = await getDb()
+		.select({ id: table.orderItem.id })
+		.from(table.orderItem)
+		.where(eq(table.orderItem.productId, id))
+		.limit(1)
+		.execute();
+	const hadOrders = Boolean(orderRef);
+
+	// Final snapshot while the live image rows still exist (covers products
+	// deactivated before snapshots existed).
+	if (hadOrders) {
+		await snapshotOrderLineImages(id);
 	}
 
-	// Variant rows cascade away with the product, but their Cloudinary assets do
-	// not — resolve them before the delete below removes the ids we need.
+	// Cart lines for a hard-deleted product can never be purchased.
+	await getDb().delete(table.cartItem).where(eq(table.cartItem.productId, id)).execute();
+
+	const imgs = await getImgs(id);
+	for (const img of imgs) {
+		if (hadOrders) {
+			// Keep the Cloudinary asset: order lines still point at its URL.
+			await getDb().delete(table.img).where(eq(table.img.id, img.id)).execute();
+		} else {
+			await deleteImg(img.id, img);
+		}
+	}
+
+	// Variant rows cascade away with the product, but their Cloudinary assets
+	// do not — resolve them explicitly, honoring the same order-history rule.
 	const variants = await getDb()
 		.select({ id: table.productVariant.id })
 		.from(table.productVariant)
 		.where(eq(table.productVariant.productId, id))
 		.execute();
 	for (const v of variants) {
-		await destroyVariantImgs(v.id);
+		if (hadOrders) {
+			await getDb().delete(table.variantImg).where(eq(table.variantImg.variantId, v.id)).execute();
+		} else {
+			await destroyVariantImgs(v.id);
+		}
 	}
 
 	await getDb()
@@ -486,6 +590,7 @@ export async function deleteProduct(id: string): Promise<ProductActionResult<voi
 		.where(eq(table.productCatalog.productId, id))
 		.execute();
 
+	// `ON DELETE SET NULL` nulls the remaining order_item references.
 	await getDb().delete(table.product).where(eq(table.product.id, id)).execute();
 
 	return success(undefined);
@@ -495,9 +600,9 @@ export async function deleteProduct(id: string): Promise<ProductActionResult<voi
  * Deletes inactive products older than `olderThanDays`, one by one through the
  * guarded `deleteProduct`.
  *
- * Products still referenced by an order or a cart are reported as `skipped`
- * rather than forced: their rows are the only thing keeping that history
- * readable, so they stay until the reference goes away.
+ * Referenced products are purged too: order lines keep their snapshots and
+ * cart lines are removed, so nothing blocks the delete once the product has
+ * been inactive long enough.
  */
 export async function purgeInactiveProducts(
 	options: { olderThanDays?: number } = {}
@@ -879,7 +984,7 @@ export async function setVariantActive(
 	active: boolean
 ): Promise<ProductActionResult<void>> {
 	const [variant] = await getDb()
-		.select({ id: table.productVariant.id })
+		.select({ id: table.productVariant.id, productId: table.productVariant.productId })
 		.from(table.productVariant)
 		.where(eq(table.productVariant.id, variantId))
 		.execute();
@@ -893,6 +998,14 @@ export async function setVariantActive(
 		.set(active ? { deactivatedAt: null } : { deactivatedAt: new Date(), sortOrder: 999 })
 		.where(eq(table.productVariant.id, variantId))
 		.execute();
+
+	if (!active) {
+		// Same purge contract as product deactivation: cart lines for the
+		// variant can never be purchased again, and order lines snapshot their
+		// images while the variant assets still exist.
+		await getDb().delete(table.cartItem).where(eq(table.cartItem.variantId, variantId)).execute();
+		await snapshotOrderLineImages(variant.productId, variantId);
+	}
 
 	return success(undefined);
 }
@@ -938,15 +1051,26 @@ export async function deleteVariantImg(id: string) {
 
 /**
  * Returns the failure that blocks deleting a variant — still referenced by a
- * cart or an order — or null when nothing references it.
+ * cart or an order while still active — or null when nothing blocks it.
  *
- * Shared by `deleteVariant` and `purgeInactiveVariants` so both paths agree
- * on which references protect a row: those rows are the only thing keeping
- * cart and order history readable, so neither path may force them out.
+ * Shared by `deleteVariant` and `purgeInactiveVariants` so both paths agree on
+ * which references protect a row. An INACTIVE variant is never blocked: cart
+ * lines were purged at deactivation, order lines keep their snapshots, and the
+ * `ON DELETE SET NULL` foreign key nulls any dangling reference.
  */
 async function variantDeletionBlocker(
 	variantId: string
 ): Promise<ProductActionResult<void> | null> {
+	const [variant] = await getDb()
+		.select({ deactivatedAt: table.productVariant.deactivatedAt })
+		.from(table.productVariant)
+		.where(eq(table.productVariant.id, variantId))
+		.execute();
+
+	if (variant?.deactivatedAt) {
+		return null;
+	}
+
 	// Check referential integrity: cart_items
 	const [cartItemRef] = await getDb()
 		.select({ id: table.cartItem.id })
@@ -981,12 +1105,28 @@ async function variantDeletionBlocker(
 }
 
 /**
- * Hard-deletes a variant row: its Cloudinary assets first (they do not
- * cascade), then the `variant_img` rows and the variant itself.
+ * Hard-deletes a variant row: its `variant_img` rows and the variant itself.
+ *
+ * Cloudinary assets are destroyed only when no order line references the
+ * variant — with references, the image snapshots written at deactivation are
+ * the only photos history will ever get again, so the assets must outlive the
+ * row. The FK `ON DELETE SET NULL` nulls the dangling variant ids.
  */
 async function hardDeleteVariant(variantId: string): Promise<void> {
-	// Delete variant images first (cascade should handle this, but explicit is safer)
-	await destroyVariantImgs(variantId);
+	const [orderRef] = await getDb()
+		.select({ id: table.orderItem.id })
+		.from(table.orderItem)
+		.where(eq(table.orderItem.variantId, variantId))
+		.limit(1)
+		.execute();
+
+	// Cart lines for a hard-deleted variant can never be purchased. Covers
+	// lines that outlived deactivation (e.g. written after it).
+	await getDb().delete(table.cartItem).where(eq(table.cartItem.variantId, variantId)).execute();
+
+	if (!orderRef) {
+		await destroyVariantImgs(variantId);
+	}
 	await getDb().delete(table.variantImg).where(eq(table.variantImg.variantId, variantId)).execute();
 
 	await getDb()
@@ -996,13 +1136,14 @@ async function hardDeleteVariant(variantId: string): Promise<void> {
 }
 
 /**
- * Deletes a product variant (checks referential integrity).
+ * Deletes a product variant.
  *
- * Deliberately does NOT require the variant to be inactive: `VariantModal`
- * rolls back a failed create by deleting the just-created ACTIVE orphan row
- * through this path. The admin UI gates permanent deletion instead — the
- * "Eliminar permanentemente" button only appears once the variant is inactive —
- * while the reference guards below protect order and cart history either way.
+ * Active variants are still protected by the reference guards (shared via
+ * `variantDeletionBlocker`); inactive ones are deletable even when order
+ * lines once referenced them — those lines keep their snapshots. The admin
+ * UI gates permanent deletion behind the inactive state; the VariantModal
+ * rollback path deletes just-created ACTIVE orphan rows, which no reference
+ * protects, so it still works.
  */
 export async function deleteVariant(variantId: string): Promise<ProductActionResult<void>> {
 	const [variant] = await getDb()
@@ -1029,9 +1170,9 @@ export async function deleteVariant(variantId: string): Promise<ProductActionRes
  * Deletes inactive variants older than `olderThanDays`, one by one through the
  * guard `deleteVariant` shares via `variantDeletionBlocker`.
  *
- * Variants still referenced by an order or a cart are reported as `skipped`
- * rather than forced: their rows are the only thing keeping that history
- * readable, so they stay until the reference goes away.
+ * Deactivated variants are never reference-blocked: their cart lines were
+ * purged at deactivation and order lines keep their snapshots, so the age
+ * gate is the only thing that keeps them around.
  */
 export async function purgeInactiveVariants(
 	options: { olderThanDays?: number } = {}

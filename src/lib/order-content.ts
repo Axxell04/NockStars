@@ -8,7 +8,8 @@
  * - Live: `{ items: [...] }`, written by `checkoutCart()` since 456ae47.
  *   Item shape: `{ productId, variantId, productNameSnapshot,
  *   variantSizeSnapshot, variantColorSnapshot, variantCutSnapshot,
- *   unitPriceSnapshot, quantity }`.
+ *   unitPriceSnapshot, quantity }` plus an optional `imageUrls` snapshot
+ *   written when the product is deactivated or deleted.
  *
  * Lines are identified by product + variant, not by product alone: one order
  * can hold the same product in two variants, and matching by `productId`
@@ -32,6 +33,13 @@ export interface OrderLine {
 	size: string | null;
 	color: string | null;
 	cut: string | null;
+	/**
+	 * Display image URLs snapshotted at deactivation/deletion time. Null until
+	 * then: live lookups serve the images while the product exists, and this
+	 * array is what the display falls back to once the product row and its
+	 * assets are gone.
+	 */
+	imageUrls: string[] | null;
 }
 
 /** Identity of a line: product + variant. Legacy lines carry `variantId: null`. */
@@ -57,6 +65,13 @@ function toNumber(value: unknown): number {
 function textOrNull(value: unknown): string | null {
 	const text = toText(value);
 	return text === '' ? null : text;
+}
+
+/** Parses a snapshotted image URL list; anything else becomes null. */
+function imageUrlsOrNull(value: unknown): string[] | null {
+	if (!Array.isArray(value)) return null;
+	const urls = value.filter((entry): entry is string => typeof entry === 'string' && entry !== '');
+	return urls.length > 0 ? urls : null;
 }
 
 /** Parses a JSON string (recursively, one level at a time); anything else passes through. */
@@ -86,7 +101,8 @@ function legacyEntryToLine(entry: unknown): OrderLine | undefined {
 		unitPrice: toNumber(product.price),
 		size: null,
 		color: null,
-		cut: null
+		cut: null,
+		imageUrls: null
 	};
 }
 
@@ -103,7 +119,8 @@ function itemToLine(item: unknown): OrderLine | undefined {
 		unitPrice: toNumber(item.unitPriceSnapshot),
 		size: textOrNull(item.variantSizeSnapshot),
 		color: textOrNull(item.variantColorSnapshot),
-		cut: textOrNull(item.variantCutSnapshot)
+		cut: textOrNull(item.variantCutSnapshot),
+		imageUrls: imageUrlsOrNull(item.imageUrls)
 	};
 }
 

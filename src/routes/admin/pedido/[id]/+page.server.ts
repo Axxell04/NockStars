@@ -1,6 +1,12 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { deleteOrder, getOrderById, getOrderLineDisplay, updateOrder } from '$lib/server/order';
+import {
+	deleteOrder,
+	getOrderById,
+	getOrderItemSnapshots,
+	getOrderLineDisplay,
+	updateOrder
+} from '$lib/server/order';
 import { createRevenue } from '$lib/server/revenue';
 import { toOrderLines } from '$lib/order-content';
 
@@ -12,9 +18,12 @@ export const load: PageServerLoad = async (event) => {
 	if (!order) {
 		throw error(404, 'Pedido no encontrado');
 	}
+	const lines = toOrderLines(order.content);
 	return {
 		order,
-		display: await getOrderLineDisplay(toOrderLines(order.content))
+		// Snapshots let a line whose product is already deleted still show its
+		// images: live lookups come back empty and these take over.
+		display: await getOrderLineDisplay(lines, await getOrderItemSnapshots(order.id))
 	};
 };
 

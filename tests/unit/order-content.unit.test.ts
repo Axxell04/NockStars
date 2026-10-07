@@ -56,7 +56,8 @@ describe('toOrderLines', () => {
 				unitPrice: 28.99,
 				size: null,
 				color: null,
-				cut: null
+				cut: null,
+				imageUrls: null
 			},
 			{
 				productId: 'prod-2',
@@ -66,7 +67,8 @@ describe('toOrderLines', () => {
 				unitPrice: 15,
 				size: null,
 				color: null,
-				cut: null
+				cut: null,
+				imageUrls: null
 			}
 		]);
 	});
@@ -81,7 +83,8 @@ describe('toOrderLines', () => {
 				unitPrice: 28.99,
 				size: null,
 				color: null,
-				cut: null
+				cut: null,
+				imageUrls: null
 			},
 			{
 				productId: 'prod-2',
@@ -91,7 +94,8 @@ describe('toOrderLines', () => {
 				unitPrice: 15,
 				size: 'M',
 				color: 'Rojo',
-				cut: 'recto'
+				cut: 'recto',
+				imageUrls: null
 			}
 		]);
 	});
@@ -130,9 +134,27 @@ describe('toOrderLines', () => {
 				unitPrice: 0,
 				size: null,
 				color: null,
-				cut: null
+				cut: null,
+				imageUrls: null
 			}
 		]);
+	});
+
+	it('reads a snapshotted imageUrls list from live items', () => {
+		const content = {
+			items: [
+				{
+					productId: 'prod-1',
+					variantId: null,
+					productNameSnapshot: 'Primer Diseno',
+					unitPriceSnapshot: 28.99,
+					quantity: 2,
+					imageUrls: ['https://example.com/1.png']
+				}
+			]
+		};
+
+		expect(toOrderLines(content)[0].imageUrls).toEqual(['https://example.com/1.png']);
 	});
 
 	it('keys lines by product + variant, so one product in two variants stays independent', () => {

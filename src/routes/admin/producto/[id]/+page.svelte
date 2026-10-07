@@ -761,9 +761,9 @@
 					{#if data.product.deactivatedAt}
 						¿Reactivar <strong>"{data.product.name}"</strong>? Volverá a mostrarse en la tienda.
 					{:else}
-						¿Desactivar <strong>"{data.product.name}"</strong>? Dejará de mostrarse en la tienda,
-						pero sus variantes, imágenes, pedidos y carrito se conservan. Podrás reactivarlo cuando
-						quieras.
+						¿Desactivar <strong>"{data.product.name}"</strong>? Dejará de mostrarse en la tienda.
+						Sus variantes e imágenes se conservan y los pedidos registran sus fotos como historial;
+						las líneas de carrito del producto se descartan. Podrás reactivarlo cuando quieras.
 					{/if}
 				</p>
 				<div class="flex flex-wrap justify-end gap-3 pt-2">
@@ -803,8 +803,8 @@
 				<h2 class="text-text-primary text-lg font-semibold">Eliminar permanentemente</h2>
 				<p class="text-text-secondary">
 					¿Eliminar permanentemente <strong>"{data.product.name}"</strong>? Esta acción es
-					irreversible. Solo se elimina si ningún pedido ni carrito lo referencia; si lo
-					referencian, la operación fallará.
+					irreversible. Los pedidos conservan sus datos y sus fotos como registro histórico; las
+					líneas de carrito del producto se descartan.
 				</p>
 				<div class="flex flex-wrap justify-end gap-3 pt-2">
 					<button

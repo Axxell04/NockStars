@@ -34,11 +34,43 @@ export async function getOrderById(id: string) {
  * All of this is presentational only: names, prices and variant params
  * always come from the order snapshots, never from live rows, so a changed
  * product photo or color can never rewrite the purchase record.
- * Batched queries, no N+1. Lines without any image resolve to empty lists.
+ *
+ * `snapshots` carries the image URLs snapshotted at deactivation/deletion
+ * time (`order_item.image_urls`). Live images are preferred while they
+ * exist; a line whose live lookup comes back empty falls back to its
+ * snapshot, which is what keeps photos on history after the product row
+ * and its assets are gone. Batched queries, no N+1. Lines without any
+ * image resolve to empty lists.
  */
 export interface OrderLineDisplay {
 	imageUrls: string[];
 	colorHex: string | null;
+}
+
+/** Image snapshot of one order line, as stored on `order_item.image_urls`. */
+export interface OrderItemImageSnapshot {
+	productId: string;
+	variantId: string | null;
+	imageUrls: string[] | null;
+}
+
+/** Loads the stored image snapshots of every line of an order. */
+export async function getOrderItemSnapshots(orderId: string): Promise<OrderItemImageSnapshot[]> {
+	const rows = await getDb()
+		.select({
+			productId: table.orderItem.productId,
+			variantId: table.orderItem.variantId,
+			imageUrls: table.orderItem.imageUrls
+		})
+		.from(table.orderItem)
+		.where(eq(table.orderItem.orderId, orderId))
+		.execute();
+
+	return rows.map((row) => ({
+		productId: row.productId ?? '',
+		variantId: row.variantId,
+		imageUrls: row.imageUrls
+	}));
 }
 
 function sanitizeHex(value: unknown): string | null {
@@ -48,13 +80,21 @@ function sanitizeHex(value: unknown): string | null {
 }
 
 export async function getOrderLineDisplay(
-	lines: { productId: string; variantId?: string | null }[]
+	lines: { productId: string; variantId?: string | null }[],
+	snapshots: OrderItemImageSnapshot[] = []
 ): Promise<Record<string, OrderLineDisplay>> {
 	const display: Record<string, OrderLineDisplay> = {};
 	const isPresent = (id: unknown): id is string => typeof id === 'string' && id !== '';
 	const variantIds = [...new Set(lines.map((line) => line.variantId).filter(isPresent))];
 	const productIds = [...new Set(lines.map((line) => line.productId).filter(isPresent))];
-	if (productIds.length === 0) return display;
+	if (productIds.length === 0 && snapshots.length === 0) return display;
+
+	const snapshotByKey = new Map<string, string[]>();
+	for (const snapshot of snapshots) {
+		if (isPresent(snapshot.productId) && Array.isArray(snapshot.imageUrls)) {
+			snapshotByKey.set(`${snapshot.productId}::${snapshot.variantId ?? ''}`, snapshot.imageUrls);
+		}
+	}
 
 	const variantImgs =
 		variantIds.length > 0
@@ -86,12 +126,15 @@ export async function getOrderLineDisplay(
 		if (hex && !hexByVariant.has(variant.id)) hexByVariant.set(variant.id, hex);
 	}
 
-	const productImgs = await getDb()
-		.select()
-		.from(table.img)
-		.where(inArray(table.img.productId, productIds))
-		.orderBy(asc(table.img.sortOrder))
-		.execute();
+	const productImgs =
+		productIds.length > 0
+			? await getDb()
+					.select()
+					.from(table.img)
+					.where(inArray(table.img.productId, productIds))
+					.orderBy(asc(table.img.sortOrder))
+					.execute()
+			: [];
 	const urlsByProduct = new Map<string, string[]>();
 	for (const img of productImgs) {
 		const urls = urlsByProduct.get(img.productId);
@@ -101,9 +144,13 @@ export async function getOrderLineDisplay(
 
 	for (const line of lines) {
 		const variantUrls = isPresent(line.variantId) ? urlsByVariant.get(line.variantId) : undefined;
-		const productUrls = urlsByProduct.get(line.productId);
+		const productUrls = isPresent(line.productId) ? urlsByProduct.get(line.productId) : undefined;
+		const liveUrls = variantUrls?.length ? variantUrls : (productUrls ?? []);
+		const snapshotUrls = snapshotByKey.get(`${line.productId}::${line.variantId ?? ''}`) ?? [];
 		display[lineKey(line)] = {
-			imageUrls: variantUrls?.length ? variantUrls : (productUrls ?? []),
+			// Live images win while they exist; the snapshot is the fallback
+			// for lines whose product and assets are already gone.
+			imageUrls: liveUrls.length ? liveUrls : snapshotUrls,
 			colorHex: isPresent(line.variantId) ? (hexByVariant.get(line.variantId) ?? null) : null
 		};
 	}
@@ -126,21 +173,26 @@ export async function getOrderWithItems(cod: string) {
 	const enrichedItems = [];
 
 	for (const item of orderItems) {
-		const [product] = await getDb()
-			.select()
-			.from(table.product)
-			.where(eq(table.product.id, item.productId))
-			.execute();
-
-		// Get product images
+		// `productId` is nullable (ON DELETE SET NULL): a line whose product was
+		// hard-deleted has nothing to enrich — the snapshots on the row carry
+		// its display data instead.
+		let product = null;
 		let productImages: table.Img[] = [];
-		if (product) {
-			productImages = await getDb()
+		if (item.productId) {
+			const [productRow] = await getDb()
 				.select()
-				.from(table.img)
-				.where(eq(table.img.productId, product.id))
-				.orderBy(asc(table.img.sortOrder))
+				.from(table.product)
+				.where(eq(table.product.id, item.productId))
 				.execute();
+			product = productRow ?? null;
+			if (product) {
+				productImages = await getDb()
+					.select()
+					.from(table.img)
+					.where(eq(table.img.productId, product.id))
+					.orderBy(asc(table.img.sortOrder))
+					.execute();
+			}
 		}
 
 		let variant = null;

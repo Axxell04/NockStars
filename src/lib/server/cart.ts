@@ -101,9 +101,20 @@ async function getCartItemsWithDetails(cartId: string): Promise<CartItemWithProd
 		return enrichedItems;
 	}
 
-	const productIds = [...new Set(items.map((item) => item.productId))];
+	// `product_id` is nullable (ON DELETE SET NULL): a straggler line without
+	// an id has nothing to enrich and is skipped, same as a missing product.
+	const itemsWithProduct = items.filter(
+		(item): item is typeof item & { productId: string } => typeof item.productId === 'string'
+	);
+	if (itemsWithProduct.length === 0) {
+		return enrichedItems;
+	}
+
+	const productIds = [...new Set(itemsWithProduct.map((item) => item.productId))];
 	const variantIds = [
-		...new Set(items.map((item) => item.variantId).filter((id): id is string => id !== null))
+		...new Set(
+			itemsWithProduct.map((item) => item.variantId).filter((id): id is string => id !== null)
+		)
 	];
 	const db = getDb();
 
@@ -151,7 +162,7 @@ async function getCartItemsWithDetails(cartId: string): Promise<CartItemWithProd
 		}
 	}
 
-	for (const item of items) {
+	for (const item of itemsWithProduct) {
 		const product = productsById.get(item.productId);
 		if (!product) {
 			// Product was deleted - skip or handle as needed
@@ -199,7 +210,7 @@ export async function addCartItem(
 		return failure(CartErrorCode.OUT_OF_STOCK, 'Quantity must be greater than 0');
 	}
 
-	// Validate product exists
+	// Validate product exists and is sellable
 	const [product] = await getDb()
 		.select()
 		.from(table.product)
@@ -207,6 +218,12 @@ export async function addCartItem(
 		.execute();
 
 	if (!product) {
+		return failure(CartErrorCode.NOT_FOUND, 'Product not found');
+	}
+
+	// A deactivated product is no longer sellable: deactivation purges its
+	// cart lines, and this guard keeps new ones from appearing.
+	if (product.deactivatedAt) {
 		return failure(CartErrorCode.NOT_FOUND, 'Product not found');
 	}
 
@@ -352,6 +369,12 @@ export async function updateCartItem(
 
 	if (!existingItem) {
 		return failure(CartErrorCode.NOT_FOUND, 'Cart item not found');
+	}
+
+	// `product_id` is nullable (ON DELETE SET NULL): a straggler line without
+	// an id has nothing to enrich and can never be updated.
+	if (!existingItem.productId) {
+		return failure(CartErrorCode.NOT_FOUND, 'Product not found');
 	}
 
 	// Optimistic locking: verify version
@@ -674,6 +697,8 @@ export async function checkoutCart(
 			variantCutSnapshot: variant?.cut ?? null,
 			unitPriceSnapshot: item.unitPriceSnapshot,
 			quantity: item.quantity,
+			// Null until deactivation/deletion snapshots the live images.
+			imageUrls: null,
 			createdAt: new Date()
 		};
 

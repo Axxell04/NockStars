@@ -48,10 +48,16 @@
 					<div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
 						<div class="flex gap-4">
 							<div class="bg-surface-2 h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl">
-								{#if item.product}
+								{#if item.product?.images?.[0]?.url}
 									<img
-										src={item.product.images?.[0]?.url ?? ''}
+										src={item.product.images[0].url}
 										alt={item.product.name}
+										class="h-full w-full object-cover"
+									/>
+								{:else if item.imageUrls?.[0]}
+									<img
+										src={item.imageUrls[0]}
+										alt={item.productNameSnapshot}
 										class="h-full w-full object-cover"
 									/>
 								{:else}

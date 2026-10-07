@@ -92,6 +92,28 @@ describe('addCartItem variant visibility', () => {
 
 		await setVariantActive(variantId, false);
 
+		// Deactivation purges the variant's cart lines: the row added while the
+		// variant was active is gone before the rejected add below.
+		const purged = await getDb()
+			.select({ id: table.cartItem.id })
+			.from(table.cartItem)
+			.where(eq(table.cartItem.cartId, cartId))
+			.execute();
+		expect(purged).toHaveLength(0);
+
+		// Re-seed a line behind the guard (raw insert, as if written outside the
+		// deactivated flow) to prove a rejected add does not write.
+		await getDb()
+			.insert(table.cartItem)
+			.values({
+				cartId,
+				productId,
+				variantId,
+				quantity: 1,
+				unitPriceSnapshot: '10.00'
+			})
+			.execute();
+
 		const rejected = await addCartItem(cartId, { productId, variantId, quantity: 1 });
 		expect(rejected.success).toBe(false);
 		if (!rejected.success) {
@@ -99,8 +121,7 @@ describe('addCartItem variant visibility', () => {
 			expect(rejected.error.message).toBe('Variant is no longer available');
 		}
 
-		// The rejection happens before any write: the cart still holds only the
-		// line that was added while the variant was active.
+		// The rejection happens before any write: the seeded line is untouched.
 		const lines = await getDb()
 			.select({ id: table.cartItem.id })
 			.from(table.cartItem)
