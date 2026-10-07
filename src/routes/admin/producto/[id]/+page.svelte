@@ -5,6 +5,7 @@
 	import Icon from '@iconify/svelte';
 	import { fade } from 'svelte/transition';
 	import ContainerModal from '$lib/components/modals/ContainerModal.svelte';
+	import { toast } from '$lib/toast.svelte.js';
 	import {
 		MAX_SPEC_KEY_LENGTH,
 		MAX_SPEC_ROWS,
@@ -52,8 +53,6 @@
 	}
 
 	let { data }: { data: { product: ProductData } } = $props();
-
-	let formMessage = $state('');
 
 	function resolveReturnTarget(defaultTarget = '/admin/catalogo') {
 		const queryTarget = page.url.searchParams.get('returnTo');
@@ -203,10 +202,10 @@
 			const payload = await res.json();
 			const result = payload?.data ?? payload;
 			if (!res.ok || (payload?.type !== 'success' && !result?.success)) {
-				formMessage = result?.message || payload?.message || 'Error al guardar el orden';
+				toast(result?.message || payload?.message || 'Error al guardar el orden');
 			}
 		} catch {
-			formMessage = 'Error al guardar el orden';
+			toast('Error al guardar el orden');
 		} finally {
 			// Success re-seeds the saved order; failure re-seeds the server one.
 			await invalidateAll();
@@ -238,7 +237,6 @@
 	async function uploadImages() {
 		if (!imageFiles.length) return;
 		uploadingImages = true;
-		formMessage = '';
 
 		try {
 			const imageUrls: string[] = [];
@@ -255,13 +253,13 @@
 			const payload = await res.json();
 			const result = payload?.data ?? payload;
 			if (!res.ok || (payload?.type !== 'success' && !result?.success)) {
-				formMessage = result?.message || payload?.message || 'Error al subir imagen';
+				toast(result?.message || payload?.message || 'Error al subir imagen');
 				return;
 			}
-			formMessage = 'Imágenes subidas correctamente';
+			toast('Imágenes subidas correctamente');
 			await invalidateAll();
 		} catch {
-			formMessage = 'Error al subir imágenes';
+			toast('Error al subir imágenes');
 		} finally {
 			uploadingImages = false;
 			clearPendingImages();
@@ -283,14 +281,13 @@
 		if (res.ok && (payload?.type === 'success' || result?.success)) {
 			await invalidateAll();
 		} else {
-			formMessage = result?.message || payload?.message || 'Error al eliminar imagen';
+			toast(result?.message || payload?.message || 'Error al eliminar imagen');
 		}
 	}
 
 	async function saveProduct() {
 		if (savingProduct) return;
 		savingProduct = true;
-		formMessage = '';
 		const formData = new FormData();
 		formData.append('name', name);
 		formData.append('price', parseFloat(price).toString());
@@ -310,15 +307,15 @@
 			const result = payload?.data ?? payload;
 			if (res.ok && (payload?.type === 'success' || result?.success)) {
 				const returnTarget = resolveReturnTarget();
-				formMessage = 'Producto actualizado correctamente';
+				toast('Producto actualizado correctamente');
 				setTimeout(() => {
 					goto(returnTarget);
 				}, 450);
 			} else {
-				formMessage = result?.message || payload?.message || 'Error al actualizar';
+				toast(result?.message || payload?.message || 'Error al actualizar');
 			}
 		} catch {
-			formMessage = 'Error al actualizar';
+			toast('Error al actualizar');
 		} finally {
 			savingProduct = false;
 		}
@@ -336,12 +333,11 @@
 		const result = payload?.data ?? payload ?? {};
 		if (res.ok && (payload?.type === 'success' || result?.success)) {
 			toggleDeleteProductModalIsVisible(false);
-			formMessage = active ? 'Producto reactivado' : 'Producto desactivado';
+			toast(active ? 'Producto reactivado' : 'Producto desactivado');
 			// Re-runs `load` so the badge and the action follow the new state.
 			await invalidateAll();
 		} else {
-			formMessage =
-				result?.message || payload?.message || 'Error al cambiar el estado del producto';
+			toast(result?.message || payload?.message || 'Error al cambiar el estado del producto');
 		}
 	}
 
@@ -360,7 +356,7 @@
 			goto(resolveReturnTarget());
 			return;
 		}
-		formMessage = result?.message || payload?.message || 'Error al eliminar el producto';
+		toast(result?.message || payload?.message || 'Error al eliminar el producto');
 	}
 
 	function goToVariants() {
@@ -595,15 +591,6 @@
 							</button>
 						{/if}
 
-						{#if formMessage}
-							<div
-								class="bg-brand-400/10 border-brand-400/20 text-brand-400 rounded-lg border p-3 text-sm"
-								transition:fade
-							>
-								{formMessage}
-							</div>
-						{/if}
-
 						<!-- New Images: staged locally, their order becomes the stored order -->
 						{#if imageFiles.length > 0}
 							<div class="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -760,9 +747,6 @@
 						quieras.
 					{/if}
 				</p>
-				{#if formMessage}
-					<p class="text-text-error text-sm">{formMessage}</p>
-				{/if}
 				<div class="flex flex-wrap justify-end gap-3 pt-2">
 					<button
 						onclick={() => toggleDeleteProductModalIsVisible(false)}
@@ -771,7 +755,7 @@
 						Cancelar
 					</button>
 					<button
-						onclick={() => setProductActive(!data.product.deactivatedAt)}
+						onclick={() => setProductActive(Boolean(data.product.deactivatedAt))}
 						class="rounded-lg px-4 py-2 text-white transition-colors {data.product.deactivatedAt
 							? 'bg-emerald-600 hover:bg-emerald-500'
 							: 'bg-red-500 hover:bg-red-600'}"
@@ -803,9 +787,6 @@
 					irreversible. Solo se elimina si ningún pedido ni carrito lo referencia; si lo
 					referencian, la operación fallará.
 				</p>
-				{#if formMessage}
-					<p class="text-text-error text-sm">{formMessage}</p>
-				{/if}
 				<div class="flex flex-wrap justify-end gap-3 pt-2">
 					<button
 						onclick={() => toggleConfirmPermanentDeleteIsVisible(false)}
