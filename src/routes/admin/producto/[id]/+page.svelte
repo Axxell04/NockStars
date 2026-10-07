@@ -55,15 +55,20 @@
 	let { data }: { data: { product: ProductData } } = $props();
 
 	function resolveReturnTarget(defaultTarget = '/admin/catalogo') {
+		// A deactivated product has no storefront page, so back navigation must
+		// never route there — even when the editor was opened from that page.
+		const safeTarget = (target: string) =>
+			target.startsWith('/producto/') && data.product.deactivatedAt ? defaultTarget : target;
+
 		const queryTarget = page.url.searchParams.get('returnTo');
-		if (queryTarget) return queryTarget;
+		if (queryTarget) return safeTarget(queryTarget);
 
 		if (typeof document !== 'undefined' && document.referrer) {
 			try {
 				const referrerUrl = new URL(document.referrer);
 				if (referrerUrl.origin === page.url.origin) {
 					if (referrerUrl.pathname.startsWith('/producto/')) {
-						return referrerUrl.pathname + referrerUrl.search;
+						return safeTarget(referrerUrl.pathname + referrerUrl.search);
 					}
 				}
 			} catch {
