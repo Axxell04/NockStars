@@ -8,6 +8,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import Toast from '$lib/components/Toast.svelte';
 	import type { CartItemWithProduct } from '$lib/actions';
+	import { isPromoDiscounted } from '$lib/shipping';
 
 	let { data }: PageProps = $props();
 
@@ -152,8 +153,8 @@
 </script>
 
 <div in:fade class="flex max-h-full max-w-full flex-col gap-6">
-	<!-- Catalog selector — visually docked to the toolbar, scrolls away independently -->
-	<div class="relative z-40 -mb-5 flex justify-start gap-2">
+	<!-- Selector row — catalog picker, visually docked to the toolbar -->
+	<div class="relative z-40 -mb-5 flex flex-wrap justify-start gap-2">
 		<form
 			action="?/set_catalog"
 			method="post"
@@ -439,7 +440,16 @@
 	>
 		{#each products as product, index (product.product.id)}
 			<div class="animate-thread-appear" style="--stagger-delay: {60 * index}ms">
-				<ProductCard {product} priority={index === 0} />
+				<ProductCard
+					{product}
+					priority={index === 0}
+					promoDiscounted={isPromoDiscounted({
+						cartEmpty: cart.length === 0,
+						carrierProductId: cart[0]?.productId ?? null,
+						productId: product.product.id,
+						fee: data.shipping.fee
+					})}
+				/>
 			</div>
 		{/each}
 	</section>

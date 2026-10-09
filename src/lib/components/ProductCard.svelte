@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import type { ProductComplete } from '$lib/interfaces/product';
 	import { imageUrl } from '$lib/cloudinary';
+	import { withShipping, type ShippingSelection } from '$lib/shipping';
 	import Icon from '@iconify/svelte';
 	import { scale } from 'svelte/transition';
 	import { onMount, onDestroy } from 'svelte';
@@ -13,6 +14,12 @@
 		toggleDeleteProductModalIsVisible?: (visible?: boolean) => void;
 		toggleEditProductModalIsVisible?: (visible?: boolean) => void;
 		priority?: boolean;
+		/**
+		 * Listing promo, computed by the caller via `isPromoDiscounted`: the cart
+		 * is non-empty and this product is not the one carrying the fee. Only the
+		 * storefront grid passes it; admin routes never do.
+		 */
+		promoDiscounted?: boolean;
 	}
 
 	let {
@@ -20,11 +27,35 @@
 		setProductSelected,
 		toggleDeleteProductModalIsVisible,
 		toggleEditProductModalIsVisible,
-		priority = false
+		priority = false,
+		promoDiscounted = false
 	}: Props = $props();
 
 	let actualRoute = $derived(page.route.id);
 	let isAdminRoute = $derived(actualRoute?.includes('/admin'));
+
+	// Root layout data. Cast because App.PageData declares no key for it —
+	// the layout load always returns it, so the fallback only exists to keep
+	// the type honest when the data is genuinely absent.
+	let shipping = $derived((page.data as { shipping?: ShippingSelection }).shipping);
+	// Listing promo: this card shows the base price against the fee-inclusive
+	// one struck through, so the grid reads as a multi-buy offer. Display only —
+	// the charged total never depends on it.
+	let promo = $derived(
+		promoDiscounted && shipping
+			? {
+					compareAt: withShipping(product.product.price, shipping),
+					fee: shipping.fee
+				}
+			: null
+	);
+	// Admin cards show the editable base price; storefront cards show what the
+	// visitor pays, fee included — unless the promo above took over.
+	let displayPrice = $derived(
+		isAdminRoute || !shipping || promo !== null
+			? product.product.price
+			: withShipping(product.product.price, shipping)
+	);
 
 	if (!toggleDeleteProductModalIsVisible) {
 		toggleDeleteProductModalIsVisible = () => {};
@@ -205,9 +236,25 @@
 				{product.product.name ?? 'Camisa'}
 			</p>
 		</div>
-		<p class="text-brand-400 text-lg font-bold whitespace-nowrap tabular-nums drop-shadow-lg">
-			{`${product.product.price.toFixed(2)} $`}
-		</p>
+		{#if promo}
+			<div class="flex flex-col items-end gap-1">
+				<span
+					class="bg-brand-400 text-surface-0 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide drop-shadow-lg"
+				>
+					-{promo.fee.toFixed(2)} $
+				</span>
+				<p
+					class="flex items-baseline gap-2 text-lg font-bold whitespace-nowrap tabular-nums drop-shadow-lg"
+				>
+					<span class="text-text-muted text-sm line-through">{promo.compareAt.toFixed(2)} $</span>
+					<span class="text-brand-400">{displayPrice.toFixed(2)} $</span>
+				</p>
+			</div>
+		{:else}
+			<p class="text-brand-400 text-lg font-bold whitespace-nowrap tabular-nums drop-shadow-lg">
+				{`${displayPrice.toFixed(2)} $`}
+			</p>
+		{/if}
 	</div>
 
 	<!-- Hover overlay — Thread glow effect -->

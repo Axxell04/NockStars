@@ -5,9 +5,17 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { fade, scale, slide } from 'svelte/transition';
 	import { cubicOut } from 'svelte/easing';
-	import { lineKey, setLineAmounts, toOrderLines, type OrderLine } from '$lib/order-content';
+	import {
+		lineKey,
+		setLineAmounts,
+		toOrderLines,
+		orderShipping,
+		orderShippingInfo,
+		type OrderLine
+	} from '$lib/order-content';
 	import ContainerModal from '$lib/components/modals/ContainerModal.svelte';
 	import { imageUrl } from '$lib/cloudinary';
+	import { toast } from '$lib/toast.svelte.js';
 
 	let { data }: PageProps = $props();
 
@@ -24,7 +32,15 @@
 	// could never become false — the auto-submit effect below would loop until
 	// `effect_update_depth_exceeded`.
 	let previousOrderLines = $state.raw<OrderLine[]>([]);
-	let totalValue = $derived(orderLines.reduce((pv, cv) => pv + cv.amount * cv.unitPrice, 0));
+	// The flat delivery fee recorded at checkout joins the total: the hidden
+	// `total_value` below is what revenue is booked from, so it has to be the
+	// amount the customer actually paid, lines + fee. Once the admin waives the
+	// fee, `orderShipping()` drops to 0 and the total follows on its own.
+	let shippingInfo = $derived(orderShippingInfo(effectiveContent));
+	let shippingFee = $derived(orderShipping(effectiveContent));
+	let totalValue = $derived(
+		orderLines.reduce((pv, cv) => pv + cv.amount * cv.unitPrice, 0) + shippingFee
+	);
 
 	let selectedLine: OrderLine | undefined = $state();
 
@@ -261,6 +277,56 @@
 				})}
 			</span>
 		</div>
+		{#if shippingInfo.fee > 0}
+			<div
+				class="mt-3 flex flex-row flex-wrap place-content-between place-items-center gap-2 border-t border-white/5 pt-3"
+			>
+				<span class="text-text-secondary text-sm">Envío</span>
+				<div class="flex flex-wrap items-center gap-3">
+					{#if shippingInfo.waived}
+						<span class="text-text-muted text-sm">
+							<span class="tabular-nums line-through">$ {shippingInfo.fee.toFixed(2)}</span>
+							<span class="text-brand-400 ml-1.5 font-medium">no cobrado</span>
+						</span>
+					{:else}
+						<span class="text-text-primary font-medium tabular-nums">
+							$ {shippingInfo.fee.toFixed(2)}
+						</span>
+					{/if}
+					<!-- Waiving flips `content.shipping.waived` server-side and resyncs the
+						total (and any booked revenue). Disabled while a quantity edit is
+						pending, so the stale edit payload cannot write the pre-waive
+						shipping back. -->
+					<form
+						method="post"
+						action="?/toggle_shipping_waive"
+						use:enhance={() =>
+							async ({ result }) => {
+								if (result.type === 'failure') {
+									toast((result.data?.message as string) ?? 'No se pudo actualizar el envío');
+									return;
+								}
+								if (result.type === 'success') {
+									await invalidateAll();
+								}
+							}}
+					>
+						<input type="hidden" name="order_id" value={order.id} />
+						<button
+							type="submit"
+							disabled={typeof contentOverride !== 'undefined'}
+							aria-label={shippingInfo.waived
+								? 'Restaurar el cobro de envío en esta entrega'
+								: 'No cobrar el envío en esta entrega'}
+							class="text-text-secondary hover:border-brand-400/30 hover:text-brand-400 rounded-xl border border-white/10 px-3 py-1.5 text-xs font-medium transition-[border-color,color,transform] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+							onfocus={(e) => cancelFocus(e)}
+						>
+							{shippingInfo.waived ? 'Restaurar' : 'No cobrar'}
+						</button>
+					</form>
+				</div>
+			</div>
+		{/if}
 		<div
 			class="mt-3 flex flex-row place-content-between place-items-center border-t border-white/5 pt-3"
 		>

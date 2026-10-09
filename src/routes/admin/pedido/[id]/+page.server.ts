@@ -8,7 +8,12 @@ import {
 	updateOrder
 } from '$lib/server/order';
 import { createRevenue } from '$lib/server/revenue';
-import { toOrderLines } from '$lib/order-content';
+import {
+	orderShipping,
+	orderShippingInfo,
+	setShippingWaived,
+	toOrderLines
+} from '$lib/order-content';
 
 export const load: PageServerLoad = async (event) => {
 	if (!event.locals.user) {
@@ -63,6 +68,42 @@ export const actions: Actions = {
 
 		return { ok: true };
 	},
+	toggle_shipping_waive: async (event) => {
+		if (!event.locals.user) {
+			return redirect(302, '/login');
+		}
+
+		const formData = await event.request.formData();
+		const orderId = formData.get('order_id') as string;
+
+		if (!orderId) {
+			return fail(400, { message: 'Error en los parámetros de la petición' });
+		}
+
+		const order = await getOrderById(orderId);
+		if (!order) {
+			return fail(404, { message: 'Pedido no encontrado' });
+		}
+
+		const info = orderShippingInfo(order.content);
+		if (info.fee <= 0) {
+			return fail(400, { message: 'Este pedido no tiene envío que cobrar' });
+		}
+
+		const content = setShippingWaived(order.content, !info.waived) as object;
+		// Server-truth total: lines + the fee actually charged after the flip.
+		// Passed with the content so updateOrder() resyncs an already-booked
+		// revenue row in the same call, and an uncompleted order books this
+		// amount when it is completed.
+		const totalValue =
+			toOrderLines(content).reduce((pv, line) => pv + line.amount * line.unitPrice, 0) +
+			orderShipping(content);
+
+		await updateOrder(orderId, content, undefined, undefined, totalValue);
+
+		return { ok: true };
+	},
+
 	update_order_state: async (event) => {
 		const formData = await event.request.formData();
 		const orderId = formData.get('order_id') as string;
