@@ -23,7 +23,8 @@
 	let sendCartModalIsVisible = $state(false);
 
 	// Derived
-	let cartTotal = $derived(
+	let shipping = $derived(data.shipping);
+	let cartSubtotal = $derived(
 		cartItems.reduce((acc, item) => {
 			const variant = item.variant;
 			const price =
@@ -33,6 +34,10 @@
 			return acc + price * item.quantity;
 		}, 0)
 	);
+	// Lines always show base prices; the flat fee joins once at the total, and
+	// only for a non-empty cart (shipping belongs to an order, not to an empty
+	// basket).
+	let cartTotal = $derived(cartItems.length > 0 ? cartSubtotal + shipping.fee : cartSubtotal);
 
 	function extractCartItems(payload: unknown): CartItemWithProduct[] | null {
 		if (payload && typeof payload === 'object' && 'cartItems' in payload) {
@@ -392,6 +397,13 @@
 	<!-- Cart Total -->
 	{#if cartItems.length > 0}
 		<section class="glass sticky bottom-0 z-20 mt-auto rounded-2xl border border-white/4 p-4">
+			{#if shipping.fee > 0}
+				<div class="mb-3 flex items-baseline justify-between border-b border-white/4 pb-3 text-sm">
+					<span class="text-text-secondary">Envío</span>
+					<span class="text-text-primary font-medium tabular-nums">{shipping.fee.toFixed(2)} $</span
+					>
+				</div>
+			{/if}
 			<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<div class="flex items-baseline gap-2">
 					<span class="text-text-secondary">Total:</span>

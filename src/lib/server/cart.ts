@@ -621,9 +621,15 @@ export async function migrateLegacyCart(
 
 /**
  * Processes checkout: creates order items with snapshots, decrements stock, clears cart
+ *
+ * `shipping` records what the visitor was actually charged for delivery:
+ * `fee` is the configured flat fee, snapshotted so the order keeps the receipt
+ * even if the admin later changes the config. Legacy callers may omit it;
+ * `orderShipping()` reads missing as 0.
  */
 export async function checkoutCart(
-	cartId: string
+	cartId: string,
+	shipping?: { fee: number }
 ): Promise<CartActionResult<{ orderId: string; items: OrderItemInput[] }>> {
 	const cart = await getDb().select().from(table.cart).where(eq(table.cart.id, cartId)).execute();
 
@@ -668,7 +674,8 @@ export async function checkoutCart(
 				variantCutSnapshot: item.variant?.cut ?? null,
 				unitPriceSnapshot: Number(item.unitPriceSnapshot),
 				quantity: item.quantity
-			}))
+			})),
+			...(shipping ? { shipping } : {})
 		},
 		clientName: 'Checkout',
 		completed: false,

@@ -10,6 +10,11 @@
  *   variantSizeSnapshot, variantColorSnapshot, variantCutSnapshot,
  *   unitPriceSnapshot, quantity }` plus an optional `imageUrls` snapshot
  *   written when the product is deactivated or deleted.
+ * - Live orders may also carry `shipping: { fee, waived?, city? }`: the flat
+ *   fee charged at checkout, whether an admin waived it afterwards, and — in
+ *   rows written before the exempt-city model was removed — the destination
+ *   city, which nothing reads anymore. Legacy orders have no such key:
+ *   `orderShipping()` reads them as 0.
  *
  * Lines are identified by product + variant, not by product alone: one order
  * can hold the same product in two variants, and matching by `productId`
@@ -20,8 +25,8 @@
  * would fabricate data (e.g. `stock: 0`) and make admin edits rewrite `content`
  * into a different shape.
  *
- * Both functions are total: no input can make them throw, so a malformed row
- * can never 500 `/admin/pedidos` again.
+ * Every function in this module is total: no input can make one throw, so a
+ * malformed row can never 500 `/admin/pedidos` again.
  */
 
 export interface OrderLine {
@@ -147,6 +152,64 @@ export function toOrderLines(content: unknown): OrderLine[] {
 	}
 
 	return [];
+}
+
+/**
+ * Reads the raw `shipping` record: the fee recorded at checkout and whether an
+ * admin waived it. Anything malformed reads as `{ fee: 0, waived: false }`.
+ */
+export function orderShippingInfo(content: unknown): { fee: number; waived: boolean } {
+	if (typeof content === 'string') {
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(content);
+		} catch {
+			return { fee: 0, waived: false };
+		}
+		return orderShippingInfo(parsed);
+	}
+
+	if (!isRecord(content)) return { fee: 0, waived: false };
+	const shipping = content.shipping;
+	if (!isRecord(shipping)) return { fee: 0, waived: false };
+	return { fee: toNumber(shipping.fee), waived: shipping.waived === true };
+}
+
+/**
+ * Shipping fee actually charged for the order: 0 once an admin waived it, the
+ * recorded fee otherwise, and 0 for orders without a shipping record (legacy
+ * shape, or a fee of 0). Total like the rest of this module: no input can make
+ * it throw.
+ */
+export function orderShipping(content: unknown): number {
+	const info = orderShippingInfo(content);
+	return info.waived ? 0 : info.fee;
+}
+
+/**
+ * Returns a NEW content value with `shipping.waived` set to `waived`, keeping
+ * every other key (items, the original fee, snapshots) intact so the waiver is
+ * reversible and auditable. Unrecognized shapes (legacy arrays, malformed
+ * JSON, orders without a shipping record) come back unchanged — the caller
+ * decides what a no-op means. String input parses into the live object shape,
+ * the same direction `setLineAmounts()` writes.
+ */
+export function setShippingWaived(content: unknown, waived: boolean): unknown {
+	if (typeof content === 'string') {
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(content);
+		} catch {
+			return content;
+		}
+		return setShippingWaived(parsed, waived);
+	}
+
+	if (isRecord(content) && isRecord(content.shipping)) {
+		return { ...content, shipping: { ...content.shipping, waived } };
+	}
+
+	return content;
 }
 
 /**

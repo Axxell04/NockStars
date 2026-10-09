@@ -3,10 +3,19 @@
 	import type { PageProps } from './$types';
 	import Icon from '@iconify/svelte';
 	import { imageUrl } from '$lib/cloudinary';
+	import { orderShipping } from '$lib/order-content';
 
 	let { data }: PageProps = $props();
 
 	const order = data.order;
+	// Delivery fee recorded at checkout; 0 for orders placed before it existed.
+	const shippingFee = $derived(order ? orderShipping(order.content) : 0);
+	const linesTotal = $derived(
+		order
+			? order.items.reduce((acc, item) => acc + Number(item.unitPriceSnapshot) * item.quantity, 0)
+			: 0
+	);
+	const totalValue = $derived(linesTotal + shippingFee);
 </script>
 
 {#if order}
@@ -100,13 +109,21 @@
 		<!-- Order Total -->
 		<section class="glass rounded-2xl border border-white/4 p-6">
 			<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-				<div class="flex items-baseline gap-2">
-					<span class="text-text-secondary">Total:</span>
-					<span class="text-brand-400 text-2xl font-bold tabular-nums">
-						{order.items
-							.reduce((acc, item) => acc + Number(item.unitPriceSnapshot) * item.quantity, 0)
-							.toFixed(2)} $
-					</span>
+				<div class="flex flex-col gap-1">
+					{#if shippingFee > 0}
+						<div class="flex items-baseline gap-2 text-sm">
+							<span class="text-text-secondary">Envío:</span>
+							<span class="text-text-primary font-medium tabular-nums"
+								>{shippingFee.toFixed(2)} $</span
+							>
+						</div>
+					{/if}
+					<div class="flex items-baseline gap-2">
+						<span class="text-text-secondary">Total:</span>
+						<span class="text-brand-400 text-2xl font-bold tabular-nums"
+							>{totalValue.toFixed(2)} $</span
+						>
+					</div>
 				</div>
 				<a href="/" class="btn-primary w-full py-3 sm:w-auto">
 					<Icon icon="mdi:store-outline" class="mr-2 text-lg" />

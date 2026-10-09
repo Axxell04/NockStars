@@ -5,6 +5,7 @@
 	import type { ActionResult } from '@sveltejs/kit';
 	import type { CartItemWithProduct } from '$lib/actions';
 	import { page } from '$app/state';
+	import type { ShippingSelection } from '$lib/shipping';
 	import Icon from '@iconify/svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 
@@ -25,7 +26,10 @@
 	// button always becomes usable again and the modal stays open on failure.
 	let submitting = $state(false);
 
-	let totalValue = $derived(
+	// Root layout data; cast because App.PageData declares no key for it.
+	const shipping = $derived((page.data as { shipping?: ShippingSelection }).shipping);
+
+	let linesTotal = $derived(
 		cart.reduce((pv, cv) => {
 			const variant = cv.variant;
 			const price =
@@ -35,6 +39,9 @@
 			return pv + price * cv.quantity;
 		}, 0)
 	);
+	// Flat fee joins the total once — only for a cart that has lines.
+	let shippingFee = $derived(shipping && cart.length > 0 ? shipping.fee : 0);
+	let totalValue = $derived(linesTotal + shippingFee);
 
 	function sendWhatsApp(cod: string) {
 		const number = '593997733619';
@@ -97,6 +104,17 @@
 						<Icon icon="material-symbols:close-rounded" class="text-xl" />
 					</button>
 				</div>
+
+				{#if shippingFee > 0}
+					<div
+						class="modal-field bg-surface-2/60 flex flex-row items-center justify-between rounded-lg border border-white/6 p-3"
+					>
+						<span class="text-text-secondary text-sm font-medium">Envío:</span>
+						<span class="text-text-primary text-sm font-medium tabular-nums"
+							>$ {shippingFee.toFixed(2)}</span
+						>
+					</div>
+				{/if}
 
 				<div
 					class="modal-field bg-surface-2/60 flex flex-row items-center justify-between rounded-lg border border-white/6 p-3"

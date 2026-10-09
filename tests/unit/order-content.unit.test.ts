@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { lineKey, setLineAmounts, toOrderLines, type OrderLine } from '$lib/order-content';
+import {
+	lineKey,
+	orderShipping,
+	orderShippingInfo,
+	setLineAmounts,
+	setShippingWaived,
+	toOrderLines,
+	type OrderLine
+} from '$lib/order-content';
 
 // Legacy storage shape: PurchaseDetail[] (written by the old createOrder()).
 const legacyContent = [
@@ -243,5 +251,123 @@ describe('setLineAmounts', () => {
 		expect(setLineAmounts(unparseable, [{ productId: 'prod-1', amount: 5 }])).toBe(unparseable);
 		expect(setLineAmounts(unknownShape, [{ productId: 'prod-1', amount: 5 }])).toBe(unknownShape);
 		expect(setLineAmounts(null, [{ productId: 'prod-1', amount: 5 }])).toBe(null);
+	});
+
+	it('spreads the shipping key through so the fee survives an admin edit', () => {
+		const content = { ...liveContent, shipping: { city: null, fee: 6 } };
+		const updated = setLineAmounts(content, [{ productId: 'prod-1', amount: 3 }]);
+
+		expect(orderShipping(updated)).toBe(6);
+	});
+});
+
+describe('orderShipping', () => {
+	it('reads the fee recorded on a live order', () => {
+		expect(orderShipping({ ...liveContent, shipping: { city: 'Quito', fee: 6 } })).toBe(6);
+	});
+
+	it('returns 0 for orders without a shipping record', () => {
+		expect(orderShipping(liveContent)).toBe(0);
+		expect(orderShipping(legacyContent)).toBe(0);
+		expect(orderShipping(null)).toBe(0);
+		expect(orderShipping(undefined)).toBe(0);
+		expect(orderShipping(42)).toBe(0);
+	});
+
+	it('treats a malformed shipping record as 0', () => {
+		expect(orderShipping({ items: [], shipping: 'yes' })).toBe(0);
+		expect(orderShipping({ items: [], shipping: { fee: 'six' } })).toBe(0);
+		expect(orderShipping({ items: [], shipping: { fee: '6' } })).toBe(6);
+		expect(orderShipping('not json')).toBe(0);
+	});
+
+	it('parses a JSON-stringified content blob', () => {
+		expect(orderShipping(JSON.stringify({ items: [], shipping: { fee: 6 } }))).toBe(6);
+	});
+
+	it('drops the fee to 0 once an admin waived it', () => {
+		expect(orderShipping({ ...liveContent, shipping: { fee: 6, waived: true } })).toBe(0);
+		expect(orderShipping(JSON.stringify({ items: [], shipping: { fee: 6, waived: true } }))).toBe(
+			0
+		);
+	});
+
+	it('keeps charging a fee whose waived flag is anything but true', () => {
+		expect(orderShipping({ items: [], shipping: { fee: 6, waived: false } })).toBe(6);
+		expect(orderShipping({ items: [], shipping: { fee: 6, waived: 'yes' } })).toBe(6);
+		expect(orderShipping({ items: [], shipping: { fee: 6 } })).toBe(6);
+	});
+});
+
+describe('orderShippingInfo', () => {
+	it('reports the recorded fee and the waiver flag', () => {
+		expect(orderShippingInfo({ items: [], shipping: { fee: 6 } })).toEqual({
+			fee: 6,
+			waived: false
+		});
+		expect(orderShippingInfo({ items: [], shipping: { fee: 6, waived: true } })).toEqual({
+			fee: 6,
+			waived: true
+		});
+	});
+
+	it('still exposes the original fee once waived, for the admin restore UI', () => {
+		const info = orderShippingInfo({ ...liveContent, shipping: { fee: 6, waived: true } });
+
+		expect(info.fee).toBe(6);
+		expect(info.waived).toBe(true);
+	});
+
+	it('reads missing or malformed records as { fee: 0, waived: false }', () => {
+		expect(orderShippingInfo(liveContent)).toEqual({ fee: 0, waived: false });
+		expect(orderShippingInfo(legacyContent)).toEqual({ fee: 0, waived: false });
+		expect(orderShippingInfo(null)).toEqual({ fee: 0, waived: false });
+		expect(orderShippingInfo(42)).toEqual({ fee: 0, waived: false });
+		expect(orderShippingInfo({ items: [], shipping: 'yes' })).toEqual({ fee: 0, waived: false });
+		expect(orderShippingInfo('not json')).toEqual({ fee: 0, waived: false });
+	});
+});
+
+describe('setShippingWaived', () => {
+	it('flips the flag while preserving items and the original fee', () => {
+		const content = { ...liveContent, shipping: { fee: 6 } };
+		const waived = setShippingWaived(content, true) as typeof content;
+
+		expect(waived.shipping).toEqual({ fee: 6, waived: true });
+		expect(waived.items).toEqual(content.items);
+
+		const restored = setShippingWaived(waived, false) as typeof waived;
+		expect(restored.shipping).toEqual({ fee: 6, waived: false });
+	});
+
+	it('returns a NEW reference so the OrderCard edit effect detects it', () => {
+		const content = { ...liveContent, shipping: { fee: 6 } };
+
+		expect(setShippingWaived(content, true)).not.toBe(content);
+	});
+
+	it('keeps any extra keys on the shipping record (e.g. legacy city)', () => {
+		const content = { ...liveContent, shipping: { city: 'Quito', fee: 6 } };
+
+		expect(setShippingWaived(content, true)).toEqual({
+			...content,
+			shipping: { city: 'Quito', fee: 6, waived: true }
+		});
+	});
+
+	it('parses a JSON-stringified content blob into the live shape', () => {
+		const next = setShippingWaived(JSON.stringify({ items: [], shipping: { fee: 6 } }), true);
+
+		expect(next).toEqual({ items: [], shipping: { fee: 6, waived: true } });
+	});
+
+	it('returns unrecognizable shapes unchanged', () => {
+		const unparseable = 'not json';
+		const unknownShape = { something: 'else' };
+
+		expect(setShippingWaived(unparseable, true)).toBe(unparseable);
+		expect(setShippingWaived(unknownShape, true)).toBe(unknownShape);
+		expect(setShippingWaived(null, true)).toBe(null);
+		expect(setShippingWaived(legacyContent, true)).toBe(legacyContent);
 	});
 });

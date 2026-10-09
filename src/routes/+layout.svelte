@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import Icon from '@iconify/svelte';
 	import '../app.css';
 	import NavItem from '$lib/components/NavItem.svelte';
 	import Toaster from '$lib/components/Toaster.svelte';
-	import { goto } from '$app/navigation';
 	import { renderJsonLdScript } from '$lib/json-ld';
 	import type { LayoutProps } from './$types';
 	import { scale, slide } from 'svelte/transition';
@@ -224,6 +224,15 @@
 						</div>
 					{/if}
 				</div>
+				<a
+					href="/admin/envios"
+					class="text-text-muted hover:text-brand-400 focus:text-brand-400 flex items-center gap-1 transition-colors duration-200"
+					onfocus={(e) => cancelFocus(e)}
+					aria-label="Configuración de envíos"
+				>
+					<Icon icon="mdi:truck-outline" class="text-base" />
+					<span class="hidden sm:inline">Envíos</span>
+				</a>
 			{/if}
 			<form method="post" action="/admin?/logout">
 				<button

@@ -14,6 +14,7 @@
 		totalStock
 	} from '$lib/variant';
 	import { specEntries } from '$lib/product-specs';
+	import { withShipping } from '$lib/shipping';
 	import { imageUrl } from '$lib/cloudinary';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import VariantSelector from '$lib/components/VariantSelector.svelte';
@@ -65,6 +66,14 @@
 			: null
 	);
 	const showCrossedPrice = $derived(variantPrice !== null && variantPrice !== basePrice);
+	// Public prices carry the fixed shipping fee, fee changes re-render through
+	// `data`, and the crossed-price comparison above stays on raw values.
+	const shipping = $derived(data.shipping);
+	const displayPrice = $derived(withShipping(price, shipping));
+	const displayBasePrice = $derived(withShipping(basePrice, shipping));
+	const displayVariantPrice = $derived(
+		variantPrice !== null ? withShipping(variantPrice, shipping) : null
+	);
 
 	// Ficha técnica: product-level attributes plus the live variant detail block.
 	const productDescription = $derived((product.description ?? '').trim());
@@ -175,7 +184,8 @@
 	product: product,
 	variants: variants,
 	selectedVariant: selectedVariant,
-	baseUrl: page.url.origin
+	baseUrl: page.url.origin,
+	shipping: shipping
 })}
 
 <div in:fade class="grid gap-6 lg:grid-cols-2 lg:gap-8">
@@ -323,9 +333,10 @@
 		<!-- Price -->
 		<div class="flex flex-wrap items-baseline gap-3">
 			{#if showCrossedPrice}
-				<span class="text-text-muted text-xl line-through">{basePrice.toFixed(2)} $</span>
+				<span class="text-text-muted text-xl line-through">{displayBasePrice.toFixed(2)} $</span>
 			{/if}
-			<span class="text-brand-400 text-3xl font-bold tabular-nums">{price.toFixed(2)} $</span>
+			<span class="text-brand-400 text-3xl font-bold tabular-nums">{displayPrice.toFixed(2)} $</span
+			>
 		</div>
 
 		<!-- Stock Status -->
@@ -463,10 +474,10 @@
 								<dt class="text-text-secondary text-sm font-medium">Precio de la variante</dt>
 								<dd class="ml-auto text-right font-medium">
 									<span class="text-brand-400 font-bold tabular-nums">
-										{variantPrice?.toFixed(2)} $
+										{displayVariantPrice?.toFixed(2)} $
 									</span>
 									<span class="text-text-muted block text-xs">
-										Base {basePrice.toFixed(2)} $
+										Base {displayBasePrice.toFixed(2)} $
 									</span>
 								</dd>
 							</div>

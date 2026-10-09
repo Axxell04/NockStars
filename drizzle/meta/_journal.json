@@ -50,6 +50,20 @@
       "when": 1791345026916,
       "tag": "0006_nasty_mandroid",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791413554911,
+      "tag": "0007_wakeful_proudstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791584864181,
+      "tag": "0008_gifted_tarantula",
+      "breakpoints": true
     }
   ]
 }

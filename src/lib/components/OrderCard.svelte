@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import type { Order } from '$lib/interfaces/order';
-	import { toOrderLines, type OrderLine } from '$lib/order-content';
+	import { toOrderLines, orderShipping, type OrderLine } from '$lib/order-content';
 
 	interface Props {
 		order: Order;
@@ -10,7 +10,11 @@
 	let { order }: Props = $props();
 
 	let orderLines = $derived(toOrderLines(order.content));
-	let totalValue = $derived(orderLines.reduce((pv, cv) => pv + cv.amount * cv.unitPrice, 0));
+	// Lines sum + the delivery fee recorded at checkout — what the customer paid.
+	let shippingFee = $derived(orderShipping(order.content));
+	let totalValue = $derived(
+		orderLines.reduce((pv, cv) => pv + cv.amount * cv.unitPrice, 0) + shippingFee
+	);
 
 	function capitalize(value: string): string {
 		return value.charAt(0).toUpperCase() + value.slice(1);
@@ -92,6 +96,14 @@
 					{/if}
 				</div>
 			{/each}
+			{#if shippingFee > 0}
+				<div
+					class="bg-surface-2/60 mt-1 flex flex-row place-content-between place-items-center gap-1 rounded-lg px-2 py-1 text-sm"
+				>
+					<span class="text-text-secondary">Envío</span>
+					<span class="text-text-primary">$ {shippingFee.toFixed(2)}</span>
+				</div>
+			{/if}
 			<div
 				class="bg-surface-2 mt-1 flex flex-row place-content-between place-items-center gap-1 rounded-lg px-2 py-1 text-sm"
 			>

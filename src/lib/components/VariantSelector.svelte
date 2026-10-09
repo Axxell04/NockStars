@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolveVariant, getVariantDisplayName, isVariantAvailable } from '$lib/variant';
+	import { withShipping, type ShippingSelection } from '$lib/shipping';
 	import type { VariantComplete, ProductWithVariants } from '$lib/actions';
 	import Icon from '@iconify/svelte';
 	import { tick } from 'svelte';
@@ -60,6 +61,24 @@
 		selectedSize && selectedColor && selectedCut
 			? resolveVariant(variants, selectedSize, selectedColor, selectedCut)
 			: null
+	);
+
+	// Root layout data; cast because App.PageData declares no key for it.
+	const shipping = $derived((page.data as { shipping?: ShippingSelection }).shipping);
+
+	// What the visitor pays for the matched variant: the override (or base)
+	// plus the fixed shipping fee.
+	const matchedVariantBase = $derived(
+		matchedVariant
+			? matchedVariant.priceOverride !== null && matchedVariant.priceOverride !== undefined
+				? Number(matchedVariant.priceOverride)
+				: product.price
+			: null
+	);
+	const matchedVariantPrice = $derived(
+		matchedVariantBase !== null && shipping
+			? withShipping(matchedVariantBase, shipping)
+			: matchedVariantBase
 	);
 
 	// Derived: check if a size is available with any color/cut combination
@@ -356,9 +375,7 @@
 					<p class="text-text-primary font-medium">Variante seleccionada</p>
 					<p class="text-text-secondary text-sm">{getVariantDisplayName(matchedVariant)}</p>
 					<p class="text-brand-400 text-sm font-bold tabular-nums">
-						{matchedVariant.priceOverride !== null && matchedVariant.priceOverride !== undefined
-							? Number(matchedVariant.priceOverride).toFixed(2)
-							: product.price.toFixed(2)} $
+						{matchedVariantPrice?.toFixed(2)} $
 					</p>
 				</div>
 			</div>

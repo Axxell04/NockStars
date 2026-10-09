@@ -242,6 +242,15 @@ export const contact = pgTable('contact', {
 	url: text('url').notNull()
 });
 
+// ENVÍO
+// Single-row config: the fixed shipping fee applied once to every order. The
+// id is a constant so the row can be upserted without a pre-read.
+export const shippingConfig = pgTable('shipping_config', {
+	id: text('id').primaryKey(),
+	fee: doublePrecision('fee').notNull().default(0),
+	updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
+});
+
 export type Session = typeof session.$inferSelect;
 
 export type User = typeof user.$inferSelect;
@@ -290,3 +299,6 @@ export type CartInsert = typeof cart.$inferInsert;
 
 export type CartItem = typeof cartItem.$inferSelect;
 export type CartItemInsert = typeof cartItem.$inferInsert;
+
+export type ShippingConfig = typeof shippingConfig.$inferSelect;
+export type ShippingConfigInsert = typeof shippingConfig.$inferInsert;

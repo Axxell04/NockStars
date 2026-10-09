@@ -2,6 +2,7 @@ import { dev } from '$app/environment';
 import type { Product, ProductVariant } from '$lib/server/db/schema';
 import type { VariantComplete } from '$lib/actions';
 import { specEntries } from '$lib/product-specs';
+import { withShipping, type ShippingSelection } from '$lib/shipping';
 
 /**
  * Renders a schema.org payload as a complete `<script type="application/ld+json">`
@@ -56,6 +57,12 @@ export interface ProductWithVariantsJsonLdInput {
 	variants: VariantComplete[];
 	selectedVariant: VariantComplete | null;
 	baseUrl: string;
+	/**
+	 * Root layout shipping data. Offer prices carry the flat fee, matching the
+	 * number the page renders — structured data that disagrees with visible
+	 * content is a rich-result rejection waiting to happen.
+	 */
+	shipping?: ShippingSelection;
 }
 
 /**
@@ -74,7 +81,11 @@ function absoluteImageUrl(baseUrl: string, url: string): string {
  * and includes all variants as separate offers.
  */
 export function buildProductWithVariantsJsonLd(input: ProductWithVariantsJsonLdInput): object {
-	const { product, variants, selectedVariant, baseUrl } = input;
+	const { product, variants, selectedVariant, baseUrl, shipping } = input;
+
+	// Offer prices are the visitor's public prices: the flat shipping fee
+	// included, so the markup matches what the page shows.
+	const publicPrice = (base: number) => (shipping ? withShipping(base, shipping) : base);
 
 	// Use selected variant images if available. Product-level images are not
 	// available to this builder (its input carries no `productImages`), so a
@@ -109,7 +120,7 @@ export function buildProductWithVariantsJsonLd(input: ProductWithVariantsJsonLdI
 			'@type': 'Offer',
 			url: `${baseUrl}/producto/${product.id}?variant=${variant.id}`,
 			priceCurrency: 'USD',
-			price: variantPrice.toFixed(2),
+			price: publicPrice(variantPrice).toFixed(2),
 			availability: variantAvailability,
 			sku: variant.id,
 			name: `${variant.size} / ${variant.color} / ${variant.cut}`
@@ -127,7 +138,7 @@ export function buildProductWithVariantsJsonLd(input: ProductWithVariantsJsonLdI
 			'@type': 'Offer',
 			url: `${baseUrl}/producto/${product.id}`,
 			priceCurrency: 'USD',
-			price: implicitPrice.toFixed(2),
+			price: publicPrice(implicitPrice).toFixed(2),
 			availability: implicitAvailability,
 			sku: product.id,
 			name: 'Único'

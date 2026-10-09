@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { getCartBySession } from '$lib/server/cart';
+import { getShippingFee } from '$lib/server/shipping';
 import type { CartItemWithProduct } from '$lib/actions';
 import { getDb } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
@@ -139,9 +140,14 @@ export const actions: Actions = {
 
 		const cartId = cartRow.id;
 
+		// The fee the visitor owes is the configured flat fee, read here and not
+		// in the client, so the receipt in `order.content.shipping` is server
+		// truth.
+		const fee = await getShippingFee();
+
 		// Process checkout
 		const { checkoutCart } = await import('$lib/server/cart');
-		const result = await checkoutCart(cartId);
+		const result = await checkoutCart(cartId, { fee });
 
 		if (!result.success) {
 			return fail(400, { message: result.error.message, details: result.error.details });
