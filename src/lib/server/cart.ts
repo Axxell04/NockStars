@@ -1,6 +1,6 @@
 import * as table from '$lib/server/db/schema';
 import { getDb } from '$lib/server/db';
-import { asc, eq, and, sql, inArray } from 'drizzle-orm';
+import { asc, eq, and, sql, inArray, isNotNull } from 'drizzle-orm';
 import type {
 	Cart,
 	CartWithItems,
@@ -49,6 +49,43 @@ export async function getCartItemCount(sessionId: string | undefined): Promise<n
 		.execute();
 
 	return Number(row?.total ?? 0);
+}
+
+/**
+ * Returns the carrier line of a session cart: the first item (by `addedAt`)
+ * that still names a product, projected to just its product/variant ids.
+ *
+ * The flat shipping fee is attributed to the cart's first line, so the
+ * storefront needs to know which product+variant carries it. `product_id` is
+ * nullable (ON DELETE SET NULL): a straggler line without an id can never be
+ * a carrier and is skipped. Null when the session has no cart or no eligible
+ * item. Deliberately unenriched — this runs alongside every product page
+ * load and must stay a cheap query.
+ */
+export async function getCartCarrierLine(
+	sessionId: string | undefined
+): Promise<{ productId: string; variantId: string | null } | null> {
+	if (!sessionId || !UUID_SESSION_PATTERN.test(sessionId)) {
+		return null;
+	}
+
+	const [row] = await getDb()
+		.select({
+			productId: table.cartItem.productId,
+			variantId: table.cartItem.variantId
+		})
+		.from(table.cartItem)
+		.innerJoin(table.cart, eq(table.cartItem.cartId, table.cart.id))
+		.where(and(eq(table.cart.sessionId, sessionId), isNotNull(table.cartItem.productId)))
+		.orderBy(asc(table.cartItem.addedAt))
+		.limit(1)
+		.execute();
+
+	if (!row || row.productId === null) {
+		return null;
+	}
+
+	return { productId: row.productId, variantId: row.variantId };
 }
 
 /**

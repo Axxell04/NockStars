@@ -14,7 +14,7 @@
 		totalStock
 	} from '$lib/variant';
 	import { specEntries } from '$lib/product-specs';
-	import { withShipping } from '$lib/shipping';
+	import { withShipping, listingPromo } from '$lib/shipping';
 	import { imageUrl } from '$lib/cloudinary';
 	import Spinner from '$lib/components/Spinner.svelte';
 	import VariantSelector from '$lib/components/VariantSelector.svelte';
@@ -73,6 +73,27 @@
 	const displayBasePrice = $derived(withShipping(basePrice, shipping));
 	const displayVariantPrice = $derived(
 		variantPrice !== null ? withShipping(variantPrice, shipping) : null
+	);
+
+	// Cart-aware listing promo, same model as the home cards via `listingPromo`.
+	// The carrier match is variant-exact here (the page can be exact; the home
+	// cards stay product-level). The implicit variant carries the synthetic
+	// `id: 'implicit'` marker while its cart line stores a null variantId —
+	// both sides normalize to null so an implicit selection still matches its
+	// own carrier line.
+	const carrierLine = $derived(data.carrierLine);
+	const selectedVariantId = $derived(
+		selectedVariant && selectedVariant.id !== 'implicit' ? selectedVariant.id : null
+	);
+	const promo = $derived(
+		listingPromo({
+			cartEmpty: (data.cartCount ?? 0) === 0,
+			fee: shipping?.fee ?? 0,
+			isCarrier:
+				carrierLine !== null &&
+				carrierLine.productId === product.id &&
+				carrierLine.variantId === selectedVariantId
+		})
 	);
 
 	// Ficha técnica: product-level attributes plus the live variant detail block.
@@ -330,13 +351,34 @@
 			/>
 		{/if}
 
-		<!-- Price -->
+		<!-- Price — three promo states: plain, fee covered (discounted), carrier -->
 		<div class="flex flex-wrap items-baseline gap-3">
-			{#if showCrossedPrice}
-				<span class="text-text-muted text-xl line-through">{displayBasePrice.toFixed(2)} $</span>
+			{#if promo === 'discounted'}
+				<!-- The fee is already covered by the cart: the live offer wins over
+				     the variant-override struck price (that detail stays in the
+				     ficha técnica below). -->
+				<span class="text-text-muted text-xl line-through">{displayPrice.toFixed(2)} $</span>
+				<span class="text-brand-400 text-3xl font-bold tabular-nums">{price.toFixed(2)} $</span>
+				<span
+					class="bg-brand-400 text-surface-0 mt-1.5 inline-flex rounded-full px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide"
+				>
+					-{shipping.fee.toFixed(2)} $
+				</span>
+			{:else}
+				{#if showCrossedPrice}
+					<span class="text-text-muted text-xl line-through">{displayBasePrice.toFixed(2)} $</span>
+				{/if}
+				<span class="text-brand-400 text-3xl font-bold tabular-nums"
+					>{displayPrice.toFixed(2)} $</span
+				>
+				{#if promo === 'carrier-extra'}
+					<span
+						class="bg-brand-400 text-surface-0 mt-1.5 inline-flex rounded-full px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide"
+					>
+						más unidades {price.toFixed(2)} $
+					</span>
+				{/if}
 			{/if}
-			<span class="text-brand-400 text-3xl font-bold tabular-nums">{displayPrice.toFixed(2)} $</span
-			>
 		</div>
 
 		<!-- Stock Status -->
@@ -470,14 +512,16 @@
 							</dd>
 						</div>
 						{#if showCrossedPrice}
+							<!-- Under `discounted` the main price shows raw numbers, so the
+							     table shows raw values too — it must never contradict it. -->
 							<div class="flex items-center gap-3">
 								<dt class="text-text-secondary text-sm font-medium">Precio de la variante</dt>
 								<dd class="ml-auto text-right font-medium">
 									<span class="text-brand-400 font-bold tabular-nums">
-										{displayVariantPrice?.toFixed(2)} $
+										{(promo === 'discounted' ? price : displayVariantPrice)?.toFixed(2)} $
 									</span>
 									<span class="text-text-muted block text-xs">
-										Base {displayBasePrice.toFixed(2)} $
+										Base {(promo === 'discounted' ? basePrice : displayBasePrice).toFixed(2)} $
 									</span>
 								</dd>
 							</div>

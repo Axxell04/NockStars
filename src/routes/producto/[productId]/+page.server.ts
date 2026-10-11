@@ -1,4 +1,5 @@
 import { getProductWithVariants } from '$lib/server/product';
+import { getCartCarrierLine } from '$lib/server/cart';
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { effectivePrice, effectiveStock, getDefaultVariant } from '$lib/variant';
@@ -41,6 +42,10 @@ export const load: PageServerLoad = async (event) => {
 		type: 'website' as const
 	};
 
+	// Carrier line for the cart-aware price display: the first cart line
+	// carries the flat shipping fee.
+	const carrierLine = await getCartCarrierLine(event.cookies.get('cart_session_id'));
+
 	return {
 		product: productData,
 		variants: productData.variants,
@@ -48,7 +53,8 @@ export const load: PageServerLoad = async (event) => {
 		implicitVariant: productData.implicitVariant,
 		price,
 		stock,
-		seo
+		seo,
+		carrierLine
 	};
 };
 

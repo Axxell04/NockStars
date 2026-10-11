@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolveVariant, getVariantDisplayName, isVariantAvailable } from '$lib/variant';
-	import { withShipping, type ShippingSelection } from '$lib/shipping';
+	import { withShipping, listingPromo, type ShippingSelection } from '$lib/shipping';
 	import type { VariantComplete, ProductWithVariants } from '$lib/actions';
 	import Icon from '@iconify/svelte';
 	import { tick } from 'svelte';
@@ -63,11 +63,18 @@
 			: null
 	);
 
-	// Root layout data; cast because App.PageData declares no key for it.
+	// Root layout + page load data; cast because App.PageData declares no key
+	// for either. The product page load always returns `carrierLine`; the
+	// fallbacks keep the type honest when the data is genuinely absent.
 	const shipping = $derived((page.data as { shipping?: ShippingSelection }).shipping);
+	const cartCount = $derived((page.data as { cartCount?: number }).cartCount ?? 0);
+	const carrierLine = $derived(
+		(page.data as { carrierLine?: { productId: string; variantId: string | null } | null })
+			.carrierLine ?? null
+	);
 
-	// What the visitor pays for the matched variant: the override (or base)
-	// plus the fixed shipping fee.
+	// Base amount for the matched variant: the price override, or the product
+	// base price when the variant does not override it.
 	const matchedVariantBase = $derived(
 		matchedVariant
 			? matchedVariant.priceOverride !== null && matchedVariant.priceOverride !== undefined
@@ -75,10 +82,24 @@
 				: product.price
 			: null
 	);
+	// Fee-inclusive amount for the matched variant — its price when the fee is
+	// still up for grabs, and the struck comparison once the cart covers it.
 	const matchedVariantPrice = $derived(
 		matchedVariantBase !== null && shipping
 			? withShipping(matchedVariantBase, shipping)
 			: matchedVariantBase
+	);
+	// Cart-aware listing promo, same model as the product page and home cards.
+	// The carrier match is variant-exact; an absent match never is one.
+	const promo = $derived(
+		listingPromo({
+			cartEmpty: cartCount === 0,
+			fee: shipping?.fee ?? 0,
+			isCarrier:
+				carrierLine !== null &&
+				carrierLine.productId === product.id &&
+				(carrierLine.variantId ?? null) === (matchedVariant?.id ?? null)
+		})
 	);
 
 	// Derived: check if a size is available with any color/cut combination
@@ -374,9 +395,25 @@
 				<div class="min-w-0 flex-1">
 					<p class="text-text-primary font-medium">Variante seleccionada</p>
 					<p class="text-text-secondary text-sm">{getVariantDisplayName(matchedVariant)}</p>
-					<p class="text-brand-400 text-sm font-bold tabular-nums">
-						{matchedVariantPrice?.toFixed(2)} $
-					</p>
+					{#if promo === 'discounted'}
+						<!-- The cart already covers the fee: raw base against the
+						     fee-inclusive amount struck through. -->
+						<p class="text-sm font-bold tabular-nums">
+							<span class="text-text-muted mr-1 font-normal line-through"
+								>{matchedVariantPrice?.toFixed(2)} $</span
+							>
+							<span class="text-brand-400">{matchedVariantBase?.toFixed(2)} $</span>
+						</p>
+					{:else}
+						<p class="text-brand-400 text-sm font-bold tabular-nums">
+							{matchedVariantPrice?.toFixed(2)} $
+						</p>
+						{#if promo === 'carrier-extra'}
+							<p class="text-text-muted text-xs">
+								más unidades {matchedVariantBase?.toFixed(2)} $
+							</p>
+						{/if}
+					{/if}
 				</div>
 			</div>
 		{:else if selectedSize || selectedColor}
