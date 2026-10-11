@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import type { ProductComplete } from '$lib/interfaces/product';
 	import { imageUrl } from '$lib/cloudinary';
-	import { withShipping, type ShippingSelection } from '$lib/shipping';
+	import { withShipping, type ListingPromo, type ShippingSelection } from '$lib/shipping';
 	import Icon from '@iconify/svelte';
 	import { scale } from 'svelte/transition';
 	import { onMount, onDestroy } from 'svelte';
@@ -15,11 +15,12 @@
 		toggleEditProductModalIsVisible?: (visible?: boolean) => void;
 		priority?: boolean;
 		/**
-		 * Listing promo, computed by the caller via `isPromoDiscounted`: the cart
-		 * is non-empty and this product is not the one carrying the fee. Only the
-		 * storefront grid passes it; admin routes never do.
+		 * Listing promo, computed by the caller via `listingPromo`: whether the
+		 * cart already covers the fee (this card shows a struck price) or this
+		 * product is the carrier (extra units at base). Only the storefront grid
+		 * passes it; admin routes never do.
 		 */
-		promoDiscounted?: boolean;
+		promo?: ListingPromo;
 	}
 
 	let {
@@ -28,7 +29,7 @@
 		toggleDeleteProductModalIsVisible,
 		toggleEditProductModalIsVisible,
 		priority = false,
-		promoDiscounted = false
+		promo = 'none'
 	}: Props = $props();
 
 	let actualRoute = $derived(page.route.id);
@@ -38,23 +39,19 @@
 	// the layout load always returns it, so the fallback only exists to keep
 	// the type honest when the data is genuinely absent.
 	let shipping = $derived((page.data as { shipping?: ShippingSelection }).shipping);
-	// Listing promo: this card shows the base price against the fee-inclusive
-	// one struck through, so the grid reads as a multi-buy offer. Display only —
-	// the charged total never depends on it.
-	let promo = $derived(
-		promoDiscounted && shipping
-			? {
-					compareAt: withShipping(product.product.price, shipping),
-					fee: shipping.fee
-				}
-			: null
+	// The base price, resolved once: the promo branches and the plain price
+	// must all read the same number.
+	let basePrice = $derived(product.product.price);
+	// Listing promo, `discounted` only: this card shows the base price against
+	// the fee-inclusive one struck through, so the grid reads as a multi-buy
+	// offer. Display only — the charged total never depends on it.
+	let compareAt = $derived(
+		promo === 'discounted' && shipping ? withShipping(basePrice, shipping) : null
 	);
 	// Admin cards show the editable base price; storefront cards show what the
 	// visitor pays, fee included — unless the promo above took over.
 	let displayPrice = $derived(
-		isAdminRoute || !shipping || promo !== null
-			? product.product.price
-			: withShipping(product.product.price, shipping)
+		isAdminRoute || !shipping || compareAt !== null ? basePrice : withShipping(basePrice, shipping)
 	);
 
 	if (!toggleDeleteProductModalIsVisible) {
@@ -236,18 +233,29 @@
 				{product.product.name ?? 'Camisa'}
 			</p>
 		</div>
-		{#if promo}
+		{#if compareAt !== null && shipping}
 			<div class="flex flex-col items-end gap-1">
 				<span
 					class="bg-brand-400 text-surface-0 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide drop-shadow-lg"
 				>
-					-{promo.fee.toFixed(2)} $
+					-{shipping.fee.toFixed(2)} $
 				</span>
 				<p
 					class="flex items-baseline gap-2 text-lg font-bold whitespace-nowrap tabular-nums drop-shadow-lg"
 				>
-					<span class="text-text-muted text-sm line-through">{promo.compareAt.toFixed(2)} $</span>
+					<span class="text-text-muted text-sm line-through">{compareAt.toFixed(2)} $</span>
 					<span class="text-brand-400">{displayPrice.toFixed(2)} $</span>
+				</p>
+			</div>
+		{:else if promo === 'carrier-extra'}
+			<div class="flex flex-col items-end gap-1">
+				<span
+					class="bg-brand-400 text-surface-0 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide drop-shadow-lg"
+				>
+					más unidades {basePrice.toFixed(2)} $
+				</span>
+				<p class="text-brand-400 text-lg font-bold whitespace-nowrap tabular-nums drop-shadow-lg">
+					{displayPrice.toFixed(2)} $
 				</p>
 			</div>
 		{:else}

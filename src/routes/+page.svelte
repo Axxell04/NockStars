@@ -8,7 +8,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import Toast from '$lib/components/Toast.svelte';
 	import type { CartItemWithProduct } from '$lib/actions';
-	import { isPromoDiscounted } from '$lib/shipping';
+	import { listingPromo } from '$lib/shipping';
 
 	let { data }: PageProps = $props();
 
@@ -443,11 +443,10 @@
 				<ProductCard
 					{product}
 					priority={index === 0}
-					promoDiscounted={isPromoDiscounted({
+					promo={listingPromo({
 						cartEmpty: cart.length === 0,
-						carrierProductId: cart[0]?.productId ?? null,
-						productId: product.product.id,
-						fee: data.shipping.fee
+						fee: data.shipping.fee,
+						isCarrier: (cart[0]?.productId ?? null) === product.product.id
 					})}
 				/>
 			</div>

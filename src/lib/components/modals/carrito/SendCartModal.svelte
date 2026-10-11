@@ -105,17 +105,6 @@
 					</button>
 				</div>
 
-				{#if shippingFee > 0}
-					<div
-						class="modal-field bg-surface-2/60 flex flex-row items-center justify-between rounded-lg border border-white/6 p-3"
-					>
-						<span class="text-text-secondary text-sm font-medium">Envío:</span>
-						<span class="text-text-primary text-sm font-medium tabular-nums"
-							>$ {shippingFee.toFixed(2)}</span
-						>
-					</div>
-				{/if}
-
 				<div
 					class="modal-field bg-surface-2/60 flex flex-row items-center justify-between rounded-lg border border-white/6 p-3"
 				>

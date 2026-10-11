@@ -13,6 +13,7 @@
 	import { toast } from '$lib/toast.svelte.js';
 	import { CartErrorCode } from '$lib/actions';
 	import type { CartItemWithProduct } from '$lib/actions';
+	import { lineDisplay } from '$lib/shipping';
 
 	let { data }: PageProps = $props();
 
@@ -24,19 +25,23 @@
 
 	// Derived
 	let shipping = $derived(data.shipping);
+
+	/** Base unit price for one cart line: the variant override when present. */
+	function lineBasePrice(item: CartItemWithProduct): number {
+		const variant = item.variant;
+		return variant?.priceOverride !== null && variant?.priceOverride !== undefined
+			? Number(variant.priceOverride)
+			: item.product.price;
+	}
+
 	let cartSubtotal = $derived(
-		cartItems.reduce((acc, item) => {
-			const variant = item.variant;
-			const price =
-				variant?.priceOverride !== null && variant?.priceOverride !== undefined
-					? Number(variant.priceOverride)
-					: item.product.price;
-			return acc + price * item.quantity;
-		}, 0)
+		cartItems.reduce((acc, item) => acc + lineBasePrice(item) * item.quantity, 0)
 	);
-	// Lines always show base prices; the flat fee joins once at the total, and
-	// only for a non-empty cart (shipping belongs to an order, not to an empty
-	// basket).
+	// The first line is the carrier: it absorbs the flat fee into its regular
+	// unit price, so the fee is never named anywhere in the UI. The total is
+	// the sum of the displayed line totals — base × qty plus the fee once,
+	// which is exactly subtotal + fee below, and only for a non-empty cart
+	// (the fee belongs to an order, not to an empty basket).
 	let cartTotal = $derived(cartItems.length > 0 ? cartSubtotal + shipping.fee : cartSubtotal);
 
 	function extractCartItems(payload: unknown): CartItemWithProduct[] | null {
@@ -199,6 +204,12 @@
 			{@const decKey = qtyPendingKey(item.id, 'dec')}
 			{@const incKey = qtyPendingKey(item.id, 'inc')}
 			{@const removeKey = removePendingKey(item.id)}
+			{@const display = lineDisplay(
+				lineBasePrice(item),
+				item.quantity,
+				index === 0 && shipping.fee > 0,
+				shipping.fee
+			)}
 			<div
 				class="bg-surface-1/80 hover:bg-surface-2/50 hover:shadow-glow-sm animate-thread-appear flex gap-4 rounded-2xl border border-white/4 p-4 transition-all duration-400 hover:border-white/8"
 				style="--stagger-delay: {60 * index}ms"
@@ -236,15 +247,15 @@
 							<p class="text-text-muted mt-1 text-xs">{getVariantDisplayName(item.variant)}</p>
 						{/if}
 						<p class="text-brand-400 mt-1 font-semibold">
-							{(() => {
-								const variant = item.variant;
-								const price =
-									variant?.priceOverride !== null && variant?.priceOverride !== undefined
-										? Number(variant.priceOverride)
-										: item.product.price;
-								return price.toFixed(2);
-							})()} $
+							{display.unitPrice.toFixed(2)} $
 						</p>
+						{#if index === 0 && shipping.fee > 0 && item.quantity > 1}
+							<span
+								class="bg-brand-400 text-surface-0 mt-1.5 inline-flex rounded-full px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide"
+							>
+								a partir de la 2.ª unidad: {lineBasePrice(item).toFixed(2)} $
+							</span>
+						{/if}
 					</div>
 
 					<!-- Quantity controls — Thread-wrapped buttons -->
@@ -331,14 +342,7 @@
 					<!-- Line total -->
 					<div class="mt-2 text-right">
 						<span class="text-text-primary font-semibold">
-							{(() => {
-								const variant = item.variant;
-								const price =
-									variant?.priceOverride !== null && variant?.priceOverride !== undefined
-										? Number(variant.priceOverride)
-										: item.product.price;
-								return (price * item.quantity).toFixed(2);
-							})()} $
+							{display.total.toFixed(2)} $
 						</span>
 					</div>
 
@@ -397,13 +401,6 @@
 	<!-- Cart Total -->
 	{#if cartItems.length > 0}
 		<section class="glass sticky bottom-0 z-20 mt-auto rounded-2xl border border-white/4 p-4">
-			{#if shipping.fee > 0}
-				<div class="mb-3 flex items-baseline justify-between border-b border-white/4 pb-3 text-sm">
-					<span class="text-text-secondary">Envío</span>
-					<span class="text-text-primary font-medium tabular-nums">{shipping.fee.toFixed(2)} $</span
-					>
-				</div>
-			{/if}
 			<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<div class="flex items-baseline gap-2">
 					<span class="text-text-secondary">Total:</span>
