@@ -154,7 +154,7 @@
 			{#if pendingPreview.trim()}
 				<div class="bg-surface-2/60 rounded-xl border border-white/4 p-3">
 					<span class="text-text-muted mb-1 block text-xs">Vista previa</span>
-					<p class="text-text-secondary text-sm">{pendingPreview}</p>
+					<p class="text-text-secondary text-sm whitespace-pre-line">{pendingPreview}</p>
 				</div>
 			{/if}
 
@@ -199,7 +199,7 @@
 			{#if completedPreview.trim()}
 				<div class="bg-surface-2/60 rounded-xl border border-white/4 p-3">
 					<span class="text-text-muted mb-1 block text-xs">Vista previa</span>
-					<p class="text-text-secondary text-sm">{completedPreview}</p>
+					<p class="text-text-secondary text-sm whitespace-pre-line">{completedPreview}</p>
 				</div>
 			{/if}
 

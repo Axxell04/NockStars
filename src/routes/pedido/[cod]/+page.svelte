@@ -9,6 +9,8 @@
 
 	const order = data.order;
 	// Delivery fee recorded at checkout; 0 for orders placed before it existed.
+	// It stays folded into `totalValue` but is no longer itemized on the page —
+	// shipping is communicated through the admin template's {envio} token now.
 	const shippingFee = $derived(order ? orderShipping(order.content) : 0);
 	const linesTotal = $derived(order ? orderLinesTotal(order.items) : 0);
 	const totalValue = $derived(linesTotal + shippingFee);
@@ -46,7 +48,9 @@
 				role="status"
 				aria-label="Mensaje del estado del pedido"
 			>
-				<p class="text-text-secondary">{data.statusMessage}</p>
+				<!-- whitespace-pre-line: the admin template is a textarea, so its \n must
+				     render as real line breaks instead of collapsing into one line. -->
+				<p class="text-text-secondary whitespace-pre-line">{data.statusMessage}</p>
 			</section>
 		{/if}
 
@@ -112,14 +116,6 @@
 		<section class="glass rounded-2xl border border-white/4 p-6">
 			<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 				<div class="flex flex-col gap-1">
-					{#if shippingFee > 0}
-						<div class="flex items-baseline gap-2 text-sm">
-							<span class="text-text-secondary">Envío:</span>
-							<span class="text-text-primary font-medium tabular-nums"
-								>{shippingFee.toFixed(2)} $</span
-							>
-						</div>
-					{/if}
 					<div class="flex items-baseline gap-2">
 						<span class="text-text-secondary">Total:</span>
 						<span class="text-brand-400 text-2xl font-bold tabular-nums"
