@@ -251,6 +251,18 @@ export const shippingConfig = pgTable('shipping_config', {
 	updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
 });
 
+// ESTADO DEL PEDIDO
+// Single-row config: the client-facing message templates shown on
+// /pedido/[cod], one per order status. Same constant-id upsert shape as
+// shipping_config. Empty string is the "not configured" state and renders
+// nothing on the storefront page.
+export const orderStatusConfig = pgTable('order_status_config', {
+	id: text('id').primaryKey(),
+	pendingMessage: text('pending_message').notNull().default(''),
+	completedMessage: text('completed_message').notNull().default(''),
+	updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
+});
+
 export type Session = typeof session.$inferSelect;
 
 export type User = typeof user.$inferSelect;
@@ -302,3 +314,6 @@ export type CartItemInsert = typeof cartItem.$inferInsert;
 
 export type ShippingConfig = typeof shippingConfig.$inferSelect;
 export type ShippingConfigInsert = typeof shippingConfig.$inferInsert;
+
+export type OrderStatusConfig = typeof orderStatusConfig.$inferSelect;
+export type OrderStatusConfigInsert = typeof orderStatusConfig.$inferInsert;

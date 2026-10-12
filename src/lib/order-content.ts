@@ -187,6 +187,45 @@ export function orderShipping(content: unknown): number {
 }
 
 /**
+ * Lines subtotal from the enriched `order.items` rows returned by
+ * `getOrderWithItems()`: unit price × quantity, summed.
+ *
+ * This is the arithmetic the storefront header and total block both display, and
+ * the same arithmetic `{total}` renders from the status-message template. One
+ * function so the number a client reads and the number a template prints cannot
+ * drift apart. Malformed rows read as 0 rather than NaN, matching the rest of
+ * this module.
+ */
+export function orderLinesTotal(
+	items: { unitPriceSnapshot: unknown; quantity: unknown }[]
+): number {
+	return items.reduce(
+		(acc, item) => acc + toNumber(item.unitPriceSnapshot) * toNumber(item.quantity),
+		0
+	);
+}
+
+/**
+ * Locale/date options for every date shown on the client-facing order page,
+ * shared by the order header and by the `{fecha}` template placeholder so the
+ * two always agree. Admin surfaces use their own format and are unaffected.
+ */
+export const ORDER_DATE_FORMAT: Intl.DateTimeFormatOptions = {
+	year: 'numeric',
+	month: 'long',
+	day: 'numeric',
+	hour: '2-digit',
+	minute: '2-digit'
+};
+
+export const ORDER_DATE_LOCALE = 'es-ES';
+
+/** Formats an order timestamp for a client-facing surface. */
+export function formatOrderDate(date: Date): string {
+	return date.toLocaleDateString(ORDER_DATE_LOCALE, ORDER_DATE_FORMAT);
+}
+
+/**
  * Returns a NEW content value with `shipping.waived` set to `waived`, keeping
  * every other key (items, the original fee, snapshots) intact so the waiver is
  * reversible and auditable. Unrecognized shapes (legacy arrays, malformed

@@ -3,18 +3,14 @@
 	import type { PageProps } from './$types';
 	import Icon from '@iconify/svelte';
 	import { imageUrl } from '$lib/cloudinary';
-	import { orderShipping } from '$lib/order-content';
+	import { formatOrderDate, orderLinesTotal, orderShipping } from '$lib/order-content';
 
 	let { data }: PageProps = $props();
 
 	const order = data.order;
 	// Delivery fee recorded at checkout; 0 for orders placed before it existed.
 	const shippingFee = $derived(order ? orderShipping(order.content) : 0);
-	const linesTotal = $derived(
-		order
-			? order.items.reduce((acc, item) => acc + Number(item.unitPriceSnapshot) * item.quantity, 0)
-			: 0
-	);
+	const linesTotal = $derived(order ? orderLinesTotal(order.items) : 0);
 	const totalValue = $derived(linesTotal + shippingFee);
 </script>
 
@@ -27,13 +23,7 @@
 					<h1 class="text-text-primary text-2xl font-bold">Pedido {order.id}</h1>
 					<p class="text-text-secondary mt-1">Cliente: {order.clientName}</p>
 					<p class="text-text-muted text-sm">
-						{new Date(order.createdAt).toLocaleDateString('es-ES', {
-							year: 'numeric',
-							month: 'long',
-							day: 'numeric',
-							hour: '2-digit',
-							minute: '2-digit'
-						})}
+						{formatOrderDate(new Date(order.createdAt))}
 					</p>
 				</div>
 				<div class="flex items-center gap-3">
@@ -47,6 +37,18 @@
 				</div>
 			</div>
 		</header>
+
+		<!-- Admin-authored status message. Null when no template is configured
+		     for this order's status, so the page is unchanged until one is set. -->
+		{#if data.statusMessage}
+			<section
+				class="glass rounded-2xl border border-white/4 p-6"
+				role="status"
+				aria-label="Mensaje del estado del pedido"
+			>
+				<p class="text-text-secondary">{data.statusMessage}</p>
+			</section>
+		{/if}
 
 		<!-- Order Items -->
 		<section class="glass overflow-hidden rounded-2xl border border-white/4">

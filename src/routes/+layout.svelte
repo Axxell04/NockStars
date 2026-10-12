@@ -233,6 +233,15 @@
 					<Icon icon="mdi:truck-outline" class="text-base" />
 					<span class="hidden sm:inline">Envíos</span>
 				</a>
+				<a
+					href="/admin/estado-pedido"
+					class="text-text-muted hover:text-brand-400 focus:text-brand-400 flex items-center gap-1 transition-colors duration-200"
+					onfocus={(e) => cancelFocus(e)}
+					aria-label="Mensajes de estado del pedido"
+				>
+					<Icon icon="mdi:message-text-outline" class="text-base" />
+					<span class="hidden sm:inline">Estado</span>
+				</a>
 			{/if}
 			<form method="post" action="/admin?/logout">
 				<button
