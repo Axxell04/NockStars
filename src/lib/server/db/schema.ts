@@ -263,6 +263,18 @@ export const orderStatusConfig = pgTable('order_status_config', {
 	updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
 });
 
+// CONTACTO
+// Single-row config: the operational contact data — the WhatsApp number that
+// opens after checkout, and the recipient inbox for the public contact form.
+// Same constant-id upsert shape as shipping_config. Empty string is the "not
+// configured" state and falls back to the previous hardcoded/env value.
+export const contactConfig = pgTable('contact_config', {
+	id: text('id').primaryKey(),
+	whatsappNumber: text('whatsapp_number').notNull().default(''),
+	orderEmail: text('order_email').notNull().default(''),
+	updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow()
+});
+
 export type Session = typeof session.$inferSelect;
 
 export type User = typeof user.$inferSelect;
@@ -317,3 +329,6 @@ export type ShippingConfigInsert = typeof shippingConfig.$inferInsert;
 
 export type OrderStatusConfig = typeof orderStatusConfig.$inferSelect;
 export type OrderStatusConfigInsert = typeof orderStatusConfig.$inferInsert;
+
+export type ContactConfig = typeof contactConfig.$inferSelect;
+export type ContactConfigInsert = typeof contactConfig.$inferInsert;

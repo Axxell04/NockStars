@@ -28,6 +28,13 @@
 
 	// Root layout data; cast because App.PageData declares no key for it.
 	const shipping = $derived((page.data as { shipping?: ShippingSelection }).shipping);
+	const contactData = $derived(
+		(page.data as { contactConfig?: { whatsappNumber?: string } }).contactConfig
+	);
+
+	// Configurable WhatsApp number; the hardcoded value keeps checkout working
+	// when no contact_config row exists yet.
+	const whatsappNumber = $derived(contactData?.whatsappNumber || '593997733619');
 
 	let linesTotal = $derived(
 		cart.reduce((pv, cv) => {
@@ -44,11 +51,10 @@
 	let totalValue = $derived(linesTotal + shippingFee);
 
 	function sendWhatsApp(cod: string) {
-		const number = '593997733619';
 		const message = encodeURIComponent(
 			`Hola, este es mi pedido \n ${page.url.origin}/pedido/${cod}`
 		);
-		window.open(`https://wa.me/${number}?text=${message}`, '_blank');
+		window.open(`https://wa.me/${whatsappNumber}?text=${message}`, '_blank');
 	}
 
 	$effect(() => {

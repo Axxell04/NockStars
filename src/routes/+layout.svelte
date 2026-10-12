@@ -242,6 +242,15 @@
 					<Icon icon="mdi:message-text-outline" class="text-base" />
 					<span class="hidden sm:inline">Estado</span>
 				</a>
+				<a
+					href="/admin/contacto"
+					class="text-text-muted hover:text-brand-400 focus:text-brand-400 flex items-center gap-1 transition-colors duration-200"
+					onfocus={(e) => cancelFocus(e)}
+					aria-label="Configuración de contacto"
+				>
+					<Icon icon="mdi:email-outline" class="text-base" />
+					<span class="hidden sm:inline">Contacto</span>
+				</a>
 			{/if}
 			<form method="post" action="/admin?/logout">
 				<button

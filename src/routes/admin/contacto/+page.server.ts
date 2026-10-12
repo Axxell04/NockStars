@@ -2,6 +2,7 @@ import { createContact, deleteContact, getContacts, updateContact } from '$lib/s
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
+import { getContactConfig, setContactConfig } from '$lib/server/contact-config';
 
 export const load: PageServerLoad = async (event) => {
 	if (!event.locals.user) {
@@ -9,9 +10,11 @@ export const load: PageServerLoad = async (event) => {
 	}
 
 	const contacts = await getContacts();
+	const config = await getContactConfig();
 
 	return {
-		contacts: contacts
+		contacts: contacts,
+		contactConfig: config
 	};
 };
 
@@ -82,6 +85,30 @@ export const actions: Actions = {
 
 		return {
 			contacts: contacts
+		};
+	},
+	set_contact_config: async (event) => {
+		const formData = await event.request.formData();
+		const whatsapp = (formData.get('whatsapp') as string | null)?.trim();
+		const email = (formData.get('email') as string | null)?.trim();
+
+		if (!whatsapp || !email) {
+			return fail(400, { message: 'Completá el número de WhatsApp y el correo destino' });
+		}
+
+		try {
+			await setContactConfig(whatsapp, email);
+		} catch (error) {
+			console.log(error);
+			return fail(500, { message: 'Ha ocurrido un error en el servidor' });
+		}
+
+		const contacts = await getContacts();
+		const config = await getContactConfig();
+
+		return {
+			contacts: contacts,
+			contactConfig: config
 		};
 	}
 };

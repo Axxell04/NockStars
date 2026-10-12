@@ -3,6 +3,7 @@ import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import nodemailer from 'nodemailer';
 import { getContacts } from '$lib/server/contact';
+import { getContactConfig } from '$lib/server/contact-config';
 
 export const load: PageServerLoad = async () => {
 	const contacts = await getContacts();
@@ -24,7 +25,11 @@ export const actions: Actions = {
 		const from = formData.get('from') as string;
 		const message = formData.get('message') as string;
 
-		if (!env.MAIL_USER || !env.MAIL_PASS || !env.MAIL_TO || !from || !message) {
+		// Admin-editable recipient, falling back to MAIL_TO when unconfigured.
+		const config = await getContactConfig();
+		const mailTo = config?.orderEmail || env.MAIL_TO;
+
+		if (!env.MAIL_USER || !env.MAIL_PASS || !mailTo || !from || !message) {
 			return fail(500, { message: 'No se pudo realizar el envío' });
 		}
 
@@ -38,7 +43,7 @@ export const actions: Actions = {
 
 		const mailOptions = {
 			from: env.MAIL_USER,
-			to: env.MAIL_TO,
+			to: mailTo,
 			subject: `Murci | ${from}`,
 			text: message
 		};
