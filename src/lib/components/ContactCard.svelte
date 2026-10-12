@@ -45,13 +45,17 @@
 	}
 </script>
 
+<!--
+	In the admin the card must not navigate, but it must stay clickable: the
+	edit/delete buttons below live inside this anchor. `pointer-events-none`
+	would block those too, so navigation is stopped by the onclick handler
+	instead, letting the buttons receive hover and clicks.
+-->
 <a
 	href={contact.url}
 	target="_blank"
 	class="group bg-surface-1/80 hover:border-brand-400/20 hover:bg-surface-2/80 hover:shadow-glow-sm flex items-center gap-4 rounded-xl border
-    border-white/4 px-5 py-4 transition-all duration-400 ease-out
-    {actualRoute?.includes('/admin') ? 'pointer-events-none' : ''}
-    "
+    border-white/4 px-5 py-4 transition-all duration-400 ease-out"
 	onclick={actualRoute?.includes('/admin') ? (e) => e.preventDefault() : () => {}}
 >
 	<!-- Thread-wrapped icon -->
