@@ -45,15 +45,21 @@
 </script>
 
 <div
-	class="group relative flex cursor-pointer flex-row gap-3 rounded-xl transition-all duration-400 ease-out
+	class="group focus-visible:outline-brand-400 relative flex cursor-pointer flex-row gap-3 rounded-xl transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.98]
     {isSelected
 		? 'bg-surface-2/80 border-brand-400/25 shadow-glow-sm border'
 		: 'bg-surface-1/80 hover:bg-surface-2/60 hover:shadow-glow-sm border border-white/4 hover:border-white/8'}
     "
 	onclick={() => selectThisCatalog(catalog)}
 	role="button"
+	aria-pressed={isSelected}
 	tabindex="0"
-	onkeydown={() => {}}
+	onkeydown={(e) => {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			selectThisCatalog(catalog);
+		}
+	}}
 >
 	<!-- Thread accent on selected -->
 	{#if isSelected}
@@ -72,6 +78,17 @@
 			{catalog.description}
 		</p>
 	</div>
+
+	{#if !actualRoute?.includes('/admin')}
+		<!-- Client affordance: the card's whole job here is opening the
+		     catalog, so the chevron only exists to say so on hover. -->
+		<span
+			class="text-text-muted group-hover:text-brand-400 flex -translate-x-1 items-center pr-4 text-lg opacity-0 transition-[opacity,transform,color] duration-200 ease-out group-hover:translate-x-0 group-hover:opacity-100"
+			aria-hidden="true"
+		>
+			<Icon icon="mingcute:right-fill" />
+		</span>
+	{/if}
 
 	{#if actualRoute?.includes('/admin')}
 		<div
