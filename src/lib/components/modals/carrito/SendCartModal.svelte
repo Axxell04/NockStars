@@ -6,6 +6,7 @@
 	import type { CartItemWithProduct } from '$lib/actions';
 	import { page } from '$app/state';
 	import type { ShippingSelection } from '$lib/shipping';
+	import { normalizeWhatsAppNumber } from '$lib/whatsapp';
 	import Icon from '@iconify/svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 
@@ -33,8 +34,11 @@
 	);
 
 	// Configurable WhatsApp number; the hardcoded value keeps checkout working
-	// when no contact_config row exists yet.
-	const whatsappNumber = $derived(contactData?.whatsappNumber || '593997733619');
+	// when no contact_config row exists yet. Normalized here too, so a number
+	// saved before validation existed can never produce a dead wa.me link.
+	const whatsappNumber = $derived(
+		normalizeWhatsAppNumber(contactData?.whatsappNumber || '593997733619')
+	);
 
 	let linesTotal = $derived(
 		cart.reduce((pv, cv) => {

@@ -3,6 +3,7 @@ import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { getContactConfig, setContactConfig } from '$lib/server/contact-config';
+import { isValidWhatsAppNumber, normalizeWhatsAppNumber } from '$lib/whatsapp';
 
 export const load: PageServerLoad = async (event) => {
 	if (!event.locals.user) {
@@ -96,8 +97,18 @@ export const actions: Actions = {
 			return fail(400, { message: 'Completá el número de WhatsApp y el correo destino' });
 		}
 
+		// `wa.me` only accepts bare international digits; anything else yields
+		// a WhatsApp "not found" page instead of a chat. Normalize before
+		// saving so a separator the user typed can never break checkout.
+		const whatsappNumber = normalizeWhatsAppNumber(whatsapp);
+		if (!isValidWhatsAppNumber(whatsappNumber)) {
+			return fail(400, {
+				message: 'El número de WhatsApp debe incluir el código de país, por ejemplo 593997733619'
+			});
+		}
+
 		try {
-			await setContactConfig(whatsapp, email);
+			await setContactConfig(whatsappNumber, email);
 		} catch (error) {
 			console.log(error);
 			return fail(500, { message: 'Ha ocurrido un error en el servidor' });
