@@ -154,7 +154,12 @@
 			observer.observe(cardElement);
 		}
 
-		startCarousel();
+		// Auto-advance is motion the user did not ask for: honor reduced-motion
+		// (the app.css blanket rule only reaches CSS, not this interval).
+		// Manual swiping still works — it is direct manipulation, not animation.
+		if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			startCarousel();
+		}
 
 		return () => {
 			observer.disconnect();
@@ -169,7 +174,7 @@
 
 <div
 	bind:this={cardElement}
-	class="group/card card-thread hover:shadow-glow-md relative isolate flex h-80 w-72 cursor-pointer flex-col overflow-hidden rounded-[1.25rem] transition-all duration-500 ease-out outline-none"
+	class="group/card card-thread card-product focus-visible:outline-brand-400 relative isolate flex h-80 w-72 cursor-pointer flex-col overflow-hidden rounded-[1.25rem] focus-visible:outline-2 focus-visible:outline-offset-2"
 	onclick={navigateToProduct}
 	onmouseenter={() => {
 		isHovered = true;
@@ -191,7 +196,7 @@
 			<img
 				src={imageUrl(imgProduct.url, 'card')}
 				alt={imgProduct.id}
-				class="h-full w-72 flex-shrink-0 snap-center object-cover transition-all duration-700 ease-out group-hover/card:scale-[1.06] group-hover/card:brightness-110"
+				class="h-full w-72 flex-shrink-0 snap-center object-cover transition-[transform,filter] duration-300 ease-out group-hover/card:scale-[1.06] group-hover/card:brightness-110"
 				loading={priority && i === 0 ? 'eager' : 'lazy'}
 				fetchpriority={priority && i === 0 ? 'high' : 'auto'}
 				width="288"
@@ -207,7 +212,8 @@
 		>
 			{#each product.imgs.keys() as i}
 				<span
-					class="rounded-full transition-all duration-300 {i === imgIndex
+					class="rounded-full transition-[width,height,background-color] duration-300 {i ===
+					imgIndex
 						? 'bg-brand-400 shadow-glow-sm h-1.5 w-4'
 						: 'h-1.5 w-1.5 bg-white/40'}"
 				></span>
@@ -267,17 +273,17 @@
 
 	<!-- Hover overlay — Thread glow effect -->
 	<div
-		class="from-brand-500/15 via-brand-500/5 pointer-events-none absolute inset-0 z-10 bg-gradient-to-t to-transparent opacity-0 transition-opacity duration-500 group-hover/card:opacity-100"
+		class="from-brand-500/15 via-brand-500/5 pointer-events-none absolute inset-0 z-10 bg-gradient-to-t to-transparent opacity-0 transition-opacity duration-300 group-hover/card:opacity-100"
 	></div>
 
 	<!-- Inset ring — sigue la curva del radio exactamente -->
 	<div
-		class="group-hover/card:ring-brand-400/30 pointer-events-none absolute inset-0 z-20 rounded-[1.25rem] ring-1 ring-transparent transition-all duration-500 ring-inset"
+		class="group-hover/card:ring-brand-400/30 pointer-events-none absolute inset-0 z-20 rounded-[1.25rem] ring-1 ring-transparent transition-[box-shadow] duration-300 ring-inset"
 	></div>
 
 	<!-- Thread accent line at bottom -->
 	<div
-		class="via-brand-400/40 pointer-events-none absolute right-0 bottom-0 left-0 z-20 h-[2px] bg-gradient-to-r from-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover/card:opacity-100"
+		class="via-brand-400/40 pointer-events-none absolute right-0 bottom-0 left-0 z-20 h-[2px] bg-gradient-to-r from-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover/card:opacity-100"
 	></div>
 
 	<!-- Admin overlay — Thread-wrapped -->
@@ -318,5 +324,21 @@
 
 	.img-container::-webkit-scrollbar {
 		display: none;
+	}
+
+	/* Explicit hover/press transitions. `card-thread` (app.css) declares
+	   `transition: all 0.4s` unlayered, so a Tailwind transition utility can
+	   never win here — scoped rules are the only honest place to own them. */
+	.card-product {
+		transition:
+			transform 0.2s var(--ease-out-expo),
+			box-shadow 0.2s var(--ease-out-expo),
+			border-color 0.2s var(--ease-out-expo);
+	}
+
+	/* Press feedback; must out-specify `.card-thread:hover`'s translateY. */
+	.card-product:active {
+		transform: translateY(0) scale(0.985);
+		transition-duration: 0.1s;
 	}
 </style>
