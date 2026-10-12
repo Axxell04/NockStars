@@ -1,7 +1,7 @@
 import * as table from '$lib/server/db/schema';
 import { generateId } from '$lib/server/functions';
 import { getDb } from '$lib/server/db';
-import { asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import { lineKey } from '$lib/order-content';
 
 type GetOrderOptions = {
@@ -10,12 +10,6 @@ type GetOrderOptions = {
 	completed?: boolean;
 	cod?: string | null;
 };
-
-export async function checkOrderExists(cod: string) {
-	const [order] = await getDb().select().from(table.order).where(eq(table.order.id, cod)).execute();
-	if (order) return true;
-	return false;
-}
 
 export async function getOrderById(id: string) {
 	const [order] = await getDb().select().from(table.order).where(eq(table.order.id, id)).execute();
@@ -276,11 +270,19 @@ export async function getOrders(options: GetOrderOptions = {}) {
 	// `cod` is a single-order lookup rather than a page of results: it ignores
 	// paging entirely and reports page 0. That is why the clamp below must not
 	// run for it — 0 is a deliberate answer here, not an out-of-range request.
+	//
+	// The `completed` filter still applies here. It used to be dropped, so
+	// `/admin/pedidos` (which always passes `{ completed: false, cod }`) kept
+	// showing a completed order as pending whenever `cod` was in the URL.
 	if (cod) {
 		const orders = await getDb()
 			.select()
 			.from(table.order)
-			.where(eq(table.order.id, cod))
+			.where(
+				typeof completed === 'boolean'
+					? and(eq(table.order.id, cod), eq(table.order.completed, completed))
+					: eq(table.order.id, cod)
+			)
 			.execute();
 		return {
 			orders: orders,

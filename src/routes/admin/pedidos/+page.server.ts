@@ -1,23 +1,27 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { deleteOrder, getOrders, updateOrder } from '$lib/server/order';
-import { createRevenue } from '$lib/server/revenue';
+import { getOrders } from '$lib/server/order';
 import type { OrderPagination } from '$lib/interfaces/order';
 
 export const load: PageServerLoad = async (event) => {
 	if (!event.locals.user) {
 		return redirect(302, '/login');
 	}
-	const query = event.url.searchParams;
-	const cod = query.get('cod');
-	console.log(cod);
-	// const pendingOrders = await getOrders(undefined, undefined, false);
-	// const completedOrders = await getOrders(undefined, undefined, true);
+	const cod = event.url.searchParams.get('cod');
 
-	const orderPagination = (await getOrders({ completed: false, cod })) as OrderPagination;
+	// Read from the cookie-backed local rather than hardcoding `false`: the
+	// set_view_state action writes `order_view_state` and hooks.server.ts copies
+	// it into locals, so ignoring it here reset the toggle on every reload.
+	const completed = event.locals.orderViewState === 'completed';
+
+	const orderPagination = (await getOrders({ completed, cod })) as OrderPagination;
 
 	return {
-		orderPagination
+		orderPagination,
+		// Handed to the page so the toggle label matches the list it loaded.
+		// The page used to seed this as 'pending' and auto-submit the form on
+		// mount, which rewrote the cookie to 'pending' and clobbered the choice.
+		viewState: completed ? 'completed' : 'pending'
 	};
 };
 
@@ -45,102 +49,11 @@ export const actions: Actions = {
 			orderPagination
 		};
 	},
-	done: async (event) => {
-		event.url.href = event.url.href.replace(event.url.search, '');
-	},
-	delete_order: async (event) => {
-		const formData = await event.request.formData();
-		const orderId = formData.get('order_id') as string;
-
-		if (!orderId) {
-			return fail(400, { message: 'Error en los parámetros de la petición' });
-		}
-
-		try {
-			await deleteOrder(orderId);
-		} catch (error) {
-			console.log(error);
-			return fail(500, { message: 'A ocurrido un error en el servidor' });
-		}
-
-		const completed = event.locals.orderViewState
-			? event.locals.orderViewState === 'completed'
-				? true
-				: false
-			: false;
-		const orderPagination = await getOrders({ completed });
-
-		return {
-			orderPagination
-		};
-	},
-	edit_order: async (event) => {
-		const formData = await event.request.formData();
-		const orderId = formData.get('order_id') as string;
-		const totalValue = parseFloat(formData.get('total_value') as string);
-		let content: object;
-		try {
-			content = JSON.parse(formData.get('content') as string);
-			if (!content || !orderId || !isNumber(totalValue)) {
-				return fail(400, { message: 'Error en los parámetros de la petición' });
-			}
-		} catch {
-			return fail(400, { message: 'Error en los parámetros de la petición' });
-		}
-
-		await updateOrder(orderId, content, undefined, undefined, totalValue);
-
-		const completed = event.locals.orderViewState
-			? event.locals.orderViewState === 'completed'
-				? true
-				: false
-			: false;
-
-		const orderPagination = await getOrders({ completed });
-
-		return {
-			orderPagination
-		};
-	},
-	update_order_state: async (event) => {
-		const formData = await event.request.formData();
-		const orderId = formData.get('order_id') as string;
-		const totalValue = parseFloat(formData.get('total_value') as string);
-
-		if (!orderId || !isNumber(totalValue)) {
-			return fail(400, { message: 'Error en los parámetros de la petición' });
-		}
-
-		const completed = event.locals.orderViewState
-			? event.locals.orderViewState === 'completed'
-				? true
-				: false
-			: false;
-
-		try {
-			if (!completed === true) {
-				const revenueId = await createRevenue(
-					parseFloat(totalValue.toFixed(2)),
-					'Orden completada'
-				);
-				await updateOrder(orderId, undefined, !completed, revenueId);
-			} else {
-				await updateOrder(orderId, undefined, !completed, null);
-			}
-		} catch {
-			return fail(500, { message: 'A ocurrido un error en el servidor' });
-		}
-
-		const orderPagination = await getOrders({ completed });
-
-		return {
-			orderPagination
-		};
-	},
 	prev_page: async (event) => {
 		const formData = await event.request.formData();
 		let totalPages = 0;
 		let currentPage = 0;
+		const completed = event.locals.orderViewState === 'completed';
 
 		try {
 			totalPages = parseInt(formData.get('total_pages') as string);
@@ -156,7 +69,7 @@ export const actions: Actions = {
 			return fail(404, { message: 'Page not found' });
 		}
 		const nextPage = currentPage - 1;
-		const orderPagination = await getOrders({ page: nextPage });
+		const orderPagination = await getOrders({ page: nextPage, completed });
 
 		return {
 			orderPagination
@@ -166,6 +79,7 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		let totalPages = 0;
 		let currentPage = 0;
+		const completed = event.locals.orderViewState === 'completed';
 
 		try {
 			totalPages = parseInt(formData.get('total_pages') as string);
@@ -181,7 +95,7 @@ export const actions: Actions = {
 			return fail(404, { message: 'Page not found' });
 		}
 		const nextPage = currentPage + 1;
-		const orderPagination = await getOrders({ page: nextPage });
+		const orderPagination = await getOrders({ page: nextPage, completed });
 
 		return {
 			orderPagination
@@ -191,11 +105,7 @@ export const actions: Actions = {
 		const formData = await event.request.formData();
 		let totalPages = 0;
 		let gotoPage = 0;
-		const completed = event.locals.orderViewState
-			? event.locals.orderViewState === 'completed'
-				? true
-				: false
-			: false;
+		const completed = event.locals.orderViewState === 'completed';
 
 		try {
 			totalPages = parseInt(formData.get('total_pages') as string);
@@ -222,7 +132,3 @@ export const actions: Actions = {
 		};
 	}
 };
-
-function isNumber(value: unknown): value is number {
-	return typeof value === 'number' && !isNaN(value) && value > 0;
-}

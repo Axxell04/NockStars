@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
 	import type { PageProps } from './$types';
 	import Icon from '@iconify/svelte';
@@ -21,15 +20,16 @@
 
 	let gotoPage: number | undefined = $state();
 
-	// View State
-	let viewState = $state('pending');
+	// View State. Seeded from the server so the label matches the list that was
+	// loaded. It used to be hardcoded 'pending' plus an onMount auto-submit that
+	// wrote 'pending' back into the cookie, which is why the toggle never stuck.
+	let viewState = $state(data.viewState);
 
 	// ORDER COD
 	let cod = $derived(page.url.searchParams.get('cod'));
 
 	// HTML Elements
 	let selectStateElement: HTMLButtonElement | undefined = $state();
-	let btnSetInitViewState: HTMLButtonElement | undefined = $state();
 
 	let selectStateElementHeight: number = $state(9);
 
@@ -104,12 +104,6 @@
 	$effect(() => {
 		if (typeof selectStateElement !== 'undefined' && stateListIsVisible) {
 			selectStateElementHeight = selectStateElement.clientHeight;
-		}
-	});
-
-	onMount(() => {
-		if (typeof btnSetInitViewState !== 'undefined') {
-			btnSetInitViewState.click();
 		}
 	});
 </script>
@@ -216,10 +210,6 @@
 							</ul>
 						</div>
 					{/if}
-
-					<button bind:this={btnSetInitViewState} type="submit" class="hidden">
-						Set Init View State
-					</button>
 				</form>
 				<form
 					action="?/prev_page"
@@ -361,22 +351,5 @@
 		<!-- {/key} -->
 	</section>
 </div>
-
-<form
-	action="?/get_orders"
-	method="post"
-	use:enhance={() => {
-		return async ({ result }) => {
-			if (result.type === 'success') {
-				if (result.data?.orderPagination) {
-					setOrderPagination(result.data.orderPagination as OrderPagination);
-				}
-			}
-		};
-	}}
-	class="hidden"
->
-	<button type="submit"> Get Orders </button>
-</form>
 
 <Toast message={toastMessage} />

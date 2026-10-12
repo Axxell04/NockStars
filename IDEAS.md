@@ -9,42 +9,6 @@ _None._
 
 ## Ideas
 
-### Bugs
-
-- [ ] **Order marked Completado still shows in Pendientes** — `/admin/pedidos`
-      keeps listing an order after it is marked complete.
-      **Root cause:** `getOrders()` drops the `completed` filter entirely
-      whenever `cod` is set (`src/lib/server/order.ts`, the `if (cod)`
-      single-order lookup matches by id only), while the page load always
-      passes `{ completed: false, cod }`. Reachable via `/pedido/[cod]`, which
-      redirects a logged-in admin to `/admin/pedidos?cod=…` and leaves `cod`
-      in the URL, so the filter is silently discarded.
-      **Secondary:** that `load` hardcodes `completed: false` and never reads
-      `locals.orderViewState`, so the Pendientes/Completados toggle resets on
-      reload even though the cookie is written and read into locals.
-      **Also dead:** the `done` and `update_order_state` actions in
-      `/admin/pedidos/+page.server.ts` are never referenced by the page — the
-      only completion toggle lives in `/admin/pedido/[id]`.
-
-- [ ] **Every real order 404s on `/pedido/[cod]`** — the page always renders
-      "Pedido no encontrado" even though the order exists. No order in the
-      database passes.
-      **Root cause:** the load rejects any code whose length is not exactly 10
-      (`src/routes/pedido/[cod]/+page.server.ts`, `cod.length !== 10`) before
-      querying. But live checkout generates
-      `` `ORD-${Date.now()}-${random6}` `` (`src/lib/server/cart.ts:699`) = **24
-      chars**. Verified against the DB: 13/13 orders fail the guard — 6 real
-      ones at 24 chars, 7 `itest-order-<uuid>` rows at 48.
-      The 10-char expectation comes from `generateId(10)` inside `createOrder()`,
-      which is **dead code** — never called by any route, only referenced in a
-      comment in `order-content.ts` that says "now dead code".
-      **Fix:** drop the length guard entirely; `checkOrderExists()` already does
-      the real lookup. (Consider also dropping the `itest-order-*` rows, which
-      are integration-test debris sitting in the live database.)
-      **Secondary:** the template never renders `data.message`, so the
-      "código incorrecto" and "pedido no encontrado" branches look identical to
-      the user — which is why this read as "not found" rather than "bad code".
-
 ### Storefront
 
 - [ ] **Design skills for catalog cards** — install design skills (e.g.
@@ -70,6 +34,25 @@ _None._
 
 ## Done
 
+- [x] **Every real order 404s on `/pedido/[cod]`** — the load rejected any
+      code whose length was not exactly 10 (`cod.length !== 10`), a fossil of
+      the dead `createOrder()`/`generateId(10)` path, while live checkout mints
+      24-char ids. Removed the guard and collapsed `checkOrderExists()` into
+      `getOrderWithItems()` (one query instead of two — it already returns
+      `null` for a missing row). The template now renders `data.message` too,
+      so the error branch is no longer a hardcoded "Pedido no encontrado".
+      Also deleted the orphaned `checkOrderExists()`. (2026-10-11)
+- [x] **Order marked Completado still shows in Pendientes** — `getOrders()`
+      dropped the `completed` filter whenever `cod` was set; it now composes
+      `and(id = cod, completed = …)`. The `load` reads
+      `locals.orderViewState` instead of hardcoding `false`, and the page
+      seeds its toggle label from the server and no longer auto-submits
+      `set_view_state` on mount (that click rewrote the cookie to `pending`
+      on every load, which is why the toggle never stuck). `prev_page` and
+      `next_page` now pass `completed` as `goto_page` already did. Removed the
+      dead `done`, `delete_order`, `edit_order`, `update_order_state` actions,
+      the orphaned `isNumber` helper, and the `?/get_orders` form that pointed
+      at a non-existent action. (2026-10-11)
 - [x] **Customizable order-status message** — `/pedido/[cod]` now shows a
       message built from an admin template, rendered server-side with 8
       placeholders (`{cliente}`, `{estado}`, `{codigo}`, `{fecha}`, `{total}`,

@@ -137,6 +137,6 @@
 {:else}
 	<div in:fade class="text-text-muted flex flex-col items-center justify-center py-20">
 		<Icon icon="mdi:package-variant-closed" class="mb-4 text-6xl opacity-20" />
-		<p class="text-lg">Pedido no encontrado</p>
+		<p class="text-lg">{data.message ?? 'Pedido no encontrado'}</p>
 	</div>
 {/if}
