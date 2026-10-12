@@ -26,7 +26,16 @@ _None._
 
 ### Infra / DX
 
-- [ ]
+- [ ] **Unify the duplicated `cancelFocus` helper** — the same 6-line
+      blur-after-200ms helper is copy-pasted into **36 files** across
+      `src/routes/**` and `src/lib/components/**` (page layouts, cards, and
+      nearly every admin modal). It exists so a focused button still fires
+      its click instead of being blurred away first.
+      **Fix:** extract it once, e.g. into `src/lib/focus.ts`, and import it
+      where needed.
+      **Caveat:** the 200 ms delay is the whole trick — it has to survive the
+      move, and because so many files are involved this is better done as its
+      own focused pass than folded into another change.
 
 ### UX / Design
 
