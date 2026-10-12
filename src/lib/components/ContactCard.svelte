@@ -83,6 +83,11 @@
 			<button
 				class="text-text-muted hover:text-brand-400 hover:bg-surface-3 rounded-lg p-1.5 transition-colors"
 				onclick={(e) => {
+					// The buttons live inside the card's anchor. `stopPropagation` alone
+					// does NOT stop navigation — it only halts bubbling, which also
+					// keeps the anchor's own preventDefault from ever running. The
+					// default action must be cancelled here.
+					e.preventDefault();
 					e.stopPropagation();
 					selectThisContact(contact);
 					toggleDeleteContactModalIsVisible(true);
@@ -95,6 +100,9 @@
 			<button
 				class="text-text-muted hover:text-brand-400 hover:bg-surface-3 rounded-lg p-1.5 transition-colors"
 				onclick={(e) => {
+					// See the delete button above: both preventDefault and
+					// stopPropagation are required to keep the card's link inert.
+					e.preventDefault();
 					e.stopPropagation();
 					selectThisContact(contact);
 					toggleEditContactModalIsVisible(true);
