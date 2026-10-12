@@ -4,10 +4,12 @@
 	import Icon from '@iconify/svelte';
 	import { imageUrl } from '$lib/cloudinary';
 	import { formatOrderDate, orderLinesTotal, orderShipping } from '$lib/order-content';
+	import ImageLightbox from '$lib/components/ImageLightbox.svelte';
 
 	let { data }: PageProps = $props();
 
 	const order = data.order;
+	let viewer: { urls: string[]; index: number; name: string } | null = $state(null);
 	// Delivery fee recorded at checkout; 0 for orders placed before it existed.
 	// It stays folded into `totalValue` but is no longer itemized on the page —
 	// shipping is communicated through the admin template's {envio} token now.
@@ -61,9 +63,22 @@
 			</div>
 			<div class="divide-y divide-white/4">
 				{#each order.items as item}
+					{@const lineImages = item.product?.images?.length
+						? item.product.images.map((img) => img.url)
+						: (item.imageUrls ?? [])}
+					{@const lineName = item.product?.name ?? item.productNameSnapshot}
 					<div class="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
 						<div class="flex gap-4">
-							<div class="bg-surface-2 h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl">
+							<button
+								type="button"
+								disabled={lineImages.length === 0}
+								aria-label={lineImages.length > 0 ? `Ampliar imagen de ${lineName}` : undefined}
+								onclick={() => (viewer = { urls: lineImages, index: 0, name: lineName })}
+								class="bg-surface-2 h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl {lineImages.length >
+								0
+									? 'cursor-zoom-in'
+									: ''}"
+							>
 								{#if item.product?.images?.[0]?.url}
 									<img
 										src={imageUrl(item.product.images[0].url, 'thumb')}
@@ -81,7 +96,7 @@
 										<Icon icon="mdi:tshirt-crew" class="text-text-muted/30 text-3xl" />
 									</div>
 								{/if}
-							</div>
+							</button>
 							<div class="flex flex-col justify-center">
 								<h3 class="text-text-primary font-semibold">
 									{item.product?.name ?? item.productNameSnapshot}
@@ -130,6 +145,7 @@
 			</div>
 		</section>
 	</div>
+	<ImageLightbox bind:viewer />
 {:else}
 	<div in:fade class="text-text-muted flex flex-col items-center justify-center py-20">
 		<Icon icon="mdi:package-variant-closed" class="mb-4 text-6xl opacity-20" />

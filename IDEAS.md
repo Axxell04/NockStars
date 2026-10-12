@@ -61,8 +61,18 @@ _None._
 - [x] **Template editor for order-status message** — `/admin/estado-pedido`
       edits one template per status with live preview through the same
       builder and renderer the storefront uses. (2026-10-11)
-- [x] **Cart image modal** — clicking a cart line thumbnail opens the same
-      lightbox as `/admin/pedido` (arrows, dots, Escape). (2026-10-11)
+- [x] **Cart image modal** — clicking a cart line thumbnail opens the
+      lightbox (arrows, dots, Escape). Since the third consumer landed, the
+      viewer lives in `src/lib/components/ImageLightbox.svelte` instead of
+      being pasted inline per page; it takes `bind:viewer` and owns the
+      arrow-key effect, so a page only assigns the state from its trigger.
+      (2026-10-11)
+- [x] **Order image modal** — `/pedido/[cod]` line thumbnails open the same
+      lightbox. The `<div>` became a `<button>` with `cursor-zoom-in`,
+      `disabled` when the line has no images, and an `aria-label`. The list
+      prefers the product gallery and falls back to the checkout
+      `imageUrls`, so it can hold more images than the single thumbnail
+      shown. (2026-10-11)
 - [x] **Migrate images to Cloudinary** — verified in code: SDK installed,
       signature endpoint live, local `/imgs` route removed, deletes go
       through Cloudinary. (2026-10-11)
