@@ -44,7 +44,7 @@ export const actions: Actions = {
 		const mailOptions = {
 			from: env.MAIL_USER,
 			to: mailTo,
-			subject: `Murci | ${from}`,
+			subject: `NockStars | ${from}`,
 			text: message
 		};
 
