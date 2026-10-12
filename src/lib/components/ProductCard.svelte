@@ -193,9 +193,12 @@
 		class="img-container absolute inset-0 z-0 flex snap-x snap-mandatory flex-row overflow-hidden scroll-smooth rounded-[1.25rem]"
 	>
 		{#each product.imgs as imgProduct, i}
+			<!-- Images are decorative: the card already names the product via
+			     aria-label and visible copy. A raw DB id here would be read
+			     aloud by screen readers. -->
 			<img
 				src={imageUrl(imgProduct.url, 'card')}
-				alt={imgProduct.id}
+				alt=""
 				class="h-full w-72 flex-shrink-0 snap-center object-cover transition-[transform,filter] duration-300 ease-out group-hover/card:scale-[1.06] group-hover/card:brightness-110"
 				loading={priority && i === 0 ? 'eager' : 'lazy'}
 				fetchpriority={priority && i === 0 ? 'high' : 'auto'}
