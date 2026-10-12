@@ -14,17 +14,9 @@ _None._
 - [ ] **Design skills for catalog cards** — install design skills (e.g.
       Impeccable, Emil) and use them to improve the design of the catalog
       product cards in the client view.
-- [ ] **Customizable order-status message** — `/pedido/[id]` (the view clients
-      see after placing an order) should show a personalized message built
-      from a template the admin defines in an admin panel, supporting
-      placeholders like the customer's name and order details (status,
-      items, totals).
 
 ### Admin
 
-- [ ] **Template editor for order-status message** — admin panel UI to
-      predefine/edit the message template clients see in `/pedido/[id]`,
-      with placeholders for customer name and order details.
 - [ ] **Assign existing products to a catalog** — allow adding products that
       already exist to a catalog, instead of only creating new ones from
       scratch.
@@ -42,6 +34,14 @@ _None._
 
 ## Done
 
+- [x] **Customizable order-status message** — `/pedido/[cod]` now shows a
+      message built from an admin template, rendered server-side with 8
+      placeholders (`{cliente}`, `{estado}`, `{codigo}`, `{fecha}`, `{total}`,
+      `{envio}`, `{items}`, `{unidades}`). Unconfigured = no block.
+      (2026-10-11)
+- [x] **Template editor for order-status message** — `/admin/estado-pedido`
+      edits one template per status with live preview through the same
+      builder and renderer the storefront uses. (2026-10-11)
 - [x] **Cart image modal** — clicking a cart line thumbnail opens the same
       lightbox as `/admin/pedido` (arrows, dots, Escape). (2026-10-11)
 - [x] **Migrate images to Cloudinary** — verified in code: SDK installed,
