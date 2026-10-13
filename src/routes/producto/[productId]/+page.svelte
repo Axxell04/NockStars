@@ -379,6 +379,14 @@
 					</span>
 				{/if}
 			{/if}
+			<!-- Every public price already embeds the flat per-order fee, so the
+			     badge holds in all three promo states above. -->
+			<span
+				class="border-brand-400/30 bg-brand-400/10 text-brand-400 mt-1.5 inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[0.65rem] font-semibold tracking-wide"
+			>
+				<Icon icon="mdi:truck-fast" class="text-xs" />
+				Envío incluido
+			</span>
 		</div>
 
 		<!-- Stock Status -->

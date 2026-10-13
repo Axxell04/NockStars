@@ -420,11 +420,19 @@
 	{#if cartItems.length > 0}
 		<section class="glass sticky bottom-0 z-20 mt-auto rounded-2xl border border-white/4 p-4">
 			<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-				<div class="flex items-baseline gap-2">
+				<div class="flex flex-wrap items-baseline gap-2">
 					<span class="text-text-secondary">Total:</span>
 					<span class="text-brand-400 text-2xl font-bold tabular-nums"
 						>{cartTotal.toFixed(2)} $</span
 					>
+					<!-- The total already carries the flat per-order fee, and the UI
+					     never itemizes it: this badge says so out loud. -->
+					<span
+						class="border-brand-400/30 bg-brand-400/10 text-brand-400 inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium"
+					>
+						<Icon icon="mdi:truck-fast" class="text-sm" />
+						Envío incluido
+					</span>
 				</div>
 				<button
 					class="btn-primary w-full py-3 sm:w-auto"
