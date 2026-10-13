@@ -32,6 +32,13 @@
 	--color-text-muted: #6b6b6b;
 	--color-text-accent: #f87171;
 
+	/* Semantic status text — backs text-text-success / text-text-error.
+	   Values match Tailwind's emerald-400 / red-400 (the colors this app
+	   already uses where status works, e.g. admin producto), so a status
+	   renders identically no matter which of the two spellings is used. */
+	--color-text-success: #00d492;
+	--color-text-error: #ff6467;
+
 	/* Thread colors — Visual threads that connect elements */
 	--color-thread-1: rgba(248, 113, 113, 0.15);
 	--color-thread-2: rgba(248, 113, 113, 0.08);
