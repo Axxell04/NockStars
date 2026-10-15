@@ -177,8 +177,10 @@
 	// and `imagePreviews` stay index-aligned for the reorder controls.
 	async function handleFileChange(e: Event) {
 		const target = e.target as HTMLInputElement;
-		const files = target.files;
-		if (!files || !files.length) return;
+		// Snapshot first: `target.files` is a live FileList that empties when
+		// the input value is cleared below.
+		const files = Array.from(target.files ?? []);
+		if (!files.length) return;
 		// Reset so picking the same file again still fires change.
 		target.value = '';
 
