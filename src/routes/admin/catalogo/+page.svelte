@@ -585,7 +585,7 @@
 				<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
 					<a
 						href={catalogSelected
-							? '/admin/producto/nuevo'
+							? `/admin/producto/nuevo?catalogId=${encodeURIComponent(catalogSelected.id)}`
 							: '/admin/producto/nuevo?returnTo=%2Fadmin%2Fcatalogo'}
 						class="btn-primary w-full justify-center text-center sm:w-auto"
 						onfocus={(e) => cancelFocus(e)}
@@ -654,7 +654,7 @@
 							</p>
 							<a
 								href={catalogSelected
-									? '/admin/producto/nuevo'
+									? `/admin/producto/nuevo?catalogId=${encodeURIComponent(catalogSelected.id)}`
 									: '/admin/producto/nuevo?returnTo=%2Fadmin%2Fcatalogo'}
 								class="btn-primary"
 								onfocus={(e) => cancelFocus(e)}

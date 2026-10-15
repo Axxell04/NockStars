@@ -4,14 +4,23 @@ import { parseSpecRows } from '$lib/product-specs';
 import { getCatalogs } from '$lib/server/catalog';
 import { redirect, fail } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user?.admin) {
 		redirect(302, '/login');
 	}
 
 	const catalogs = await getCatalogs();
 
-	return { catalogs };
+	// Pre-select the catalog the admin was looking at before clicking "Añadir
+	// Producto". Validated against the real list: a stale or mistyped id must
+	// land on "Sin catálogo" instead of silently posting a membership row
+	// that would violate the product_catalog foreign key on save.
+	const requestedCatalogId = url.searchParams.get('catalogId');
+	const initialCatalogId = catalogs.some((catalog) => catalog.id === requestedCatalogId)
+		? requestedCatalogId
+		: null;
+
+	return { catalogs, initialCatalogId };
 };
 
 export const actions: Actions = {

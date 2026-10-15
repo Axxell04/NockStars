@@ -15,7 +15,10 @@
 	import ImageMoveButtons from '$lib/components/ImageMoveButtons.svelte';
 	import { preprocessImage, uploadToCloudinary } from '$lib/image-upload';
 
-	let { data }: { data: { catalogs: { id: string; name: string }[] } } = $props();
+	let {
+		data
+	}: { data: { catalogs: { id: string; name: string }[]; initialCatalogId: string | null } } =
+		$props();
 
 	let formMessage = $state('');
 	let creatingProduct = $state(false);
@@ -26,7 +29,9 @@
 	let name = $state('');
 	let price = $state('');
 	let stock = $state('');
-	let catalogId = $state('');
+	// Seeded once from the validated query param; the select is then free to
+	// change it — it is the admin's choice, not a constraint.
+	let catalogId = $state(data.initialCatalogId ?? '');
 	let description = $state('');
 	let specRows = $state<SpecRow[]>([createSpecRow()]);
 
