@@ -49,3 +49,40 @@ export interface CartAbandonment {
 	carts: number;
 	value: number;
 }
+
+/** Active preset of the balance dashboard's date-range filter. */
+export type FinanceRangePreset = 'month' | 'last-month' | 'last-7-days' | 'custom';
+
+/** Ready-made hrefs for the preset filter links, computed server-side. */
+export interface FinanceRangePresetHrefs {
+	month: string;
+	lastMonth: string;
+	last7: string;
+}
+
+/** Selected dashboard range: inclusive day bounds plus preset metadata. */
+export interface FinanceRange {
+	/** Inclusive 'YYYY-MM-DD' first day of the range. */
+	from: string;
+	/** Inclusive 'YYYY-MM-DD' last day of the range. */
+	to: string;
+	preset: FinanceRangePreset;
+	presetHrefs: FinanceRangePresetHrefs;
+}
+
+/**
+ * Everything the balance dashboard renders for the selected range. All values
+ * are already aggregated and zero-filled server-side; the client only formats
+ * and composes them.
+ */
+export interface FinanceDashboard {
+	range: FinanceRange;
+	comparison: PeriodComparison;
+	revenueSeries: FinanceDailyPoint[];
+	costSeries: FinanceDailyPoint[];
+	expenseSeries: FinanceDailyPoint[];
+	topProductsBySales: TopProductSales[];
+	/** `null` = product_view_daily unavailable (migration 0011 not applied). */
+	topProductsByViews: TopProductViews[] | null;
+	cartAbandonment: CartAbandonment;
+}

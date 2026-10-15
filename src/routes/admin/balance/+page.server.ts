@@ -17,18 +17,210 @@ import {
 } from '$lib/server/expense';
 import type { BalanceDetailPagination } from '$lib/interfaces/balance';
 import { requireUser } from '$lib/server/guard';
+import {
+	getCartAbandonment,
+	getDailyCostSeries,
+	getDailyExpenseSeries,
+	getDailyRevenueSeries,
+	getPeriodComparison,
+	getTopProductsBySales,
+	getTopProductsByViews
+} from '$lib/server/finance-analytics';
+import type { FinanceDashboard, FinanceRangePreset } from '$lib/interfaces/analytics';
+
+// Day-level range math, mirroring finance-analytics: America/Guayaquil is
+// UTC-5 with no DST, so a fixed offset is exact and independent of the
+// server's timezone.
+const MS_PER_DAY = 86_400_000;
+const GUAYAQUIL_UTC_OFFSET_MS = -5 * 60 * 60 * 1000;
+const MAX_RANGE_DAYS = 366;
+const RANKING_LIMIT = 5;
+const DAY_PARAM_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** Day-index bounds of every preset, computed from "today" in Guayaquil. */
+interface PresetBounds {
+	today: number;
+	currentMonthFrom: number;
+	currentMonthToExclusive: number;
+	previousMonthFrom: number;
+	last7From: number;
+}
+
+interface ResolvedRange {
+	fromDay: number;
+	/** Exclusive, matching the `[from, to)` semantics of the analytics SQL. */
+	toDayExclusive: number;
+	preset: FinanceRangePreset;
+}
+
+function utcDayIndex(year: number, month: number, day: number): number {
+	return Math.floor(Date.UTC(year, month, day) / MS_PER_DAY);
+}
+
+/** 'YYYY-MM-DD' label of a report day index. */
+function dayIndexLabel(dayIndex: number): string {
+	return new Date(dayIndex * MS_PER_DAY).toISOString().slice(0, 10);
+}
+
+/** Midnight (America/Guayaquil) of a report day index. */
+function dayIndexInstant(dayIndex: number): Date {
+	return new Date(dayIndex * MS_PER_DAY - GUAYAQUIL_UTC_OFFSET_MS);
+}
+
+function currentPresetBounds(): PresetBounds {
+	const today = Math.floor((Date.now() + GUAYAQUIL_UTC_OFFSET_MS) / MS_PER_DAY);
+	const todayUtc = new Date(today * MS_PER_DAY);
+	const year = todayUtc.getUTCFullYear();
+	const month = todayUtc.getUTCMonth();
+
+	return {
+		today,
+		currentMonthFrom: utcDayIndex(year, month, 1),
+		currentMonthToExclusive: today + 1,
+		previousMonthFrom: utcDayIndex(month === 0 ? year - 1 : year, month === 0 ? 11 : month - 1, 1),
+		last7From: today - 6
+	};
+}
+
+/** Parses a 'YYYY-MM-DD' day param into a day index; null if malformed. */
+function parseDayParam(value: string | null): number | null {
+	if (value === null) {
+		return null;
+	}
+
+	const match = DAY_PARAM_PATTERN.exec(value);
+	if (!match) {
+		return null;
+	}
+
+	const year = Number(match[1]);
+	const month = Number(match[2]) - 1;
+	const day = Number(match[3]);
+	const probe = new Date(Date.UTC(year, month, day));
+	if (
+		probe.getUTCFullYear() !== year ||
+		probe.getUTCMonth() !== month ||
+		probe.getUTCDate() !== day
+	) {
+		// Round-trip mismatch, e.g. 2026-02-31 auto-rolled into March.
+		return null;
+	}
+
+	return utcDayIndex(year, month, day);
+}
+
+function resolveRange(searchParams: URLSearchParams, bounds: PresetBounds): ResolvedRange {
+	const fromParam = searchParams.get('from');
+	const toParam = searchParams.get('to');
+
+	if (fromParam !== null && toParam !== null) {
+		const fromDay = parseDayParam(fromParam);
+		const toDay = parseDayParam(toParam);
+
+		if (fromDay !== null && toDay !== null) {
+			// `from`/`to` in the URL are inclusive; analytics ranges are half-open.
+			const toDayExclusive = toDay + 1;
+			const days = toDayExclusive - fromDay;
+
+			if (days > 0 && days <= MAX_RANGE_DAYS) {
+				let preset: FinanceRangePreset = 'custom';
+				if (
+					fromDay === bounds.currentMonthFrom &&
+					toDayExclusive === bounds.currentMonthToExclusive
+				) {
+					preset = 'month';
+				} else if (
+					fromDay === bounds.previousMonthFrom &&
+					toDayExclusive === bounds.currentMonthFrom
+				) {
+					preset = 'last-month';
+				} else if (fromDay === bounds.last7From && toDayExclusive === bounds.today + 1) {
+					preset = 'last-7-days';
+				}
+
+				return { fromDay, toDayExclusive, preset };
+			}
+		}
+	}
+
+	// Default — and fail-safe fallback for any malformed, inverted or oversized
+	// range: current month to date.
+	return {
+		fromDay: bounds.currentMonthFrom,
+		toDayExclusive: bounds.currentMonthToExclusive,
+		preset: 'month'
+	};
+}
 
 export const load: PageServerLoad = async (event) => {
 	requireUser(event.locals);
 
-	const totalRevenue = await getTotalRevenue();
-	const totalCost = await getTotalCost();
-	const totalExpense = await getTotalExpense();
+	// The AGENTS.md "cookie-backed state, never searchParams" rule is scoped to
+	// the storefront root page; this admin analytics filter is intentionally
+	// URL-param based — shareable and SSR-friendly.
+	const bounds = currentPresetBounds();
+	const range = resolveRange(event.url.searchParams, bounds);
+	const from = dayIndexInstant(range.fromDay);
+	const to = dayIndexInstant(range.toDayExclusive);
+
+	// product_view_daily (migration 0011) may not be applied yet, so this one
+	// ranking degrades to an "unavailable" card instead of failing the page.
+	// Every other analytics query runs on long-existing tables: if they throw,
+	// that is a real bug and must surface — no blanket catch here.
+	const topProductsByViews = getTopProductsByViews(from, to, RANKING_LIMIT).catch((error) => {
+		console.error('getTopProductsByViews failed (is migration 0011 applied?)', error);
+		return null;
+	});
+
+	const [
+		totalRevenue,
+		totalCost,
+		totalExpense,
+		comparison,
+		revenueSeries,
+		costSeries,
+		expenseSeries,
+		topProductsBySales,
+		cartAbandonment,
+		views
+	] = await Promise.all([
+		getTotalRevenue(),
+		getTotalCost(),
+		getTotalExpense(),
+		getPeriodComparison(from, to),
+		getDailyRevenueSeries(from, to),
+		getDailyCostSeries(from, to),
+		getDailyExpenseSeries(from, to),
+		getTopProductsBySales(from, to, RANKING_LIMIT),
+		getCartAbandonment(from, to),
+		topProductsByViews
+	]);
+
+	const dashboard: FinanceDashboard = {
+		range: {
+			from: dayIndexLabel(range.fromDay),
+			to: dayIndexLabel(range.toDayExclusive - 1),
+			preset: range.preset,
+			presetHrefs: {
+				month: '/admin/balance',
+				lastMonth: `/admin/balance?from=${dayIndexLabel(bounds.previousMonthFrom)}&to=${dayIndexLabel(bounds.currentMonthFrom - 1)}`,
+				last7: `/admin/balance?from=${dayIndexLabel(bounds.last7From)}&to=${dayIndexLabel(bounds.today)}`
+			}
+		},
+		comparison,
+		revenueSeries,
+		costSeries,
+		expenseSeries,
+		topProductsBySales,
+		topProductsByViews: views,
+		cartAbandonment
+	};
 
 	return {
 		totalRevenue,
 		totalCost,
-		totalExpense
+		totalExpense,
+		dashboard
 	};
 };
 
