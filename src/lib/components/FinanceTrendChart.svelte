@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { formatCurrency } from '$lib/format';
+
 	interface TrendPoint {
 		day: string;
 		revenue: number;
@@ -99,7 +101,7 @@
 		if (!peak) {
 			return 'Sin datos en el rango seleccionado.';
 		}
-		return `Totales del rango: ingresos $ ${revenueTotal.toFixed(2)}, costos y gastos $ ${outflowTotal.toFixed(2)}. Mayor ingreso diario: $ ${peak.revenue.toFixed(2)} el ${formatLongDay(peak.day)}.`;
+		return `Totales del rango: ingresos ${formatCurrency(revenueTotal)}, costos y gastos ${formatCurrency(outflowTotal)}. Mayor ingreso diario: ${formatCurrency(peak.revenue)} el ${formatLongDay(peak.day)}.`;
 	});
 
 	function parseDay(day: string): Date {
@@ -123,10 +125,6 @@
 
 	function formatAxisMoney(value: number): string {
 		return `$ ${value.toLocaleString('es-EC', { maximumFractionDigits: 0 })}`;
-	}
-
-	function formatMoney(value: number): string {
-		return `$ ${value.toFixed(2)}`;
 	}
 
 	function handlePointerMove(event: PointerEvent) {
@@ -262,10 +260,10 @@
 					{formatLongDay(hoverPoint.day)}
 				</span>
 				<span class="text-brand-400 block tabular-nums">
-					Ingresos: {formatMoney(hoverPoint.revenue)}
+					Ingresos: {formatCurrency(hoverPoint.revenue)}
 				</span>
 				<span class="text-text-secondary block tabular-nums">
-					Costos + gastos: {formatMoney(hoverPoint.outflow)}
+					Costos + gastos: {formatCurrency(hoverPoint.outflow)}
 				</span>
 			</div>
 		{/if}

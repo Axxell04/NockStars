@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
+	import { formatCurrency } from '$lib/format';
 
 	interface Props {
 		label: string;
@@ -23,7 +24,7 @@
 <div class="card-thread flex flex-col gap-1 p-4">
 	<span class="text-text-secondary text-sm"> {label} </span>
 	<span class="text-brand-400 text-xl font-bold tabular-nums">
-		$ {value.toFixed(2)}
+		{formatCurrency(value)}
 	</span>
 	<span
 		class="flex flex-row items-center gap-1 text-xs tabular-nums {deltaTone === 'up'
