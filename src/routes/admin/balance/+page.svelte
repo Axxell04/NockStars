@@ -5,6 +5,9 @@
 	import type { BalanceDetail, BalanceDetailPagination } from '$lib/interfaces/balance';
 	import Icon from '@iconify/svelte';
 	import BalanceDetailCard from '$lib/components/BalanceDetailCard.svelte';
+	import FinanceKpiCard from '$lib/components/FinanceKpiCard.svelte';
+	import FinanceRanking from '$lib/components/FinanceRanking.svelte';
+	import FinanceTrendChart from '$lib/components/FinanceTrendChart.svelte';
 	import { cancelFocus } from '$lib/focus';
 
 	let { data }: PageProps = $props();
@@ -12,6 +15,70 @@
 	let totalCost = $state(data.totalCost);
 	let totalExpense = $state(data.totalExpense);
 	let profits = $derived(totalRevenue - (totalCost + totalExpense));
+
+	// Dashboard zone — range-scoped analytics. Never mirrored into local
+	// $state: it is read-only here, so it reads `data` directly and stays
+	// correct across same-route filter navigations.
+	function deltaOf(current: number, previous: number): number | null {
+		// Never divide by zero; a non-positive base has no honest Δ%.
+		return previous > 0 ? ((current - previous) / previous) * 100 : null;
+	}
+
+	let kpis = $derived.by(() => {
+		const { current, previous } = data.dashboard.comparison;
+		return [
+			{
+				label: 'Ingresos',
+				value: current.revenue,
+				deltaPercent: deltaOf(current.revenue, previous.revenue)
+			},
+			{ label: 'Costos', value: current.cost, deltaPercent: deltaOf(current.cost, previous.cost) },
+			{
+				label: 'Gastos',
+				value: current.expense,
+				deltaPercent: deltaOf(current.expense, previous.expense)
+			},
+			{
+				label: 'Ganancia',
+				value: current.revenue - (current.cost + current.expense),
+				deltaPercent: deltaOf(
+					current.revenue - (current.cost + current.expense),
+					previous.revenue - (previous.cost + previous.expense)
+				)
+			}
+		];
+	});
+
+	// The three daily series share the same zero-filled day axis by
+	// construction, so zipping by index is exact.
+	let trendPoints = $derived(
+		data.dashboard.revenueSeries.map((point, index) => ({
+			day: point.day,
+			revenue: point.value,
+			outflow:
+				(data.dashboard.costSeries[index]?.value ?? 0) +
+				(data.dashboard.expenseSeries[index]?.value ?? 0)
+		}))
+	);
+
+	let salesMetric = $state<'units' | 'revenue'>('units');
+
+	let salesRows = $derived(
+		data.dashboard.topProductsBySales.map((product) => ({
+			name: product.productName,
+			metric: salesMetric === 'units' ? product.units : product.revenue,
+			display:
+				salesMetric === 'units' ? `${product.units} unid.` : `$ ${product.revenue.toFixed(2)}`
+		}))
+	);
+
+	let viewRows = $derived(
+		(data.dashboard.topProductsByViews ?? []).map((product) => ({
+			name: product.productName,
+			metric: product.views,
+			display: `${product.views} vistas`
+		}))
+	);
 
 	type ViewState = 'resume' | 'revenue' | 'cost' | 'expense';
 
@@ -392,6 +459,147 @@
 						{/if}
 					</form>
 				{/if}
+			</div>
+		</div>
+	</section>
+	<section class="flex flex-col gap-3" aria-label="Panel del periodo">
+		<div
+			class="glass relative flex flex-wrap place-content-between place-items-center gap-3 rounded-2xl border border-white/4 p-4"
+		>
+			<nav class="flex flex-row flex-wrap place-items-center gap-2" aria-label="Rango de fechas">
+				<a
+					href={data.dashboard.range.presetHrefs.month}
+					aria-current={data.dashboard.range.preset === 'month' ? 'page' : undefined}
+					class="rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-300 {data
+						.dashboard.range.preset === 'month'
+						? 'border-brand-400/20 bg-brand-400/10 text-brand-400'
+						: 'text-text-secondary hover:bg-surface-2 hover:text-text-primary border-white/6'}"
+				>
+					Mes actual
+				</a>
+				<a
+					href={data.dashboard.range.presetHrefs.lastMonth}
+					aria-current={data.dashboard.range.preset === 'last-month' ? 'page' : undefined}
+					class="rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-300 {data
+						.dashboard.range.preset === 'last-month'
+						? 'border-brand-400/20 bg-brand-400/10 text-brand-400'
+						: 'text-text-secondary hover:bg-surface-2 hover:text-text-primary border-white/6'}"
+				>
+					Mes pasado
+				</a>
+				<a
+					href={data.dashboard.range.presetHrefs.last7}
+					aria-current={data.dashboard.range.preset === 'last-7-days' ? 'page' : undefined}
+					class="rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-300 {data
+						.dashboard.range.preset === 'last-7-days'
+						? 'border-brand-400/20 bg-brand-400/10 text-brand-400'
+						: 'text-text-secondary hover:bg-surface-2 hover:text-text-primary border-white/6'}"
+				>
+					Últimos 7 días
+				</a>
+				<form method="get" action="/admin/balance" class="flex flex-row flex-wrap items-end gap-2">
+					<div class="flex flex-col gap-1">
+						<label for="range-from" class="text-text-muted text-xs"> Desde </label>
+						<input
+							id="range-from"
+							type="date"
+							name="from"
+							value={data.dashboard.range.from}
+							required
+							class="bg-surface-2 text-text-primary rounded-xl border border-white/6 px-3 py-2 text-sm [color-scheme:dark]"
+						/>
+					</div>
+					<div class="flex flex-col gap-1">
+						<label for="range-to" class="text-text-muted text-xs"> Hasta </label>
+						<input
+							id="range-to"
+							type="date"
+							name="to"
+							value={data.dashboard.range.to}
+							required
+							class="bg-surface-2 text-text-primary rounded-xl border border-white/6 px-3 py-2 text-sm [color-scheme:dark]"
+						/>
+					</div>
+					<button type="submit" class="btn-secondary rounded-xl px-3 py-2 text-sm">
+						Aplicar
+					</button>
+				</form>
+			</nav>
+			<a
+				href="/admin/pedidos"
+				class="text-text-secondary hover:text-brand-400 hover:bg-surface-2 flex flex-row place-items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200"
+			>
+				<span> Ver pedidos </span>
+				<Icon icon="mdi:arrow-right" class="text-base" />
+			</a>
+		</div>
+		<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+			{#each kpis as kpi (kpi.label)}
+				<FinanceKpiCard label={kpi.label} value={kpi.value} deltaPercent={kpi.deltaPercent} />
+			{/each}
+		</div>
+		<div class="card-thread flex flex-col gap-2 p-4">
+			<span class="text-text-secondary text-sm font-medium"> Tendencia diaria </span>
+			<FinanceTrendChart points={trendPoints} />
+		</div>
+		<div class="grid grid-cols-1 gap-3 lg:grid-cols-3">
+			<FinanceRanking
+				title="Top vistas"
+				rows={viewRows}
+				unavailable={data.dashboard.topProductsByViews === null}
+			/>
+			<FinanceRanking title="Top vendidos" rows={salesRows}>
+				{#snippet actions()}
+					<div class="bg-surface-2/80 flex flex-row rounded-xl border border-white/6 p-0.5 text-xs">
+						<button
+							type="button"
+							aria-pressed={salesMetric === 'units'}
+							onclick={() => (salesMetric = 'units')}
+							class="rounded-lg px-2.5 py-1 transition-all duration-300 {salesMetric === 'units'
+								? 'bg-brand-400/10 text-brand-400'
+								: 'text-text-secondary hover:text-text-primary'}"
+						>
+							Unidades
+						</button>
+						<button
+							type="button"
+							aria-pressed={salesMetric === 'revenue'}
+							onclick={() => (salesMetric = 'revenue')}
+							class="rounded-lg px-2.5 py-1 transition-all duration-300 {salesMetric === 'revenue'
+								? 'bg-brand-400/10 text-brand-400'
+								: 'text-text-secondary hover:text-text-primary'}"
+						>
+							Ingresos
+						</button>
+					</div>
+				{/snippet}
+			</FinanceRanking>
+			<div class="card-thread flex flex-col gap-3 p-4">
+				<span class="text-text-secondary text-sm font-medium"> Abandono de carrito </span>
+				<ul class="flex flex-col gap-2 text-sm">
+					<li class="flex flex-row place-content-between place-items-center gap-3">
+						<span class="text-text-primary"> Artículos sin convertir </span>
+						<span class="text-text-secondary tabular-nums">
+							{data.dashboard.cartAbandonment.items}
+						</span>
+					</li>
+					<li class="flex flex-row place-content-between place-items-center gap-3">
+						<span class="text-text-primary"> Carritos afectados </span>
+						<span class="text-text-secondary tabular-nums">
+							{data.dashboard.cartAbandonment.carts}
+						</span>
+					</li>
+					<li class="flex flex-row place-content-between place-items-center gap-3">
+						<span class="text-text-primary"> Valor estimado </span>
+						<span class="text-text-secondary tabular-nums">
+							$ {data.dashboard.cartAbandonment.value.toFixed(2)}
+						</span>
+					</li>
+				</ul>
+				<p class="text-text-secondary text-xs">
+					Cuenta artículos agregados al carrito en este rango que siguen sin convertirse en una
+					compra.
+				</p>
 			</div>
 		</div>
 	</section>
