@@ -6,6 +6,7 @@
 	import { fade } from 'svelte/transition';
 	import ContainerModal from '../../ContainerModal.svelte';
 	import Icon from '@iconify/svelte';
+	import { cancelFocus } from '$lib/focus';
 
 	interface Props {
 		productSelected: ProductComplete;
@@ -22,15 +23,6 @@
 	// Deactivation is reversible: the same modal drives both directions, so
 	// its copy and payload follow the current state of the variant.
 	let deactivated = $derived(Boolean(variantToDelete?.deactivatedAt));
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
-	}
 
 	async function handleSetActive() {
 		if (!variantToDelete) return;

@@ -3,6 +3,7 @@
 	import type { Catalog } from '$lib/interfaces/catalog';
 	import Icon from '@iconify/svelte';
 	import { scale } from 'svelte/transition';
+	import { cancelFocus } from '$lib/focus';
 
 	interface Props {
 		catalog: Catalog;
@@ -32,15 +33,6 @@
 
 	if (!selectThisCatalog) {
 		selectThisCatalog = () => {};
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 300);
-		}
 	}
 </script>
 

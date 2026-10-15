@@ -4,6 +4,7 @@
 	import { fade, scale } from 'svelte/transition';
 	import ContainerModal from '../ContainerModal.svelte';
 	import Icon from '@iconify/svelte';
+	import { cancelFocus } from '$lib/focus';
 
 	interface Props {
 		setProductPagination: (newProductPagination: ProductPagination) => void;
@@ -26,15 +27,6 @@
 	// Deactivation is reversible: the same modal drives both directions, so
 	// its copy and payload follow the current state of the product.
 	let deactivated = $derived(Boolean(productSelected?.product?.deactivatedAt));
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
-	}
 
 	$effect(() => {
 		if (formMessage) {

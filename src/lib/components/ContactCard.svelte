@@ -4,6 +4,7 @@
 
 	import Icon from '@iconify/svelte';
 	import { scale } from 'svelte/transition';
+	import { cancelFocus } from '$lib/focus';
 
 	interface Props {
 		contact: Contact;
@@ -34,15 +35,6 @@
 
 	if (typeof selectThisContact === 'undefined') {
 		selectThisContact = () => {};
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
 	}
 
 	function openContactUrl(e: Event) {

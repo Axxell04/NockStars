@@ -15,6 +15,7 @@
 	import type { CartItemWithProduct } from '$lib/actions';
 	import { lineDisplay } from '$lib/shipping';
 	import ImageLightbox from '$lib/components/ImageLightbox.svelte';
+	import { cancelFocus } from '$lib/focus';
 
 	let { data }: PageProps = $props();
 
@@ -146,19 +147,6 @@
 		} else {
 			sendCartModalIsVisible = visible;
 		}
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		// Pointer focus loses its outline after a beat (the original intent), but
-		// keyboard focus must keep both the focus and the focus-visible ring —
-		// otherwise tabbing through these controls is impossible.
-		if (!target || target.matches(':focus-visible')) {
-			return;
-		}
-		setTimeout(() => {
-			target.blur();
-		}, 200);
 	}
 </script>
 

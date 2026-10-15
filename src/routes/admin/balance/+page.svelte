@@ -5,6 +5,7 @@
 	import type { BalanceDetail, BalanceDetailPagination } from '$lib/interfaces/balance';
 	import Icon from '@iconify/svelte';
 	import BalanceDetailCard from '$lib/components/BalanceDetailCard.svelte';
+	import { cancelFocus } from '$lib/focus';
 
 	let { data }: PageProps = $props();
 	let totalRevenue = $state(data.totalRevenue);
@@ -101,15 +102,6 @@
 		}
 
 		return list;
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
 	}
 
 	$effect(() => {

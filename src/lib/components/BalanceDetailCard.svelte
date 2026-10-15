@@ -3,6 +3,7 @@
 	import { scale, slide } from 'svelte/transition';
 	import { enhance } from '$app/forms';
 	import type { BalanceDetail, BalanceDetailPagination } from '$lib/interfaces/balance';
+	import { cancelFocus } from '$lib/focus';
 
 	interface Props {
 		balanceDetail: BalanceDetail;
@@ -49,15 +50,6 @@
 	function sendEditBalanceDetail() {
 		if (typeof btnEditBalanceDetail !== 'undefined' && confirmationEditIsVisible) {
 			btnEditBalanceDetail.click();
-		}
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
 		}
 	}
 

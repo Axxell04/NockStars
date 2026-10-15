@@ -7,6 +7,7 @@
 	import DeleteUserModal from '$lib/components/modals/admin/cuentas/DeleteUserModal.svelte';
 	import UpdateUserModal from '$lib/components/modals/admin/cuentas/UpdateUserModal.svelte';
 	import DeleteUserTokenModal from '$lib/components/modals/admin/cuentas/DeleteUserTokenModal.svelte';
+	import { cancelFocus } from '$lib/focus';
 
 	let { data }: PageProps = $props();
 
@@ -57,15 +58,6 @@
 
 	function setUserTokens(newUserTokens: UserToken[]) {
 		userTokens = newUserTokens;
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
 	}
 
 	$effect(() => {

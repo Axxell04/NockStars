@@ -12,6 +12,7 @@
 	import DeleteContactModal from '$lib/components/modals/admin/contacto/DeleteContactModal.svelte';
 	import Icon from '@iconify/svelte';
 	import { isValidWhatsAppNumber, normalizeWhatsAppNumber } from '$lib/whatsapp';
+	import { cancelFocus } from '$lib/focus';
 
 	let { data }: PageProps = $props();
 
@@ -82,15 +83,6 @@
 
 	function selectThisContact(contact: Contact) {
 		contactSelected = contact;
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
 	}
 </script>
 

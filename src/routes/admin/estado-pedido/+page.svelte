@@ -4,6 +4,7 @@
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { toast } from '$lib/toast.svelte.js';
+	import { cancelFocus } from '$lib/focus';
 	import {
 		ORDER_STATUS_PLACEHOLDERS,
 		ORDER_STATUS_PLACEHOLDER_HINTS,
@@ -83,15 +84,6 @@
 			el.focus();
 			el.selectionStart = el.selectionEnd = start + token.length;
 		});
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
 	}
 </script>
 

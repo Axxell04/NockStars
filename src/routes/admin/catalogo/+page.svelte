@@ -15,6 +15,7 @@
 	import DeleteVariantModal from '$lib/components/modals/admin/catalogo/DeleteVariantModal.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import { imageUrl } from '$lib/cloudinary';
+	import { cancelFocus } from '$lib/focus';
 
 	let { data }: PageProps = $props();
 
@@ -179,15 +180,6 @@
 			editVariantModalIsVisible = visible;
 		} else {
 			editVariantModalIsVisible = !editVariantModalIsVisible;
-		}
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 300);
 		}
 	}
 

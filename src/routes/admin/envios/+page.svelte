@@ -5,6 +5,7 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { invalidateAll } from '$app/navigation';
 	import { toast } from '$lib/toast.svelte.js';
+	import { cancelFocus } from '$lib/focus';
 
 	let { data }: PageProps = $props();
 
@@ -23,15 +24,6 @@
 				await invalidateAll();
 			}
 		};
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
-	}
 </script>
 
 <div in:fade class="mx-auto flex max-w-2xl flex-col gap-6 px-5 py-5">

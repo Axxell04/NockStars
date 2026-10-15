@@ -4,6 +4,7 @@
 	import ContainerModal from '../ContainerModal.svelte';
 	import Icon from '@iconify/svelte';
 	import { imageUrl } from '$lib/cloudinary';
+	import { cancelFocus } from '$lib/focus';
 
 	interface Props {
 		productSelected?: ProductComplete;
@@ -58,15 +59,6 @@
 	function closeModal() {
 		imgIndex = 0;
 		toggleImgsEditProductModalIsVisible(false);
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
 	}
 
 	function preloadImgs() {

@@ -2,6 +2,7 @@
 	import ContainerModal from '$lib/components/modals/ContainerModal.svelte';
 	import Icon from '@iconify/svelte';
 	import { imageUrl } from '$lib/cloudinary';
+	import { cancelFocus } from '$lib/focus';
 
 	type Viewer = { urls: string[]; index: number; name: string };
 
@@ -23,15 +24,6 @@
 
 	function close() {
 		viewer = null;
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
 	}
 
 	// Arrow-key navigation while the lightbox is open. Registered only for a

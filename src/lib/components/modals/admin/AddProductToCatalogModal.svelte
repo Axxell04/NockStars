@@ -4,6 +4,7 @@
 	import { fade, scale } from 'svelte/transition';
 	import ContainerModal from '../ContainerModal.svelte';
 	import Icon from '@iconify/svelte';
+	import { cancelFocus } from '$lib/focus';
 
 	interface Props {
 		setProductPagination: (newProductPagination: ProductPagination) => void;
@@ -41,15 +42,6 @@
 			return true;
 		}
 		return false;
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
 	}
 
 	$effect(() => {

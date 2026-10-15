@@ -5,6 +5,7 @@
 	import Icon from '@iconify/svelte';
 	import ImgsEditProductModal from './ImgsEditProductModal.svelte';
 	import { preprocessImage, uploadToCloudinary } from '$lib/image-upload';
+	import { cancelFocus } from '$lib/focus';
 
 	interface Props {
 		setProductPagination: (newProductPagination: ProductPagination) => void;
@@ -80,15 +81,6 @@
 	function clearList() {
 		listDelete = [];
 		imgsList = [];
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
 	}
 
 	function handleName(e: Event) {

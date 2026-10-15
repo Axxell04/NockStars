@@ -4,6 +4,7 @@
 	import { fade, scale, slide } from 'svelte/transition';
 	import type { PageProps } from './$types';
 	import Icon from '@iconify/svelte';
+	import { cancelFocus } from '$lib/focus';
 
 	let { data }: PageProps = $props();
 
@@ -20,15 +21,6 @@
 			formSendMailIsVisible = !formSendMailIsVisible;
 		} else {
 			formSendMailIsVisible = visible;
-		}
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
 		}
 	}
 

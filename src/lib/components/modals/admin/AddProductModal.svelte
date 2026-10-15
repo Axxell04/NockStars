@@ -4,6 +4,7 @@
 	import ContainerModal from '../ContainerModal.svelte';
 	import Icon from '@iconify/svelte';
 	import { preprocessImage, uploadToCloudinary } from '$lib/image-upload';
+	import { cancelFocus } from '$lib/focus';
 
 	interface Props {
 		setProductPagination: (newProductPagination: ProductPagination) => void;
@@ -21,15 +22,6 @@
 	let uploading = $state(false);
 
 	let inputImgs: HTMLInputElement | undefined = $state();
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 300);
-		}
-	}
 
 	async function handleFile(e: Event) {
 		const target = e.target as HTMLInputElement;

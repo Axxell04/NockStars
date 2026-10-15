@@ -16,6 +16,7 @@
 	import { imageUrl } from '$lib/cloudinary';
 	import { toast } from '$lib/toast.svelte.js';
 	import ImageLightbox from '$lib/components/ImageLightbox.svelte';
+	import { cancelFocus } from '$lib/focus';
 
 	let { data }: PageProps = $props();
 
@@ -160,15 +161,6 @@
 				previousOrderLines = [...orderLines];
 				contentOverride = setLineAmounts(effectiveContent, updatedLines);
 			}
-		}
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
 		}
 	}
 

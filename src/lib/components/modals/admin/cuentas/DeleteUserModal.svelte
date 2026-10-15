@@ -4,6 +4,7 @@
 	import { enhance } from '$app/forms';
 	import Icon from '@iconify/svelte';
 	import type { User } from '$lib/interfaces/user';
+	import { cancelFocus } from '$lib/focus';
 
 	interface Props {
 		userSelected?: User;
@@ -16,15 +17,6 @@
 		$props();
 
 	let formMessage = $state('');
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 300);
-		}
-	}
 
 	$effect(() => {
 		if (formMessage) {

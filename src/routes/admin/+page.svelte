@@ -9,6 +9,7 @@
 	import DeleteProductModal from '$lib/components/modals/admin/DeleteProductModal.svelte';
 	import EditProductModal from '$lib/components/modals/admin/EditProductModal.svelte';
 	import AddProductToCatalogModal from '$lib/components/modals/admin/AddProductToCatalogModal.svelte';
+	import { cancelFocus } from '$lib/focus';
 
 	let { data }: PageProps = $props();
 
@@ -95,15 +96,6 @@
 		}
 
 		return list;
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
 	}
 
 	// Effects

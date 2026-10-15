@@ -9,6 +9,7 @@
 	import Icon from '@iconify/svelte';
 	import { imageUrl } from '$lib/cloudinary';
 	import { preprocessImage, uploadToCloudinary } from '$lib/image-upload';
+	import { cancelFocus } from '$lib/focus';
 
 	interface Props {
 		productSelected: ProductComplete;
@@ -42,15 +43,6 @@
 	let variantId = $state(variantToEdit?.id ?? '');
 
 	let inputImgs: HTMLInputElement | undefined = $state();
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 300);
-		}
-	}
 
 	async function handleFile(e: Event) {
 		const target = e.target as HTMLInputElement;

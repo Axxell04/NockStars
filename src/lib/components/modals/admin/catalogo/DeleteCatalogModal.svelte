@@ -4,6 +4,7 @@
 	import Icon from '@iconify/svelte';
 	import type { Catalog } from '$lib/interfaces/catalog';
 	import ContainerModal from '../../ContainerModal.svelte';
+	import { cancelFocus } from '$lib/focus';
 
 	interface Props {
 		setCatalogs: (newCatalogs: Catalog[]) => void;
@@ -20,15 +21,6 @@
 	}: Props = $props();
 
 	let formMessage = $state('');
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 300);
-		}
-	}
 
 	$effect(() => {
 		if (formMessage) {

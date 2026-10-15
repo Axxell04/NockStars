@@ -9,6 +9,7 @@
 	import type { LayoutProps } from './$types';
 	import { scale, slide } from 'svelte/transition';
 	import { onMount } from 'svelte';
+	import { cancelFocus } from '$lib/focus';
 
 	let { data, children }: LayoutProps = $props();
 
@@ -79,15 +80,6 @@
 			}
 		}
 		return endPoint;
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
 	}
 </script>
 

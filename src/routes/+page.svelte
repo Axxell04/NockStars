@@ -9,6 +9,7 @@
 	import Toast from '$lib/components/Toast.svelte';
 	import type { CartItemWithProduct } from '$lib/actions';
 	import { listingPromo } from '$lib/shipping';
+	import { cancelFocus } from '$lib/focus';
 
 	let { data }: PageProps = $props();
 
@@ -83,15 +84,6 @@
 		}
 
 		return list;
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
 	}
 
 	let searchTimeout: ReturnType<typeof setTimeout>;

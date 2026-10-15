@@ -23,6 +23,7 @@
 	import type { PageProps } from './$types';
 	import { CartErrorCode } from '$lib/actions';
 	import type { VariantComplete, ProductWithVariants } from '$lib/actions';
+	import { cancelFocus } from '$lib/focus';
 
 	let { data }: PageProps = $props();
 
@@ -189,14 +190,6 @@
 	let submitting = $state(false);
 
 	// Cancel focus helper
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
-	}
 </script>
 
 <!-- JSON-LD Structured Data -->

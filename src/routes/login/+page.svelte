@@ -4,6 +4,7 @@
 
 	import { fade, scale } from 'svelte/transition';
 	import { invalidateAll } from '$app/navigation';
+	import { cancelFocus } from '$lib/focus';
 
 	let formMessage = $state('');
 
@@ -30,15 +31,6 @@
 		if (confirmPasswordInput) {
 			e.preventDefault();
 			confirmPasswordInput.focus();
-		}
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
 		}
 	}
 

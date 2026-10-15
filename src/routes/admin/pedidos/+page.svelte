@@ -7,6 +7,7 @@
 	import type { Order, OrderPagination } from '$lib/interfaces/order';
 	import OrderCard from '$lib/components/OrderCard.svelte';
 	import { page } from '$app/state';
+	import { cancelFocus } from '$lib/focus';
 
 	let { data }: PageProps = $props();
 
@@ -70,15 +71,6 @@
 		}
 
 		return list;
-	}
-
-	function cancelFocus(e: FocusEvent) {
-		const target = e.target as HTMLButtonElement;
-		if (target) {
-			setTimeout(() => {
-				target.blur();
-			}, 200);
-		}
 	}
 
 	function refreshOrders() {
