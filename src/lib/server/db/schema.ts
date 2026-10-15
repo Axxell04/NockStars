@@ -4,6 +4,7 @@ import {
 	integer,
 	boolean,
 	timestamp,
+	date,
 	doublePrecision,
 	jsonb,
 	uuid,
@@ -234,6 +235,31 @@ export const expense = pgTable('expense', {
 	createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull()
 });
 
+// ANALYTICS
+// Daily per-product view counter fed by the public product page. `day` is a
+// plain date computed in America/Guayaquil by the writer (see
+// `recordProductView`), and (product_id, day) is unique so a view is a single
+// atomic upsert increment.
+export const productViewDaily = pgTable(
+	'product_view_daily',
+	{
+		id: text('id').primaryKey(),
+		productId: text('product_id')
+			.notNull()
+			.references(() => product.id, { onDelete: 'cascade' }),
+		day: date('day').notNull(),
+		count: integer('count').notNull().default(0)
+	},
+	(table) => ({
+		uniqueProductDay: uniqueIndex('product_view_daily_unique_product_day').on(
+			table.productId,
+			table.day
+		),
+		// Range queries ("top views between from and to") filter on day first.
+		dayIdx: index('product_view_daily_day_idx').on(table.day)
+	})
+);
+
 // CONTACTO
 export const contact = pgTable('contact', {
 	id: text('id').primaryKey(),
@@ -311,6 +337,9 @@ export type CostInsert = typeof cost.$inferInsert;
 
 export type Expense = typeof expense.$inferSelect;
 export type ExpenseInsert = typeof expense.$inferInsert;
+
+export type ProductViewDaily = typeof productViewDaily.$inferSelect;
+export type ProductViewDailyInsert = typeof productViewDaily.$inferInsert;
 
 export type ProductVariant = typeof productVariant.$inferSelect;
 export type ProductVariantInsert = typeof productVariant.$inferInsert;

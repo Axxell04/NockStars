@@ -1,5 +1,6 @@
 import { getProductWithVariants } from '$lib/server/product';
 import { getCartCarrierLine } from '$lib/server/cart';
+import { recordProductView } from '$lib/server/product-views';
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { effectivePrice, effectiveStock, getDefaultVariant } from '$lib/variant';
@@ -14,6 +15,15 @@ export const load: PageServerLoad = async (event) => {
 
 	if (!productData) {
 		throw error(404, 'Producto no encontrado');
+	}
+
+	// Best-effort analytics: awaited (the node adapter keeps the process
+	// alive) but swallowed on failure — a broken counter must never take the
+	// product page down.
+	try {
+		await recordProductView(productId);
+	} catch (err) {
+		console.error('Failed to record product view', productId, err);
 	}
 
 	// Select variant
