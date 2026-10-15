@@ -2,28 +2,44 @@
 	import Icon from '@iconify/svelte';
 	import { scale, slide } from 'svelte/transition';
 	import { enhance } from '$app/forms';
-	import type { BalanceDetail, BalanceDetailPagination } from '$lib/interfaces/balance';
+	import { invalidateAll } from '$app/navigation';
+	import type { ActionResult } from '@sveltejs/kit';
+	import type {
+		BalanceDetail,
+		BalanceDetailPagination,
+		BalanceSortKey
+	} from '$lib/interfaces/balance';
 	import { cancelFocus } from '$lib/focus';
+	import { toast } from '$lib/toast.svelte.js';
+	import { formatCurrency } from '$lib/format';
+	import { actionFailureMessage } from '$lib/action-result';
 
 	interface Props {
 		balanceDetail: BalanceDetail;
 		balanceDetailSelected?: BalanceDetail;
 		selectThisBalanceDetail: (balanceDetail: BalanceDetail | undefined) => void;
 		setBalanceDetailPagination: (newBalanceDetailPagination: BalanceDetailPagination) => void;
+		/**
+		 * Active list filter/sort, threaded as hidden inputs into every
+		 * mutation form so an applied search survives the edit/delete
+		 * refetch. Defaults to the unfiltered contract for callers that do
+		 * not pass it.
+		 */
+		listParams?: { q: string; sort: BalanceSortKey };
 	}
 
 	let {
 		balanceDetail,
 		balanceDetailSelected,
 		selectThisBalanceDetail,
-		setBalanceDetailPagination
+		setBalanceDetailPagination,
+		listParams = { q: '', sort: 'date_desc' }
 	}: Props = $props();
 
 	let isSelected = $derived(balanceDetail.id === balanceDetailSelected?.id);
 
 	// HTML Elements
 	let btnEditBalanceDetail: HTMLButtonElement | undefined = $state();
-	let btnDeleteBalanceDetail: HTMLButtonElement | undefined = $state();
 
 	// Visible Elements
 	let confirmationDeleteIsVisible = $state(false);
@@ -46,13 +62,38 @@
 		}
 	}
 
-	// Request Funcitons
+	// Request Functions
 	function sendEditBalanceDetail() {
 		if (typeof btnEditBalanceDetail !== 'undefined' && confirmationEditIsVisible) {
 			btnEditBalanceDetail.click();
 		}
 	}
 
+	// Shared success handling for both mutation forms: the pagination contract
+	// is applied, then either the order-linked refusal is announced (a no-op
+	// edit/delete that would otherwise look like silent success) or the range
+	// dashboard above is invalidated so its KPIs/chart pick the change up.
+	async function applyMutationResult(result: ActionResult) {
+		if (result.type !== 'success') {
+			return;
+		}
+		if (result.data?.balanceDetailPagination) {
+			setBalanceDetailPagination(result.data.balanceDetailPagination as BalanceDetailPagination);
+		}
+		const notice = result.data?.notice;
+		if (typeof notice === 'string' && notice.length > 0) {
+			toast(notice);
+			return;
+		}
+		await invalidateAll();
+	}
+
+	// Audit (AGENTS.md "Reactivity: real reads, not markers"): every effect
+	// below depends on values it actually reads (isSelected and the two
+	// confirmation flags) — no bare markers, no suppressions. The writes
+	// converge: clearing an already-cleared flag does not re-trigger, so the
+	// mutual-exclusion pair settles after one pass and the deselect effect
+	// fires once per selection loss.
 	$effect(() => {
 		if (!isSelected && (confirmationDeleteIsVisible || confirmationEditIsVisible)) {
 			toggleConfirmationDeleteIsVisible(false);
@@ -75,31 +116,34 @@
 </script>
 
 <div class="flex flex-row place-items-center">
-	<div
-		class="card flex flex-col gap-4 self-start rounded-2xl bg-stone-800 p-2"
-		tabindex="0"
-		onkeydown={() => {}}
-		role="button"
-	>
+	<div class="card flex flex-col gap-4 self-start rounded-2xl bg-stone-800 p-2">
 		<form
 			action=""
 			method="post"
 			use:enhance={() => {
 				return async ({ result }) => {
 					if (result.type === 'success') {
-						if (result.data?.balanceDetailPagination) {
-							setBalanceDetailPagination(
-								result.data.balanceDetailPagination as BalanceDetailPagination
-							);
-							toggleConfirmationEditIsVisible(false);
-							toggleConfirmationDeleteIsVisible(false);
-						}
+						await applyMutationResult(result);
+						toggleConfirmationEditIsVisible(false);
+						toggleConfirmationDeleteIsVisible(false);
+						return;
+					}
+					const failure = actionFailureMessage(result, 'No se pudo guardar el movimiento');
+					if (failure) {
+						toast(failure);
 					}
 				};
 			}}
 			class="flex flex-col place-items-center gap-2"
 		>
-			<input type="hidden" name="balance_id" id="balance_id" value={balanceDetail.id} />
+			<input type="hidden" name="q" value={listParams.q} />
+			<input type="hidden" name="sort" value={listParams.sort} />
+			<input
+				type="hidden"
+				name="balance_id"
+				id="balance_id-{balanceDetail.id}"
+				value={balanceDetail.id}
+			/>
 			<div class="flex flex-col text-center">
 				<span class="font-semibold"> Motivo </span>
 				{#if confirmationEditIsVisible}
@@ -107,7 +151,8 @@
 						transition:slide
 						type="text"
 						name="new_reason"
-						id="new_reason"
+						id="new_reason-{balanceDetail.id}"
+						aria-label="Motivo"
 						class="rounded-md border bg-transparent px-1 text-red-400 outline-none"
 						required
 						autocomplete="off"
@@ -127,7 +172,8 @@
 						type="number"
 						step="0.01"
 						name="new_value"
-						id="new_value"
+						id="new_value-{balanceDetail.id}"
+						aria-label="Valor"
 						class="rounded-md border bg-transparent px-1 text-red-400 outline-none"
 						required
 						autocomplete="off"
@@ -135,7 +181,7 @@
 					/>
 				{:else}
 					<span transition:slide>
-						$ {balanceDetail.value.toFixed(2)}
+						{formatCurrency(balanceDetail.value)}
 					</span>
 				{/if}
 			</div>
@@ -146,14 +192,6 @@
 				class="hidden"
 			>
 				Edit Balance Detail
-			</button>
-			<button
-				bind:this={btnDeleteBalanceDetail}
-				type="submit"
-				formaction="?/delete_balance"
-				class="hidden"
-			>
-				Delete Balance Detail
 			</button>
 		</form>
 		<span class="place-self-center">
@@ -168,7 +206,10 @@
 		{#if !isSelected}
 			<button
 				in:scale
+				type="button"
 				class="flex w-full flex-col place-items-center rounded-full bg-stone-700/20"
+				aria-label="Ver detalles del movimiento"
+				aria-expanded="false"
 				onclick={() => selectThisBalanceDetail(balanceDetail)}
 			>
 				<Icon icon="mingcute:down-line" />
@@ -181,17 +222,26 @@
 				use:enhance={() => {
 					return async ({ result }) => {
 						if (result.type === 'success') {
-							if (result.data?.balanceDetailPagination) {
-								setBalanceDetailPagination(
-									result.data.balanceDetailPagination as BalanceDetailPagination
-								);
-							}
+							await applyMutationResult(result);
+							toggleConfirmationDeleteIsVisible(false);
+							return;
+						}
+						const failure = actionFailureMessage(result, 'No se pudo eliminar el movimiento');
+						if (failure) {
+							toast(failure);
 						}
 					};
 				}}
 				class="flex flex-col gap-2"
 			>
-				<input type="hidden" name="balance_id" id="balance_id" value={balanceDetail.id} />
+				<input type="hidden" name="q" value={listParams.q} />
+				<input type="hidden" name="sort" value={listParams.sort} />
+				<input
+					type="hidden"
+					name="balance_id"
+					id="delete_balance_id-{balanceDetail.id}"
+					value={balanceDetail.id}
+				/>
 				<div
 					class="flex flex-row place-content-around gap-2 rounded-full bg-stone-700/20 py-1 text-3xl"
 				>
@@ -217,6 +267,15 @@
 						<Icon icon="mdi:edit-outline" />
 					</button>
 				</div>
+				<button
+					type="button"
+					class="flex w-full flex-col place-items-center rounded-full bg-stone-700/20"
+					aria-label="Ocultar detalles del movimiento"
+					aria-expanded="true"
+					onclick={() => selectThisBalanceDetail(undefined)}
+				>
+					<Icon icon="mingcute:up-line" />
+				</button>
 				{#if confirmationDeleteIsVisible}
 					<div
 						transition:scale={{ duration: 200 }}
@@ -263,49 +322,11 @@
 						>
 							Confirmar
 						</button>
-
-						{#if confirmationEditIsVisible}
-							<!-- <input type="hidden" name="content" value={JSON.stringify(purchaseDetails)}> -->
-						{/if}
 					</div>
 				{/if}
 			</form>
 		{/if}
 	</div>
-
-	<!-- {#if confirmationEditIsVisible && purchaseDetailSelected}
-<div transition:slide={{axis: "x"}} class="flex flex-col gap-4 p-2 rounded-r-md bg-stone-800 self-start card"
-tabindex="0"
-onkeydown={() => {}}
-role="button"
->
-    <span>
-        {purchaseDetailSelected.product.product.name}
-    </span>
-    <div class="flex flex-col gap-3 place-items-center ">
-        <span>
-            Cantidad
-        </span>
-        <div class="flex flex-row gap-2 place-items-center text-lg">
-            <button class="p-1 border rounded-full hover:text-red-500 focus:text-red-500" 
-            onclick={() => subtractAmountPDSelected()}
-            onfocus={(e) => cancelFocus(e)}
-            >
-                <Icon icon="octicon:dash-16" />
-            </button>
-            <span>
-                {purchaseDetailSelected.amount}
-            </span>
-            <button class="p-1 border rounded-full hover:text-red-500 focus:text-red-500" 
-            onclick={() => addAmountPDSelected()}
-            onfocus={(e) => cancelFocus(e)}
-            >
-                <Icon icon="ic:round-plus" />
-            </button>
-        </div>
-    </div>
-</div>
-{/if} -->
 </div>
 
 <style>
