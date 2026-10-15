@@ -18,6 +18,11 @@ import {
 import type { BalanceDetailPagination } from '$lib/interfaces/balance';
 import { requireUser } from '$lib/server/guard';
 import {
+	BALANCE_PAGE_SIZE,
+	readBalanceListParams,
+	type BalanceListParams
+} from '$lib/server/balance-list';
+import {
 	getCartAbandonment,
 	getDailyCostSeries,
 	getDailyExpenseSeries,
@@ -224,6 +229,65 @@ export const load: PageServerLoad = async (event) => {
 	};
 };
 
+/**
+ * Fetchers for the three list views, keyed by `balance_view_state`. Each maps
+ * its table-specific rows onto the shared `BalanceDetailPagination` contract.
+ */
+const LIST_FETCHERS = {
+	revenue: async (page: number, params: BalanceListParams) => {
+		const res = await getRevenues(page, BALANCE_PAGE_SIZE, params.q, params.sort);
+		return {
+			balanceDetails: res.revenues,
+			totalPages: res.totalPages,
+			currentPage: res.currentPage,
+			totalItems: res.totalItems
+		};
+	},
+	cost: async (page: number, params: BalanceListParams) => {
+		const res = await getCosts(page, BALANCE_PAGE_SIZE, params.q, params.sort);
+		return {
+			balanceDetails: res.costs,
+			totalPages: res.totalPages,
+			currentPage: res.currentPage,
+			totalItems: res.totalItems
+		};
+	},
+	expense: async (page: number, params: BalanceListParams) => {
+		const res = await getExpenses(page, BALANCE_PAGE_SIZE, params.q, params.sort);
+		return {
+			balanceDetails: res.expenses,
+			totalPages: res.totalPages,
+			currentPage: res.currentPage,
+			totalItems: res.totalItems
+		};
+	}
+} as const;
+
+type BalanceListState = keyof typeof LIST_FETCHERS;
+
+function isListState(viewState: string): viewState is BalanceListState {
+	// `in` would also match Object.prototype keys ('toString' …) — a crafted
+	// cookie must not resolve to a non-fetcher.
+	return Object.hasOwn(LIST_FETCHERS, viewState);
+}
+
+/**
+ * Refetches the list behind `viewState`, applying the same filter/sort params
+ * everywhere so an active search survives paging, view switches and mutations.
+ * Returns undefined for 'resume' (no list), matching the contract every
+ * action already returns.
+ */
+async function loadBalancePagination(
+	viewState: string | undefined,
+	page: number,
+	params: BalanceListParams
+): Promise<BalanceDetailPagination | undefined> {
+	if (!viewState || !isListState(viewState)) {
+		return undefined;
+	}
+	return LIST_FETCHERS[viewState](page, params);
+}
+
 export const actions: Actions = {
 	set_view_state: async (event) => {
 		requireUser(event.locals);
@@ -241,29 +305,28 @@ export const actions: Actions = {
 			secure: event.url.protocol === 'https:'
 		});
 
-		let balanceDetailPagination: BalanceDetailPagination | undefined;
-		if (viewState === 'revenue') {
-			const res = await getRevenues();
-			balanceDetailPagination = {
-				balanceDetails: res.revenues,
-				totalPages: res.totalPages,
-				currentPage: res.currentPage
-			};
-		} else if (viewState === 'cost') {
-			const res = await getCosts();
-			balanceDetailPagination = {
-				balanceDetails: res.costs,
-				totalPages: res.totalPages,
-				currentPage: res.currentPage
-			};
-		} else if (viewState === 'expense') {
-			const res = await getExpenses();
-			balanceDetailPagination = {
-				balanceDetails: res.expenses,
-				totalPages: res.totalPages,
-				currentPage: res.currentPage
-			};
-		}
+		// Switching views restarts at page 1 and keeps the active search/sort.
+		const balanceDetailPagination = await loadBalancePagination(
+			viewState,
+			1,
+			readBalanceListParams(formData)
+		);
+
+		return {
+			balanceDetailPagination
+		};
+	},
+	set_search: async (event) => {
+		requireUser(event.locals);
+		const formData = await event.request.formData();
+
+		// Search/sort always refetches from page 1: a narrower filter can
+		// invalidate the current page entirely.
+		const balanceDetailPagination = await loadBalancePagination(
+			event.locals.balanceViewSatate,
+			1,
+			readBalanceListParams(formData)
+		);
 
 		return {
 			balanceDetailPagination
@@ -280,21 +343,17 @@ export const actions: Actions = {
 		}
 
 		const viewState = event.locals.balanceViewSatate;
+		const params = readBalanceListParams(formData);
 		let balanceDetailPagination: BalanceDetailPagination | undefined;
 		try {
 			if (viewState === 'revenue') {
 				await createRevenue(value, reason);
-				const res = await getRevenues();
-				balanceDetailPagination = { ...res, balanceDetails: res.revenues };
 			} else if (viewState === 'cost') {
 				await createCost(value, reason);
-				const res = await getCosts();
-				balanceDetailPagination = { ...res, balanceDetails: res.costs };
 			} else if (viewState === 'expense') {
 				await createExpense(value, reason);
-				const res = await getExpenses();
-				balanceDetailPagination = { ...res, balanceDetails: res.expenses };
 			}
+			balanceDetailPagination = await loadBalancePagination(viewState, 1, params);
 		} catch {
 			return fail(500, { message: 'A ocurrido un error en el servidor' });
 		}
@@ -313,6 +372,7 @@ export const actions: Actions = {
 		}
 
 		const viewState = event.locals.balanceViewSatate;
+		const params = readBalanceListParams(formData);
 		let balanceDetailPagination: BalanceDetailPagination | undefined;
 		let notice: string | undefined;
 
@@ -320,22 +380,16 @@ export const actions: Actions = {
 			if (viewState === 'revenue') {
 				const result = await deleteRevenue(balanceId);
 				// Order-linked revenue is protected from deletion; surface the
-				// refusal instead of the old silent no-op (UI wiring comes in
-				// a later unit).
+				// refusal instead of the old silent no-op.
 				if (!result.success) {
 					notice = 'Este movimiento está vinculado a una orden y no puede eliminarse';
 				}
-				const res = await getRevenues();
-				balanceDetailPagination = { ...res, balanceDetails: res.revenues };
 			} else if (viewState === 'cost') {
 				await deleteCost(balanceId);
-				const res = await getCosts();
-				balanceDetailPagination = { ...res, balanceDetails: res.costs };
 			} else if (viewState === 'expense') {
 				await deleteExpense(balanceId);
-				const res = await getExpenses();
-				balanceDetailPagination = { ...res, balanceDetails: res.expenses };
 			}
+			balanceDetailPagination = await loadBalancePagination(viewState, 1, params);
 		} catch {
 			return fail(500, { message: 'A ocurrido un error en el servidor' });
 		}
@@ -354,6 +408,7 @@ export const actions: Actions = {
 		}
 
 		const viewState = event.locals.balanceViewSatate;
+		const params = readBalanceListParams(formData);
 		let balanceDetailPagination: BalanceDetailPagination | undefined;
 		let notice: string | undefined;
 
@@ -365,17 +420,12 @@ export const actions: Actions = {
 				if (!result.success) {
 					notice = 'Este movimiento está vinculado a una orden y no puede editarse';
 				}
-				const res = await getRevenues();
-				balanceDetailPagination = { ...res, balanceDetails: res.revenues };
 			} else if (viewState === 'cost') {
 				await updateCost(balanceId, newValue, newReason);
-				const res = await getCosts();
-				balanceDetailPagination = { ...res, balanceDetails: res.costs };
 			} else if (viewState === 'expense') {
 				await updateExpense(balanceId, newValue, newReason);
-				const res = await getExpenses();
-				balanceDetailPagination = { ...res, balanceDetails: res.expenses };
 			}
+			balanceDetailPagination = await loadBalancePagination(viewState, 1, params);
 		} catch {
 			return fail(500, { message: 'A ocurrido un error en el servidor' });
 		}
@@ -416,19 +466,11 @@ export const actions: Actions = {
 
 		const viewState = event.locals.balanceViewSatate;
 		const prevPage = currentPage - 1;
-
-		let balanceDetailPagination: BalanceDetailPagination | undefined;
-
-		if (viewState === 'revenue') {
-			const res = await getRevenues(prevPage);
-			balanceDetailPagination = { ...res, balanceDetails: res.revenues };
-		} else if (viewState === 'cost') {
-			const res = await getCosts(prevPage);
-			balanceDetailPagination = { ...res, balanceDetails: res.costs };
-		} else if (viewState === 'expense') {
-			const res = await getExpenses(prevPage);
-			balanceDetailPagination = { ...res, balanceDetails: res.expenses };
-		}
+		const balanceDetailPagination = await loadBalancePagination(
+			viewState,
+			prevPage,
+			readBalanceListParams(formData)
+		);
 
 		return {
 			balanceDetailPagination
@@ -456,19 +498,11 @@ export const actions: Actions = {
 
 		const viewState = event.locals.balanceViewSatate;
 		const nextPage = currentPage + 1;
-
-		let balanceDetailPagination: BalanceDetailPagination | undefined;
-
-		if (viewState === 'revenue') {
-			const res = await getRevenues(nextPage);
-			balanceDetailPagination = { ...res, balanceDetails: res.revenues };
-		} else if (viewState === 'cost') {
-			const res = await getCosts(nextPage);
-			balanceDetailPagination = { ...res, balanceDetails: res.costs };
-		} else if (viewState === 'expense') {
-			const res = await getExpenses(nextPage);
-			balanceDetailPagination = { ...res, balanceDetails: res.expenses };
-		}
+		const balanceDetailPagination = await loadBalancePagination(
+			viewState,
+			nextPage,
+			readBalanceListParams(formData)
+		);
 
 		return {
 			balanceDetailPagination
@@ -481,7 +515,8 @@ export const actions: Actions = {
 
 		try {
 			gotoPage = parseInt(formData.get('goto_page') as string);
-			if (isNaN(gotoPage)) {
+			// Page 0 or negative would produce a negative SQL OFFSET.
+			if (isNaN(gotoPage) || gotoPage < 1) {
 				return fail(400, { message: 'Invalid pagination params' });
 			}
 		} catch {
@@ -489,19 +524,11 @@ export const actions: Actions = {
 		}
 
 		const viewState = event.locals.balanceViewSatate;
-
-		let balanceDetailPagination: BalanceDetailPagination | undefined;
-
-		if (viewState === 'revenue') {
-			const res = await getRevenues(gotoPage);
-			balanceDetailPagination = { ...res, balanceDetails: res.revenues };
-		} else if (viewState === 'cost') {
-			const res = await getCosts(gotoPage);
-			balanceDetailPagination = { ...res, balanceDetails: res.costs };
-		} else if (viewState === 'expense') {
-			const res = await getExpenses(gotoPage);
-			balanceDetailPagination = { ...res, balanceDetails: res.expenses };
-		}
+		const balanceDetailPagination = await loadBalancePagination(
+			viewState,
+			gotoPage,
+			readBalanceListParams(formData)
+		);
 
 		return {
 			balanceDetailPagination
