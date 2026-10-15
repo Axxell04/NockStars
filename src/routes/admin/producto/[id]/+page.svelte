@@ -567,7 +567,8 @@
 				<fieldset class="bg-surface-1 space-y-4 rounded-xl border border-white/10 p-6">
 					<legend class="text-text-primary mb-4 text-lg font-semibold">Imágenes del producto</legend
 					>
-					<div class="flex items-center justify-between">
+					<!-- Upload actions: pick stays primary, confirm only exists with a queue -->
+					<div class="flex flex-wrap items-center justify-between gap-3">
 						<label class="cursor-pointer">
 							<input
 								type="file"
@@ -580,7 +581,7 @@
 							/>
 							<button
 								type="button"
-								class="bg-brand-400 hover:bg-brand-300 flex items-center gap-2 rounded-lg px-4 py-2 text-white transition-colors"
+								class="bg-brand-400 hover:bg-brand-300 flex items-center gap-2 rounded-lg px-4 py-2 whitespace-nowrap text-white transition-colors"
 								onclick={() => inputImages?.click()}
 								disabled={uploadingImages}
 							>
@@ -589,20 +590,33 @@
 							</button>
 						</label>
 						{#if imageFiles.length > 0}
-							<button
-								type="button"
-								class="bg-brand-400 hover:bg-brand-300 flex items-center gap-2 rounded-lg px-4 py-2 text-white transition-colors"
-								onclick={uploadImages}
-								disabled={uploadingImages}
-							>
-								<Icon icon="mdi:upload" class="text-lg" />
-								{uploadingImages ? 'Subiendo...' : 'Confirmar subida'}
-							</button>
+							<div class="flex items-center gap-3">
+								<span class="text-text-secondary text-sm">
+									{imageFiles.length}
+									{imageFiles.length === 1
+										? 'imagen lista para subir'
+										: 'imágenes listas para subir'}
+								</span>
+								<button
+									type="button"
+									class="bg-brand-400 hover:bg-brand-300 flex items-center gap-2 rounded-lg px-4 py-2 whitespace-nowrap text-white transition-colors"
+									onclick={uploadImages}
+									disabled={uploadingImages}
+								>
+									<Icon icon="mdi:upload" class="text-lg" />
+									{uploadingImages ? 'Subiendo...' : 'Confirmar subida'}
+								</button>
+							</div>
 						{/if}
+					</div>
 
-						<!-- New Images: staged locally, their order becomes the stored order -->
-						{#if imageFiles.length > 0}
-							<div class="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+					<!-- New Images: staged locally, their order becomes the stored order -->
+					{#if imageFiles.length > 0}
+						<div class="space-y-2">
+							<p class="text-text-secondary text-sm">
+								Nuevas imágenes · se guardarán en este orden
+							</p>
+							<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
 								{#each imagePreviews as url, index (index)}
 									<div
 										class="bg-surface-2 border-brand-400/50 relative aspect-square overflow-hidden rounded-lg border border-dashed"
@@ -627,9 +641,16 @@
 									</div>
 								{/each}
 							</div>
-						{/if}
+						</div>
+					{/if}
 
-						<!-- Current Images Grid -->
+					<!-- Current Images Grid -->
+					<div class="space-y-2">
+						{#if productImages.length > 0}
+							<p class="text-text-secondary text-sm">
+								Imágenes guardadas · así se muestran en la tienda
+							</p>
+						{/if}
 						<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
 							{#each productImages as img, index (img.id)}
 								<div class="bg-surface-2 relative aspect-square overflow-hidden rounded-lg">
@@ -657,10 +678,11 @@
 
 							{#if productImages.length === 0}
 								<div
-									class="text-text-muted/50 col-span-full flex aspect-square flex-col items-center justify-center rounded-lg border-2 border-dashed border-white/10"
+									class="text-text-muted/50 col-span-full flex h-36 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-white/10"
 								>
-									<Icon icon="mdi:image-off-outline" class="mb-2 text-4xl" />
+									<Icon icon="mdi:image-off-outline" class="text-3xl" />
 									<p class="text-center">Sin imágenes</p>
+									<p class="text-text-muted text-xs">Subí la primera desde “Subir imágenes”.</p>
 								</div>
 							{/if}
 						</div>
