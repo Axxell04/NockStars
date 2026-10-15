@@ -1,4 +1,4 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
 	createRevenue,
@@ -16,11 +16,10 @@ import {
 	updateExpense
 } from '$lib/server/expense';
 import type { BalanceDetailPagination } from '$lib/interfaces/balance';
+import { requireUser } from '$lib/server/guard';
 
 export const load: PageServerLoad = async (event) => {
-	if (!event.locals.user) {
-		return redirect(302, '/login');
-	}
+	requireUser(event.locals);
 
 	const totalRevenue = await getTotalRevenue();
 	const totalCost = await getTotalCost();
@@ -35,6 +34,7 @@ export const load: PageServerLoad = async (event) => {
 
 export const actions: Actions = {
 	set_view_state: async (event) => {
+		requireUser(event.locals);
 		const formData = await event.request.formData();
 		const viewState = formData.get('view_state') as string;
 
@@ -78,6 +78,7 @@ export const actions: Actions = {
 		};
 	},
 	add_balance: async (event) => {
+		requireUser(event.locals);
 		const formData = await event.request.formData();
 		const reason = formData.get('reason') as string;
 		const value = parseFloat(formData.get('value') as string);
@@ -111,6 +112,7 @@ export const actions: Actions = {
 		};
 	},
 	delete_balance: async (event) => {
+		requireUser(event.locals);
 		const formData = await event.request.formData();
 		const balanceId = formData.get('balance_id') as string;
 
@@ -120,10 +122,17 @@ export const actions: Actions = {
 
 		const viewState = event.locals.balanceViewSatate;
 		let balanceDetailPagination: BalanceDetailPagination | undefined;
+		let notice: string | undefined;
 
 		try {
 			if (viewState === 'revenue') {
-				await deleteRevenue(balanceId);
+				const result = await deleteRevenue(balanceId);
+				// Order-linked revenue is protected from deletion; surface the
+				// refusal instead of the old silent no-op (UI wiring comes in
+				// a later unit).
+				if (!result.success) {
+					notice = 'Este movimiento está vinculado a una orden y no puede eliminarse';
+				}
 				const res = await getRevenues();
 				balanceDetailPagination = { ...res, balanceDetails: res.revenues };
 			} else if (viewState === 'cost') {
@@ -139,11 +148,10 @@ export const actions: Actions = {
 			return fail(500, { message: 'A ocurrido un error en el servidor' });
 		}
 
-		return {
-			balanceDetailPagination
-		};
+		return notice ? { balanceDetailPagination, notice } : { balanceDetailPagination };
 	},
 	edit_balance: async (event) => {
+		requireUser(event.locals);
 		const formData = await event.request.formData();
 		const balanceId = formData.get('balance_id') as string;
 		const newReason = formData.get('new_reason') as string;
@@ -155,10 +163,16 @@ export const actions: Actions = {
 
 		const viewState = event.locals.balanceViewSatate;
 		let balanceDetailPagination: BalanceDetailPagination | undefined;
+		let notice: string | undefined;
 
 		try {
 			if (viewState === 'revenue') {
-				await updateRevenue(balanceId, newValue, newReason);
+				const result = await updateRevenue(balanceId, newValue, newReason);
+				// Same protection as deletion: order-linked revenue cannot be
+				// rewritten. Reported explicitly (see delete_balance).
+				if (!result.success) {
+					notice = 'Este movimiento está vinculado a una orden y no puede editarse';
+				}
 				const res = await getRevenues();
 				balanceDetailPagination = { ...res, balanceDetails: res.revenues };
 			} else if (viewState === 'cost') {
@@ -174,11 +188,10 @@ export const actions: Actions = {
 			return fail(500, { message: 'A ocurrido un error en el servidor' });
 		}
 
-		return {
-			balanceDetailPagination
-		};
+		return notice ? { balanceDetailPagination, notice } : { balanceDetailPagination };
 	},
-	refresh_totals: async () => {
+	refresh_totals: async (event) => {
+		requireUser(event.locals);
 		const totalRevenue = await getTotalRevenue();
 		const totalCost = await getTotalCost();
 		const totalExpense = await getTotalExpense();
@@ -190,6 +203,7 @@ export const actions: Actions = {
 		};
 	},
 	prev_page: async (event) => {
+		requireUser(event.locals);
 		const formData = await event.request.formData();
 		let totalPages = 0;
 		let currentPage = 0;
@@ -229,6 +243,7 @@ export const actions: Actions = {
 		};
 	},
 	next_page: async (event) => {
+		requireUser(event.locals);
 		const formData = await event.request.formData();
 		let totalPages = 0;
 		let currentPage = 0;
@@ -268,6 +283,7 @@ export const actions: Actions = {
 		};
 	},
 	goto_page: async (event) => {
+		requireUser(event.locals);
 		const formData = await event.request.formData();
 		let gotoPage = 0;
 

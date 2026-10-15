@@ -1,7 +1,8 @@
 import * as table from '$lib/server/db/schema';
 import { getDb } from '$lib/server/db';
 import { generateId } from './functions';
-import { desc, eq } from 'drizzle-orm';
+import { count, desc, eq, sql } from 'drizzle-orm';
+import type { BalanceMutationResult } from '$lib/interfaces/balance';
 
 export async function createRevenue(value: number, reason?: string) {
 	const revenueId = generateId();
@@ -27,8 +28,8 @@ export async function getRevenues(page: number = 1, limit: number = 5) {
 		.orderBy(desc(table.revenue.createdAt))
 		.execute();
 
-	const totalOrders = (await getDb().select().from(table.revenue).execute()).length;
-	const totalPages = Math.ceil(totalOrders / limit);
+	const [totalRow] = await getDb().select({ total: count() }).from(table.revenue).execute();
+	const totalPages = Math.ceil(Number(totalRow?.total ?? 0) / limit);
 
 	return {
 		revenues,
@@ -37,14 +38,22 @@ export async function getRevenues(page: number = 1, limit: number = 5) {
 	};
 }
 
-export async function updateRevenue(id: string, value?: number, reason?: string) {
+export async function updateRevenue(
+	id: string,
+	value?: number,
+	reason?: string
+): Promise<BalanceMutationResult> {
 	const [order] = await getDb()
 		.select()
 		.from(table.order)
 		.where(eq(table.order.revenueId, id))
 		.execute();
 	if (order) {
-		return;
+		// The row backs a completed order (order.revenueId points here), so
+		// rewriting it would desync the order's receipt from the books.
+		// Reported explicitly so the action can surface a notice instead of
+		// looking like a successful edit that silently changed nothing.
+		return { success: false, reason: 'order_linked' };
 	}
 	if (typeof value !== 'undefined' && typeof reason !== 'undefined') {
 		await getDb()
@@ -57,22 +66,28 @@ export async function updateRevenue(id: string, value?: number, reason?: string)
 	} else if (typeof reason !== 'undefined') {
 		await getDb().update(table.revenue).set({ reason }).where(eq(table.revenue.id, id)).execute();
 	}
+	return { success: true };
 }
 
-export async function deleteRevenue(id: string) {
+export async function deleteRevenue(id: string): Promise<BalanceMutationResult> {
 	const [order] = await getDb()
 		.select()
 		.from(table.order)
 		.where(eq(table.order.revenueId, id))
 		.execute();
 	if (order) {
-		return;
+		// Same protection as `updateRevenue`: deleting would orphan the
+		// order's revenueId reference. Explicit result, no silent no-op.
+		return { success: false, reason: 'order_linked' };
 	}
 	await getDb().delete(table.revenue).where(eq(table.revenue.id, id));
+	return { success: true };
 }
 
 export async function getTotalRevenue() {
-	const revenues = await getDb().select().from(table.revenue).execute();
-	const total = revenues.reduce((pv, cv) => pv + cv.value, 0);
-	return total;
+	const [row] = await getDb()
+		.select({ total: sql<string>`coalesce(sum(${table.revenue.value}), 0)` })
+		.from(table.revenue)
+		.execute();
+	return Number(row?.total ?? 0);
 }

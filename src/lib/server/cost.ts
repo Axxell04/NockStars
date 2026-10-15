@@ -1,7 +1,7 @@
 import * as table from '$lib/server/db/schema';
 import { getDb } from '$lib/server/db';
 import { generateId } from './functions';
-import { eq } from 'drizzle-orm';
+import { count, eq, sql } from 'drizzle-orm';
 
 export async function createCost(value: number, reason?: string) {
 	const costId = generateId();
@@ -25,8 +25,8 @@ export async function getCosts(page: number = 1, limit: number = 10) {
 		.orderBy(table.cost.createdAt)
 		.execute();
 
-	const totalOrders = (await getDb().select().from(table.cost).execute()).length;
-	const totalPages = Math.ceil(totalOrders / limit);
+	const [totalRow] = await getDb().select({ total: count() }).from(table.cost).execute();
+	const totalPages = Math.ceil(Number(totalRow?.total ?? 0) / limit);
 
 	return {
 		costs,
@@ -50,7 +50,9 @@ export async function deleteCost(id: string) {
 }
 
 export async function getTotalCost() {
-	const costs = await getDb().select().from(table.cost).execute();
-	const total = costs.reduce((pv, cv) => pv + cv.value, 0);
-	return total;
+	const [row] = await getDb()
+		.select({ total: sql<string>`coalesce(sum(${table.cost.value}), 0)` })
+		.from(table.cost)
+		.execute();
+	return Number(row?.total ?? 0);
 }
