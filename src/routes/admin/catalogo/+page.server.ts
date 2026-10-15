@@ -8,7 +8,9 @@ import {
 	updateCatalog,
 	getCatalogIdForProduct,
 	getProductsByCatalog,
-	getProductsWithoutCatalog
+	getProductsWithoutCatalog,
+	moveProductToCatalog,
+	validateCatalog
 } from '$lib/server/catalog';
 import {
 	createProduct,
@@ -143,6 +145,49 @@ export const actions: Actions = {
 		return {
 			catalogs: catalogs
 		};
+	},
+	// Assigns existing products to a catalog. Moving is the semantic: each
+	// product's previous membership is cleared in the same transaction, so the
+	// one-catalog-per-product rule stays true by construction. Accepts a JSON
+	// array of ids because consolidating several products into one catalog is
+	// the common case for this dialog.
+	assign_product_to_catalog: async (event) => {
+		const formData = await event.request.formData();
+		const rawIds = formData.get('product_ids') as string;
+		const catalogId = formData.get('catalog_id') as string;
+
+		if (!rawIds || !catalogId) {
+			return fail(400, { message: 'Datos de asignación inválidos' });
+		}
+
+		let productIds: unknown;
+		try {
+			productIds = JSON.parse(rawIds);
+		} catch {
+			return fail(400, { message: 'Lista de productos inválida' });
+		}
+
+		if (
+			!Array.isArray(productIds) ||
+			productIds.length === 0 ||
+			!productIds.every((id) => typeof id === 'string' && id.length > 0)
+		) {
+			return fail(400, { message: 'Lista de productos inválida' });
+		}
+		if (!(await validateCatalog(catalogId))) {
+			return fail(400, { message: 'El catálogo de destino no existe' });
+		}
+
+		try {
+			for (const productId of productIds as string[]) {
+				await moveProductToCatalog(productId, catalogId);
+			}
+		} catch (error) {
+			console.log(error);
+			return fail(500, { message: 'Error interno del servidor' });
+		}
+
+		return { success: true, assigned: (productIds as string[]).length };
 	},
 	// Product actions
 	add_product: async (event) => {

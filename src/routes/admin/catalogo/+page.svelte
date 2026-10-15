@@ -9,6 +9,7 @@
 	import type { VariantComplete } from '$lib/actions';
 	import CatalogCard from '$lib/components/CatalogCard.svelte';
 	import AddCatalogModal from '$lib/components/modals/admin/catalogo/AddCatalogModal.svelte';
+	import AssignProductModal from '$lib/components/modals/admin/catalogo/AssignProductModal.svelte';
 	import DeleteCatalogModal from '$lib/components/modals/admin/catalogo/DeleteCatalogModal.svelte';
 	import EditCatalogModal from '$lib/components/modals/admin/catalogo/EditCatalogModal.svelte';
 	import VariantModal from '$lib/components/modals/admin/VariantModal.svelte';
@@ -72,6 +73,7 @@
 
 	let addProductModalIsVisible = $state(false);
 	let deleteProductModalIsVisible = $state(false);
+	let assignProductModalIsVisible = $state(false);
 
 	let addVariantModalIsVisible = $state(false);
 	let deleteVariantModalIsVisible = $state(false);
@@ -159,6 +161,14 @@
 		}
 	}
 
+	function toggleAssignProductModalIsVisible(visible?: boolean) {
+		if (typeof visible !== 'undefined') {
+			assignProductModalIsVisible = visible;
+		} else {
+			assignProductModalIsVisible = !assignProductModalIsVisible;
+		}
+	}
+
 	function toggleAddVariantModalIsVisible(visible?: boolean) {
 		if (typeof visible !== 'undefined') {
 			addVariantModalIsVisible = visible;
@@ -234,6 +244,12 @@
 				await loadProducts(catalogSelected?.id);
 			}
 		};
+	}
+
+	// An assignment only adds rows to the current catalog's list, so a plain
+	// reload is enough — nothing selected can leave the view through it.
+	function handleAssignSuccess() {
+		void loadProducts(catalogSelected?.id);
 	}
 
 	// Deactivating keeps the row, so the selection and its variants stay valid
@@ -595,6 +611,20 @@
 							{catalogSelected ? 'Añadir Producto' : 'Agregar producto sin catálogo'}
 						</span>
 					</a>
+					<!-- Assigning moves an existing product INTO this catalog, so it only
+					     makes sense once one is selected — the "Sin catálogo" view has
+					     nothing to assign to. -->
+					{#if catalogSelected}
+						<button
+							type="button"
+							class="btn-secondary w-full justify-center text-center sm:w-auto"
+							onclick={() => toggleAssignProductModalIsVisible(true)}
+							onfocus={(e) => cancelFocus(e)}
+						>
+							<Icon icon="mdi:playlist-add" class="text-xl" />
+							<span>Asignar existente</span>
+						</button>
+					{/if}
 					<!-- Deactivation only hides products; this is the one place they
 					     disappear for good, and only once nothing references them. -->
 					<form action="?/purge_inactive_products" method="post" use:enhance={handlePurgeEnhance}>
@@ -866,6 +896,15 @@
 	/>
 
 	<!-- Product Modals (inline for now) -->
+	{#if catalogSelected}
+		<AssignProductModal
+			catalogId={catalogSelected.id}
+			catalogName={catalogSelected.name}
+			isVisible={assignProductModalIsVisible}
+			toggleModal={toggleAssignProductModalIsVisible}
+			onAssigned={handleAssignSuccess}
+		/>
+	{/if}
 	{#if addProductModalIsVisible && catalogSelected}
 		<div
 			class="bg-surface-0/95 fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm"

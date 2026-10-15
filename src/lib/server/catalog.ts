@@ -1,7 +1,7 @@
 import * as table from '$lib/server/db/schema';
 import { encodeBase32LowerCase } from '@oslojs/encoding';
 import { getDb } from '$lib/server/db';
-import { and, asc, eq, desc, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, desc, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 
 export async function createCatalog(name: string, description?: string) {
 	const productId = generateId();
@@ -67,6 +67,25 @@ export async function removeProductFromCatalog(productId: string, catalogId: str
 			)
 		)
 		.execute();
+}
+
+/**
+ * Moves a product into `catalogId`, replacing any membership it had. The
+ * delete + insert run in one transaction: a crash between two separate
+ * statements would leave the product with no catalog at all, which is worse
+ * than the duplicate-row risk the plain insert would have had.
+ */
+export async function moveProductToCatalog(productId: string, catalogId: string) {
+	await getDb().transaction(async (tx) => {
+		await tx
+			.delete(table.productCatalog)
+			.where(eq(table.productCatalog.productId, productId))
+			.execute();
+		await tx
+			.insert(table.productCatalog)
+			.values({ id: generateId(), productId, catalogId })
+			.execute();
+	});
 }
 
 /**
@@ -185,6 +204,79 @@ export async function getProductsWithoutCatalog() {
 	}
 
 	return listProducts;
+}
+
+/**
+ * Products that do NOT belong to `excludeCatalogId`, each with the catalog it
+ * currently sits in (null = none), its thumbnail and its sellable stock. This
+ * is the candidate list for "assign an existing product": picking one of these
+ * means adding it to the target catalog, and the origin name lets the admin
+ * see what the move displaces.
+ */
+export async function getAssignableProducts(excludeCatalogId: string) {
+	const rows = await getDb()
+		.select({
+			id: table.product.id,
+			name: table.product.name,
+			price: table.product.price,
+			stock: table.product.stock,
+			deactivatedAt: table.product.deactivatedAt,
+			currentCatalogId: table.productCatalog.catalogId,
+			currentCatalogName: table.catalog.name
+		})
+		.from(table.product)
+		.leftJoin(table.productCatalog, eq(table.product.id, table.productCatalog.productId))
+		.leftJoin(table.catalog, eq(table.productCatalog.catalogId, table.catalog.id))
+		.where(
+			or(
+				isNull(table.productCatalog.catalogId),
+				ne(table.productCatalog.catalogId, excludeCatalogId)
+			)
+		)
+		.orderBy(desc(table.product.createdAt))
+		.execute();
+
+	// A product with several memberships would appear once per membership; the
+	// codebase treats one catalog per product as the rule, so keep the first
+	// row and collapse any duplicates instead of listing them twice.
+	const seen = new Set<string>();
+	const uniqueRows = rows.filter((row) => {
+		if (seen.has(row.id)) return false;
+		seen.add(row.id);
+		return true;
+	});
+
+	// One batched query for every thumbnail instead of one per product: the
+	// candidate list can be long, and the N+1 pattern in getProductsByCatalog
+	// exists only because those lists are paginated short. Ordered by
+	// sortOrder so the first row per product is the one the admin picked first.
+	const ids = uniqueRows.map((row) => row.id);
+	const variantStockTotals = await getVariantStockTotals(ids);
+	const imgs =
+		ids.length === 0
+			? []
+			: await getDb()
+					.select({ productId: table.img.productId, url: table.img.url })
+					.from(table.img)
+					.where(inArray(table.img.productId, ids))
+					.orderBy(asc(table.img.sortOrder))
+					.execute();
+
+	const thumbnailByProduct = new Map<string, string>();
+	for (const img of imgs) {
+		// `set` WOULD overwrite an existing key; the `has` guard is what keeps
+		// the first row per product, and the asc(sortOrder) above is what makes
+		// that first row the admin's primary image.
+		if (!thumbnailByProduct.has(img.productId)) {
+			thumbnailByProduct.set(img.productId, img.url);
+		}
+	}
+
+	return uniqueRows.map((row) => ({
+		...row,
+		thumbnailUrl: thumbnailByProduct.get(row.id) ?? null,
+		variantStockTotal: variantStockTotals.get(row.id) ?? null
+	}));
 }
 
 /** Catalog a product belongs to, or null when it has no membership at all. */
