@@ -191,20 +191,6 @@
 		balanceDetailPagination = newBalanceDetailPagination;
 	}
 
-	function refreshBalanceDetails() {
-		if (typeof balanceDetailPagination === 'undefined') {
-			return;
-		}
-		const newBalanceDetails = balanceDetailPagination.balanceDetails;
-		balanceDetailPagination.balanceDetails = [];
-		setTimeout(() => {
-			if (typeof balanceDetailPagination === 'undefined') {
-				return;
-			}
-			balanceDetailPagination.balanceDetails = newBalanceDetails;
-		}, 200);
-	}
-
 	function selectThisBalanceDetail(balanceDetail: BalanceDetail | undefined) {
 		balanceDetailSelected = balanceDetail;
 	}
@@ -439,7 +425,6 @@
 									setBalanceDetailPagination(
 										result.data.balanceDetailPagination as BalanceDetailPagination
 									);
-									refreshBalanceDetails();
 								} else {
 									setBalanceDetailPagination(undefined);
 								}
@@ -857,7 +842,6 @@
 									setBalanceDetailPagination(
 										result.data.balanceDetailPagination as BalanceDetailPagination
 									);
-									refreshBalanceDetails();
 								} else {
 									setBalanceDetailPagination(undefined);
 								}
@@ -931,7 +915,6 @@
 									setBalanceDetailPagination(
 										result.data.balanceDetailPagination as BalanceDetailPagination
 									);
-									refreshBalanceDetails();
 									formElement.reset();
 									toggleAddPanelIsVisible(false);
 								}
@@ -997,12 +980,11 @@
 		{/if}
 	</section>
 	<section class="flex flex-wrap justify-center gap-3 p-2">
-		<!-- {#key Date.now()} -->
 		{#if typeof balanceDetails !== 'undefined' && viewState !== 'resume'}
 			{#if balanceDetails.length === 0 && balanceDetailPagination?.totalItems === 0}
-				<!-- totalItems comes from the filtered COUNT, so this renders
-					only for a genuinely empty list — not during the 200 ms
-					remount window of refreshBalanceDetails. -->
+				<!-- totalItems comes from the same filtered COUNT as the rows,
+					so both being zero is a genuinely empty (or filtered-to-empty)
+					list, never a transient loading window. -->
 				<div
 					role="status"
 					class="card-thread flex flex-col place-items-center gap-3 p-6 text-center"
@@ -1046,7 +1028,6 @@
 				{/each}
 			{/if}
 		{/if}
-		<!-- {/key} -->
 		{#if viewState === 'resume'}
 			<div
 				transition:scale={{ delay: 100, duration: 200 }}
