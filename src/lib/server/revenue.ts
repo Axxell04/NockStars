@@ -1,7 +1,7 @@
 import * as table from '$lib/server/db/schema';
 import { getDb } from '$lib/server/db';
 import { generateId } from './functions';
-import { asc, count, desc, eq, ilike, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, ilike, lt, sql } from 'drizzle-orm';
 import type { BalanceMutationResult, BalanceSortKey } from '$lib/interfaces/balance';
 import { BALANCE_PAGE_SIZE, DEFAULT_BALANCE_SORT } from '$lib/server/balance-list';
 
@@ -37,17 +37,31 @@ export async function createRevenue(value: number, reason?: string) {
 	return revenueId;
 }
 
+/**
+ * Rows of the revenue list, optionally bounded to the dashboard's half-open
+ * date range [from, to): `createdAt >= from AND createdAt < to`, composed with
+ * the `q` substring filter. Both optional bounds are omitted by legacy callers
+ * (backward-compatible signature) and are applied identically to the row query
+ * and the COUNT below.
+ */
 export async function getRevenues(
 	page: number = 1,
 	limit: number = BALANCE_PAGE_SIZE,
 	q: string = '',
-	sort: BalanceSortKey = DEFAULT_BALANCE_SORT
+	sort: BalanceSortKey = DEFAULT_BALANCE_SORT,
+	from?: Date,
+	to?: Date
 ) {
 	const offset = (page - 1) * limit;
 	// Case-insensitive substring match on the reason. `ilike` parameterizes
 	// the pattern, so user input never reaches the SQL text; `%`/`_` in the
 	// query act as wildcards, which is acceptable for a contains search.
-	const filter = q ? ilike(table.revenue.reason, `%${q}%`) : undefined;
+	// `and` drops the undefined conditions, so no filter still means "all".
+	const filter = and(
+		q ? ilike(table.revenue.reason, `%${q}%`) : undefined,
+		from ? gte(table.revenue.createdAt, from) : undefined,
+		to ? lt(table.revenue.createdAt, to) : undefined
+	);
 
 	const revenues = await getDb()
 		.select()

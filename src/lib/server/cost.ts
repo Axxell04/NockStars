@@ -1,7 +1,7 @@
 import * as table from '$lib/server/db/schema';
 import { getDb } from '$lib/server/db';
 import { generateId } from './functions';
-import { asc, count, desc, eq, ilike, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, ilike, lt, sql } from 'drizzle-orm';
 import type { BalanceSortKey } from '$lib/interfaces/balance';
 import { BALANCE_PAGE_SIZE, DEFAULT_BALANCE_SORT } from '$lib/server/balance-list';
 
@@ -35,15 +35,29 @@ export async function createCost(value: number, reason?: string) {
 	await getDb().insert(table.cost).values(cost).execute();
 }
 
+/**
+ * Rows of the cost list, optionally bounded to the dashboard's half-open date
+ * range [from, to): `createdAt >= from AND createdAt < to`, composed with the
+ * `q` substring filter. Both optional bounds are omitted by legacy callers
+ * (backward-compatible signature) and are applied identically to the row query
+ * and the COUNT below.
+ */
 export async function getCosts(
 	page: number = 1,
 	limit: number = BALANCE_PAGE_SIZE,
 	q: string = '',
-	sort: BalanceSortKey = DEFAULT_BALANCE_SORT
+	sort: BalanceSortKey = DEFAULT_BALANCE_SORT,
+	from?: Date,
+	to?: Date
 ) {
 	const offset = (page - 1) * limit;
 	// Case-insensitive substring match on the reason; parameterized by drizzle.
-	const filter = q ? ilike(table.cost.reason, `%${q}%`) : undefined;
+	// `and` drops the undefined conditions, so no filter still means "all".
+	const filter = and(
+		q ? ilike(table.cost.reason, `%${q}%`) : undefined,
+		from ? gte(table.cost.createdAt, from) : undefined,
+		to ? lt(table.cost.createdAt, to) : undefined
+	);
 
 	const costs = await getDb()
 		.select()

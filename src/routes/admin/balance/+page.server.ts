@@ -19,9 +19,18 @@ import type { BalanceDetailPagination } from '$lib/interfaces/balance';
 import { requireUser } from '$lib/server/guard';
 import {
 	BALANCE_PAGE_SIZE,
+	DEFAULT_BALANCE_SORT,
 	readBalanceListParams,
-	type BalanceListParams
+	readBalanceRange,
+	type BalanceListParams,
+	type BalanceRangeFilter
 } from '$lib/server/balance-list';
+import {
+	currentPresetBounds,
+	dayIndexLabel,
+	rangeInstants,
+	resolveRange
+} from '$lib/server/balance-range';
 import {
 	getCartAbandonment,
 	getDailyCostSeries,
@@ -31,131 +40,9 @@ import {
 	getTopProductsBySales,
 	getTopProductsByViews
 } from '$lib/server/finance-analytics';
-import type { FinanceDashboard, FinanceRangePreset } from '$lib/interfaces/analytics';
+import type { FinanceDashboard } from '$lib/interfaces/analytics';
 
-// Day-level range math, mirroring finance-analytics: America/Guayaquil is
-// UTC-5 with no DST, so a fixed offset is exact and independent of the
-// server's timezone.
-const MS_PER_DAY = 86_400_000;
-const GUAYAQUIL_UTC_OFFSET_MS = -5 * 60 * 60 * 1000;
-const MAX_RANGE_DAYS = 366;
 const RANKING_LIMIT = 5;
-const DAY_PARAM_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
-
-/** Day-index bounds of every preset, computed from "today" in Guayaquil. */
-interface PresetBounds {
-	today: number;
-	currentMonthFrom: number;
-	currentMonthToExclusive: number;
-	previousMonthFrom: number;
-	last7From: number;
-}
-
-interface ResolvedRange {
-	fromDay: number;
-	/** Exclusive, matching the `[from, to)` semantics of the analytics SQL. */
-	toDayExclusive: number;
-	preset: FinanceRangePreset;
-}
-
-function utcDayIndex(year: number, month: number, day: number): number {
-	return Math.floor(Date.UTC(year, month, day) / MS_PER_DAY);
-}
-
-/** 'YYYY-MM-DD' label of a report day index. */
-function dayIndexLabel(dayIndex: number): string {
-	return new Date(dayIndex * MS_PER_DAY).toISOString().slice(0, 10);
-}
-
-/** Midnight (America/Guayaquil) of a report day index. */
-function dayIndexInstant(dayIndex: number): Date {
-	return new Date(dayIndex * MS_PER_DAY - GUAYAQUIL_UTC_OFFSET_MS);
-}
-
-function currentPresetBounds(): PresetBounds {
-	const today = Math.floor((Date.now() + GUAYAQUIL_UTC_OFFSET_MS) / MS_PER_DAY);
-	const todayUtc = new Date(today * MS_PER_DAY);
-	const year = todayUtc.getUTCFullYear();
-	const month = todayUtc.getUTCMonth();
-
-	return {
-		today,
-		currentMonthFrom: utcDayIndex(year, month, 1),
-		currentMonthToExclusive: today + 1,
-		previousMonthFrom: utcDayIndex(month === 0 ? year - 1 : year, month === 0 ? 11 : month - 1, 1),
-		last7From: today - 6
-	};
-}
-
-/** Parses a 'YYYY-MM-DD' day param into a day index; null if malformed. */
-function parseDayParam(value: string | null): number | null {
-	if (value === null) {
-		return null;
-	}
-
-	const match = DAY_PARAM_PATTERN.exec(value);
-	if (!match) {
-		return null;
-	}
-
-	const year = Number(match[1]);
-	const month = Number(match[2]) - 1;
-	const day = Number(match[3]);
-	const probe = new Date(Date.UTC(year, month, day));
-	if (
-		probe.getUTCFullYear() !== year ||
-		probe.getUTCMonth() !== month ||
-		probe.getUTCDate() !== day
-	) {
-		// Round-trip mismatch, e.g. 2026-02-31 auto-rolled into March.
-		return null;
-	}
-
-	return utcDayIndex(year, month, day);
-}
-
-function resolveRange(searchParams: URLSearchParams, bounds: PresetBounds): ResolvedRange {
-	const fromParam = searchParams.get('from');
-	const toParam = searchParams.get('to');
-
-	if (fromParam !== null && toParam !== null) {
-		const fromDay = parseDayParam(fromParam);
-		const toDay = parseDayParam(toParam);
-
-		if (fromDay !== null && toDay !== null) {
-			// `from`/`to` in the URL are inclusive; analytics ranges are half-open.
-			const toDayExclusive = toDay + 1;
-			const days = toDayExclusive - fromDay;
-
-			if (days > 0 && days <= MAX_RANGE_DAYS) {
-				let preset: FinanceRangePreset = 'custom';
-				if (
-					fromDay === bounds.currentMonthFrom &&
-					toDayExclusive === bounds.currentMonthToExclusive
-				) {
-					preset = 'month';
-				} else if (
-					fromDay === bounds.previousMonthFrom &&
-					toDayExclusive === bounds.currentMonthFrom
-				) {
-					preset = 'last-month';
-				} else if (fromDay === bounds.last7From && toDayExclusive === bounds.today + 1) {
-					preset = 'last-7-days';
-				}
-
-				return { fromDay, toDayExclusive, preset };
-			}
-		}
-	}
-
-	// Default — and fail-safe fallback for any malformed, inverted or oversized
-	// range: current month to date.
-	return {
-		fromDay: bounds.currentMonthFrom,
-		toDayExclusive: bounds.currentMonthToExclusive,
-		preset: 'month'
-	};
-}
 
 export const load: PageServerLoad = async (event) => {
 	requireUser(event.locals);
@@ -165,8 +52,14 @@ export const load: PageServerLoad = async (event) => {
 	// URL-param based — shareable and SSR-friendly.
 	const bounds = currentPresetBounds();
 	const range = resolveRange(event.url.searchParams, bounds);
-	const from = dayIndexInstant(range.fromDay);
-	const to = dayIndexInstant(range.toDayExclusive);
+	const { from, to } = rangeInstants(range);
+
+	// The cookie view seeds the client (reload must come back to the same
+	// view), so a crafted/legacy value is validated here: only the four known
+	// states reach the client, anything else falls back to 'resume'.
+	const viewState: ViewState = isViewState(event.locals.balanceViewSatate)
+		? event.locals.balanceViewSatate
+		: 'resume';
 
 	// product_view_daily (migration 0011) may not be applied yet, so this one
 	// ranking degrades to an "unavailable" card instead of failing the page.
@@ -187,7 +80,8 @@ export const load: PageServerLoad = async (event) => {
 		expenseSeries,
 		topProductsBySales,
 		cartAbandonment,
-		views
+		views,
+		balanceDetailPagination
 	] = await Promise.all([
 		getTotalRevenue(),
 		getTotalCost(),
@@ -198,7 +92,12 @@ export const load: PageServerLoad = async (event) => {
 		getDailyExpenseSeries(from, to),
 		getTopProductsBySales(from, to, RANKING_LIMIT),
 		getCartAbandonment(from, to),
-		topProductsByViews
+		topProductsByViews,
+		// Initial list for the cookie view under the resolved range. `load`
+		// can only offer the clean defaults for search/sort (the URL carries
+		// neither); the client's applied pair is re-applied through the action
+		// handlers. Returns undefined for 'resume' — that view has no list.
+		loadBalancePagination(viewState, 1, { q: '', sort: DEFAULT_BALANCE_SORT }, { from, to })
 	]);
 
 	const dashboard: FinanceDashboard = {
@@ -225,17 +124,27 @@ export const load: PageServerLoad = async (event) => {
 		totalRevenue,
 		totalCost,
 		totalExpense,
-		dashboard
+		dashboard,
+		balanceDetailPagination,
+		viewState
 	};
 };
 
 /**
  * Fetchers for the three list views, keyed by `balance_view_state`. Each maps
- * its table-specific rows onto the shared `BalanceDetailPagination` contract.
+ * its table-specific rows onto the shared `BalanceDetailPagination` contract,
+ * scoped to the half-open range [range.from, range.to) resolved by the caller.
  */
 const LIST_FETCHERS = {
-	revenue: async (page: number, params: BalanceListParams) => {
-		const res = await getRevenues(page, BALANCE_PAGE_SIZE, params.q, params.sort);
+	revenue: async (page: number, params: BalanceListParams, range: BalanceRangeFilter) => {
+		const res = await getRevenues(
+			page,
+			BALANCE_PAGE_SIZE,
+			params.q,
+			params.sort,
+			range.from,
+			range.to
+		);
 		return {
 			balanceDetails: res.revenues,
 			totalPages: res.totalPages,
@@ -243,8 +152,15 @@ const LIST_FETCHERS = {
 			totalItems: res.totalItems
 		};
 	},
-	cost: async (page: number, params: BalanceListParams) => {
-		const res = await getCosts(page, BALANCE_PAGE_SIZE, params.q, params.sort);
+	cost: async (page: number, params: BalanceListParams, range: BalanceRangeFilter) => {
+		const res = await getCosts(
+			page,
+			BALANCE_PAGE_SIZE,
+			params.q,
+			params.sort,
+			range.from,
+			range.to
+		);
 		return {
 			balanceDetails: res.costs,
 			totalPages: res.totalPages,
@@ -252,8 +168,15 @@ const LIST_FETCHERS = {
 			totalItems: res.totalItems
 		};
 	},
-	expense: async (page: number, params: BalanceListParams) => {
-		const res = await getExpenses(page, BALANCE_PAGE_SIZE, params.q, params.sort);
+	expense: async (page: number, params: BalanceListParams, range: BalanceRangeFilter) => {
+		const res = await getExpenses(
+			page,
+			BALANCE_PAGE_SIZE,
+			params.q,
+			params.sort,
+			range.from,
+			range.to
+		);
 		return {
 			balanceDetails: res.expenses,
 			totalPages: res.totalPages,
@@ -265,27 +188,35 @@ const LIST_FETCHERS = {
 
 type BalanceListState = keyof typeof LIST_FETCHERS;
 
+/** The four states the view dropdown (and its `balance_view_state` cookie) may hold. */
+type ViewState = 'resume' | BalanceListState;
+
 function isListState(viewState: string): viewState is BalanceListState {
 	// `in` would also match Object.prototype keys ('toString' …) — a crafted
 	// cookie must not resolve to a non-fetcher.
 	return Object.hasOwn(LIST_FETCHERS, viewState);
 }
 
+function isViewState(value: string | undefined): value is ViewState {
+	return value === 'resume' || (value !== undefined && isListState(value));
+}
+
 /**
- * Refetches the list behind `viewState`, applying the same filter/sort params
- * everywhere so an active search survives paging, view switches and mutations.
- * Returns undefined for 'resume' (no list), matching the contract every
- * action already returns.
+ * Refetches the list behind `viewState`, applying the same filter/sort and
+ * range params everywhere so an active search and the dashboard's date range
+ * survive paging, view switches and mutations. Returns undefined for 'resume'
+ * (no list), matching the contract every action already returns.
  */
 async function loadBalancePagination(
 	viewState: string | undefined,
 	page: number,
-	params: BalanceListParams
+	params: BalanceListParams,
+	range: BalanceRangeFilter
 ): Promise<BalanceDetailPagination | undefined> {
 	if (!viewState || !isListState(viewState)) {
 		return undefined;
 	}
-	return LIST_FETCHERS[viewState](page, params);
+	return LIST_FETCHERS[viewState](page, params, range);
 }
 
 export const actions: Actions = {
@@ -305,11 +236,13 @@ export const actions: Actions = {
 			secure: event.url.protocol === 'https:'
 		});
 
-		// Switching views restarts at page 1 and keeps the active search/sort.
+		// Switching views restarts at page 1 and keeps the active search/sort
+		// and the dashboard's date range.
 		const balanceDetailPagination = await loadBalancePagination(
 			viewState,
 			1,
-			readBalanceListParams(formData)
+			readBalanceListParams(formData),
+			readBalanceRange(formData)
 		);
 
 		return {
@@ -325,7 +258,8 @@ export const actions: Actions = {
 		const balanceDetailPagination = await loadBalancePagination(
 			event.locals.balanceViewSatate,
 			1,
-			readBalanceListParams(formData)
+			readBalanceListParams(formData),
+			readBalanceRange(formData)
 		);
 
 		return {
@@ -344,6 +278,7 @@ export const actions: Actions = {
 
 		const viewState = event.locals.balanceViewSatate;
 		const params = readBalanceListParams(formData);
+		const range = readBalanceRange(formData);
 		let balanceDetailPagination: BalanceDetailPagination | undefined;
 		try {
 			if (viewState === 'revenue') {
@@ -353,7 +288,7 @@ export const actions: Actions = {
 			} else if (viewState === 'expense') {
 				await createExpense(value, reason);
 			}
-			balanceDetailPagination = await loadBalancePagination(viewState, 1, params);
+			balanceDetailPagination = await loadBalancePagination(viewState, 1, params, range);
 		} catch {
 			return fail(500, { message: 'A ocurrido un error en el servidor' });
 		}
@@ -373,6 +308,7 @@ export const actions: Actions = {
 
 		const viewState = event.locals.balanceViewSatate;
 		const params = readBalanceListParams(formData);
+		const range = readBalanceRange(formData);
 		let balanceDetailPagination: BalanceDetailPagination | undefined;
 		let notice: string | undefined;
 
@@ -389,7 +325,7 @@ export const actions: Actions = {
 			} else if (viewState === 'expense') {
 				await deleteExpense(balanceId);
 			}
-			balanceDetailPagination = await loadBalancePagination(viewState, 1, params);
+			balanceDetailPagination = await loadBalancePagination(viewState, 1, params, range);
 		} catch {
 			return fail(500, { message: 'A ocurrido un error en el servidor' });
 		}
@@ -409,6 +345,7 @@ export const actions: Actions = {
 
 		const viewState = event.locals.balanceViewSatate;
 		const params = readBalanceListParams(formData);
+		const range = readBalanceRange(formData);
 		let balanceDetailPagination: BalanceDetailPagination | undefined;
 		let notice: string | undefined;
 
@@ -425,7 +362,7 @@ export const actions: Actions = {
 			} else if (viewState === 'expense') {
 				await updateExpense(balanceId, newValue, newReason);
 			}
-			balanceDetailPagination = await loadBalancePagination(viewState, 1, params);
+			balanceDetailPagination = await loadBalancePagination(viewState, 1, params, range);
 		} catch {
 			return fail(500, { message: 'A ocurrido un error en el servidor' });
 		}
@@ -469,7 +406,8 @@ export const actions: Actions = {
 		const balanceDetailPagination = await loadBalancePagination(
 			viewState,
 			prevPage,
-			readBalanceListParams(formData)
+			readBalanceListParams(formData),
+			readBalanceRange(formData)
 		);
 
 		return {
@@ -501,7 +439,8 @@ export const actions: Actions = {
 		const balanceDetailPagination = await loadBalancePagination(
 			viewState,
 			nextPage,
-			readBalanceListParams(formData)
+			readBalanceListParams(formData),
+			readBalanceRange(formData)
 		);
 
 		return {
@@ -527,7 +466,8 @@ export const actions: Actions = {
 		const balanceDetailPagination = await loadBalancePagination(
 			viewState,
 			gotoPage,
-			readBalanceListParams(formData)
+			readBalanceListParams(formData),
+			readBalanceRange(formData)
 		);
 
 		return {
