@@ -91,15 +91,23 @@
 
 	type ViewState = 'resume' | 'revenue' | 'cost' | 'expense';
 
-	let balanceDetailPagination: BalanceDetailPagination | undefined = $state();
+	// Bootstrap pattern (AGENTS.md): `load` seeds the range-filtered list for
+	// the cookie view, so a reload comes back to exactly what was on screen.
+	// `data` only re-seeds on remount; every later change flows through the
+	// action handlers' setBalanceDetailPagination. Deliberately $state, not
+	// $derived — this binding is locally assigned.
+	let balanceDetailPagination: BalanceDetailPagination | undefined = $state(
+		data.balanceDetailPagination
+	);
 	let balanceDetails: BalanceDetail[] | undefined = $derived(
 		balanceDetailPagination?.balanceDetails
 	);
 
 	let balanceDetailSelected: BalanceDetail | undefined = $state();
 
-	// View State
-	let viewState: ViewState = $state('resume');
+	// View State — seeded from the server-validated cookie view (an unknown
+	// cookie value already fell back to 'resume' in load).
+	let viewState: ViewState = $state(data.viewState);
 
 	const VIEW_OPTIONS: { value: ViewState; label: string }[] = [
 		{ value: 'resume', label: 'Resumen' },
@@ -119,13 +127,22 @@
 	// Search/sort — `searchQuery`/`sortOption` mirror what the user sees; the
 	// `applied*` pair is what the server last filtered by. The search form
 	// posts the live values; every other management form (pagination, view,
-	// add, and each card's edit/delete) carries the applied pair as hidden
-	// inputs, so a submitted search survives paging, view switches and
-	// mutations. Server-side, `readBalanceListParams` re-validates both.
+	// add, and each card's edit/delete) carries the applied pair plus the
+	// active date range as hidden inputs, so a submitted search survives
+	// paging, view switches and mutations — and every refetch stays inside
+	// the dashboard's range. Server-side, `readBalanceListParams` and
+	// `readBalanceRange` re-validate all of it; nothing from the form is
+	// trusted as-is.
 	let searchQuery = $state('');
 	let sortOption: BalanceSortKey = $state('date_desc');
 	let appliedQuery = $state('');
 	let appliedSort: BalanceSortKey = $state('date_desc');
+
+	// The range the current list was fetched with, compared against `data` by
+	// the sync effect below. Plain lets on purpose: nothing renders from them,
+	// and non-reactive writes cannot re-trigger the effect that writes them.
+	let appliedRangeFrom = data.dashboard.range.from;
+	let appliedRangeTo = data.dashboard.range.to;
 
 	// HTML Elements
 	let selectStateElement: HTMLButtonElement | undefined = $state();
@@ -337,6 +354,12 @@
 	}
 
 	function emptyStateMessage(): string {
+		// The default range IS month-to-date, so a month-scoped list with no
+		// rows and no search is a genuinely empty list; any other range simply
+		// has no movements inside it — say so instead of blaming the table.
+		if (data.dashboard.range.preset !== 'month') {
+			return 'Sin movimientos en este rango.';
+		}
 		if (viewState === 'revenue') {
 			return 'Todavía no hay ingresos. Usa «Añadir» para registrar el primero.';
 		}
@@ -364,9 +387,40 @@
 			refreshTotals();
 		}
 	});
+
+	// Same-route navigations (the preset links and the custom-range GET form)
+	// update `data` WITHOUT remounting this component, so the seeded list
+	// would keep the previous range's rows while the dashboard above already
+	// shows the new range. Re-submitting the search form — which carries the
+	// applied q/sort plus the current range as hidden inputs — refetches the
+	// list under the new range without losing the search. Keyed on the range
+	// values only: `invalidateAll` after a mutation re-runs `load` with the
+	// same URL range, so it must not re-trigger here and clobber the applied
+	// filters with load's q=''/default-sort bootstrap. Convergence: the
+	// tracker writes are plain (non-reactive) lets, so they cannot loop this
+	// effect, and the comparison fails on the next run.
+	$effect(() => {
+		const rangeFrom = data.dashboard.range.from;
+		const rangeTo = data.dashboard.range.to;
+		if (rangeFrom !== appliedRangeFrom || rangeTo !== appliedRangeTo) {
+			appliedRangeFrom = rangeFrom;
+			appliedRangeTo = rangeTo;
+			if (viewState !== 'resume' && typeof searchFormElement !== 'undefined') {
+				searchFormElement.requestSubmit();
+			}
+		}
+	});
 </script>
 
 <div in:fade class="flex max-h-full max-w-full flex-col gap-2 px-5 py-5">
+	<!-- Every POST the list makes must carry the active dashboard range: an
+		form action replaces the page query string on submit, so the URL's
+		from/to never reach the server from here. Same contract as q/sort —
+		seeded from `data` (URL-resolved) and re-validated by readBalanceRange. -->
+	{#snippet rangeInputs()}
+		<input type="hidden" name="from" value={data.dashboard.range.from} />
+		<input type="hidden" name="to" value={data.dashboard.range.to} />
+	{/snippet}
 	<section class="sticky top-0 z-40 w-full">
 		<div
 			class="glass text-brand-400 relative flex flex-wrap place-content-between place-items-center gap-3 rounded-2xl border border-white/4 p-4 text-center font-normal"
@@ -401,6 +455,7 @@
 						before the flush and send the previous view. -->
 					<input type="hidden" name="q" value={appliedQuery} />
 					<input type="hidden" name="sort" value={appliedSort} />
+					{@render rangeInputs()}
 					<button
 						bind:this={selectStateElement}
 						type="button"
@@ -495,6 +550,7 @@
 						<input type="hidden" name="view_state" value={viewState} />
 						<input type="hidden" name="q" value={appliedQuery} />
 						<input type="hidden" name="sort" value={appliedSort} />
+						{@render rangeInputs()}
 						{#if balanceDetailPagination.currentPage > 1}
 							<button
 								class="text-text-secondary hover:text-brand-400 hover:bg-surface-2 flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-300 hover:border hover:border-white/8"
@@ -534,6 +590,7 @@
 						<input type="hidden" name="view_state" value={viewState} />
 						<input type="hidden" name="q" value={appliedQuery} />
 						<input type="hidden" name="sort" value={appliedSort} />
+						{@render rangeInputs()}
 						<button
 							bind:this={gotoTriggerElement}
 							type="button"
@@ -622,6 +679,7 @@
 						<input type="hidden" name="view_state" value={viewState} />
 						<input type="hidden" name="q" value={appliedQuery} />
 						<input type="hidden" name="sort" value={appliedSort} />
+						{@render rangeInputs()}
 						{#if balanceDetailPagination.currentPage < balanceDetailPagination.totalPages}
 							<button
 								class="text-text-secondary hover:text-brand-400 hover:bg-surface-2 flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-300 hover:border hover:border-white/8"
@@ -821,6 +879,7 @@
 					}}
 					class="flex flex-row flex-wrap items-end gap-2"
 				>
+					{@render rangeInputs()}
 					<div class="flex flex-col gap-1">
 						<label for="balance-search" class="text-text-muted text-xs"> Buscar </label>
 						<input
@@ -887,6 +946,7 @@
 				>
 					<input type="hidden" name="q" value={appliedQuery} />
 					<input type="hidden" name="sort" value={appliedSort} />
+					{@render rangeInputs()}
 					<div in:scale class="flex flex-row gap-2">
 						<button
 							type="button"
@@ -975,7 +1035,12 @@
 							{selectThisBalanceDetail}
 							{balanceDetailSelected}
 							{setBalanceDetailPagination}
-							listParams={{ q: appliedQuery, sort: appliedSort }}
+							listParams={{
+								q: appliedQuery,
+								sort: appliedSort,
+								rangeFrom: data.dashboard.range.from,
+								rangeTo: data.dashboard.range.to
+							}}
 						/>
 					</div>
 				{/each}

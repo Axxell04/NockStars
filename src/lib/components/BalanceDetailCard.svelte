@@ -20,12 +20,13 @@
 		selectThisBalanceDetail: (balanceDetail: BalanceDetail | undefined) => void;
 		setBalanceDetailPagination: (newBalanceDetailPagination: BalanceDetailPagination) => void;
 		/**
-		 * Active list filter/sort, threaded as hidden inputs into every
-		 * mutation form so an applied search survives the edit/delete
-		 * refetch. Defaults to the unfiltered contract for callers that do
-		 * not pass it.
+		 * Active list filter/sort and date range, threaded as hidden
+		 * inputs into every mutation form so an applied search and the
+		 * dashboard's range survive the edit/delete refetch. Defaults
+		 * to no search, default sort, and empty range bounds that the
+		 * server resolves to its month-to-date fail-safe.
 		 */
-		listParams?: { q: string; sort: BalanceSortKey };
+		listParams?: { q: string; sort: BalanceSortKey; rangeFrom: string; rangeTo: string };
 	}
 
 	let {
@@ -33,7 +34,7 @@
 		balanceDetailSelected,
 		selectThisBalanceDetail,
 		setBalanceDetailPagination,
-		listParams = { q: '', sort: 'date_desc' }
+		listParams = { q: '', sort: 'date_desc', rangeFrom: '', rangeTo: '' }
 	}: Props = $props();
 
 	let isSelected = $derived(balanceDetail.id === balanceDetailSelected?.id);
@@ -138,6 +139,8 @@
 		>
 			<input type="hidden" name="q" value={listParams.q} />
 			<input type="hidden" name="sort" value={listParams.sort} />
+			<input type="hidden" name="from" value={listParams.rangeFrom} />
+			<input type="hidden" name="to" value={listParams.rangeTo} />
 			<input
 				type="hidden"
 				name="balance_id"
@@ -236,6 +239,8 @@
 			>
 				<input type="hidden" name="q" value={listParams.q} />
 				<input type="hidden" name="sort" value={listParams.sort} />
+				<input type="hidden" name="from" value={listParams.rangeFrom} />
+				<input type="hidden" name="to" value={listParams.rangeTo} />
 				<input
 					type="hidden"
 					name="balance_id"
