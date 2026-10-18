@@ -61,6 +61,12 @@ export const load: PageServerLoad = async (event) => {
 		? event.locals.balanceViewSatate
 		: 'resume';
 
+	// The active tab is URL-resolved (shareable links, SSR renders the right
+	// pane with no client flash). Only two values exist; any other or absent
+	// param fails safe to the dashboard tab.
+	const tab: 'dashboard' | 'movimientos' =
+		event.url.searchParams.get('tab') === 'movimientos' ? 'movimientos' : 'dashboard';
+
 	// product_view_daily (migration 0011) may not be applied yet, so this one
 	// ranking degrades to an "unavailable" card instead of failing the page.
 	// Every other analytics query runs on long-existing tables: if they throw,
@@ -126,7 +132,8 @@ export const load: PageServerLoad = async (event) => {
 		totalExpense,
 		dashboard,
 		balanceDetailPagination,
-		viewState
+		viewState,
+		tab
 	};
 };
 

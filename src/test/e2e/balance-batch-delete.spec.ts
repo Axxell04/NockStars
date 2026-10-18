@@ -68,6 +68,14 @@ test('batch delete removes the selected balance movements', async ({ page }) => 
 	await page.goto('/admin/balance');
 	await waitForHydration(page);
 
+	// The page opens on the Dashboard tab; the movements list (and its add
+	// panel) lives behind the Movimientos tab.
+	await page.locator('[data-testid="tab-movimientos"]').click();
+	await expect(page.locator('[data-testid="tab-movimientos"]')).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+
 	// Fresh sessions default to the 'resume' view (hooks.server.ts) — move to
 	// the revenue list so the toolbar and the Añadir panel render.
 	await page.locator('button[aria-haspopup="listbox"]').click();

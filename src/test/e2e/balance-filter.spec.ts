@@ -92,6 +92,14 @@ test('balance list applies sort, search and date range', async ({ page }) => {
 	await page.goto('/admin/balance');
 	await waitForHydration(page);
 
+	// The page opens on the Dashboard tab; the movements list lives behind
+	// the Movimientos tab.
+	await page.locator('[data-testid="tab-movimientos"]').click();
+	await expect(page.locator('[data-testid="tab-movimientos"]')).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+
 	// Fresh sessions default to the 'resume' view (hooks.server.ts) — move to
 	// the revenue list through the real dropdown so the toolbar renders.
 	await page.locator('button[aria-haspopup="listbox"]').click();
@@ -143,6 +151,15 @@ test('balance list applies sort, search and date range', async ({ page }) => {
 
 	await page.getByRole('link', { name: 'Mes pasado' }).click();
 	await waitForHydration(page);
+
+	// Tab persistence: a range navigation must keep the user on Movimientos —
+	// the URL carries tab=movimientos and the tab button is still pressed.
+	expect(new URL(page.url()).searchParams.get('tab')).toBe('movimientos');
+	await expect(page.locator('[data-testid="tab-movimientos"]')).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+
 	await expect
 		.poll(async () => (await pageText()).includes(ROW_B.reason), { timeout: 20_000 })
 		.toBe(false);
