@@ -103,6 +103,20 @@
 		balanceDetailPagination?.balanceDetails
 	);
 
+	// Batch delete — selection mode state. `selectedIds` is cleared inside
+	// setBalanceDetailPagination (a replaced list is a different set of rows)
+	// and on view switches, so an id can never survive into a list that does
+	// not contain the row it was picked from.
+	let selectionModeIsVisible = $state(false);
+	let selectedIds: string[] = $state([]);
+	let confirmationDeleteManyIsVisible = $state(false);
+
+	let allVisibleSelected = $derived(
+		balanceDetails !== undefined &&
+			balanceDetails.length > 0 &&
+			balanceDetails.every((balanceDetail) => selectedIds.includes(balanceDetail.id))
+	);
+
 	let balanceDetailSelected: BalanceDetail | undefined = $state();
 
 	// View State — seeded from the server-validated cookie view (an unknown
@@ -184,11 +198,47 @@
 		}
 	}
 
+	function toggleSelectionModeIsVisible(visible?: boolean) {
+		if (typeof visible !== 'undefined') {
+			selectionModeIsVisible = visible;
+		} else {
+			selectionModeIsVisible = !selectionModeIsVisible;
+		}
+		// Leaving selection mode always drops the checked ids: they name rows
+		// in a list the user is no longer selecting from.
+		if (!selectionModeIsVisible) {
+			selectedIds = [];
+			confirmationDeleteManyIsVisible = false;
+		}
+	}
+
+	function toggleConfirmationDeleteManyIsVisible(visible?: boolean) {
+		if (typeof visible !== 'undefined') {
+			confirmationDeleteManyIsVisible = visible;
+		} else {
+			confirmationDeleteManyIsVisible = !confirmationDeleteManyIsVisible;
+		}
+	}
+
+	function toggleBalanceDetailSelection(balanceDetail: BalanceDetail) {
+		selectedIds = selectedIds.includes(balanceDetail.id)
+			? selectedIds.filter((id) => id !== balanceDetail.id)
+			: [...selectedIds, balanceDetail.id];
+	}
+
+	function toggleSelectAllVisible() {
+		selectedIds = allVisibleSelected ? [] : (balanceDetails?.map((detail) => detail.id) ?? []);
+	}
+
 	// Setter Functions
 	function setBalanceDetailPagination(
 		newBalanceDetailPagination: BalanceDetailPagination | undefined
 	) {
 		balanceDetailPagination = newBalanceDetailPagination;
+		// Every list mutation funnels through here, so this is the one place
+		// that can guarantee no selection outlives the rows it was made on.
+		selectedIds = [];
+		confirmationDeleteManyIsVisible = false;
 	}
 
 	function selectThisBalanceDetail(balanceDetail: BalanceDetail | undefined) {
@@ -250,6 +300,8 @@
 
 	function selectView(next: ViewState) {
 		viewState = next;
+		// A view switch swaps every row: drop the selection with it.
+		toggleSelectionModeIsVisible(false);
 		closeViewList();
 	}
 
@@ -903,6 +955,28 @@
 						<span> Añadir </span>
 					</button>
 				{/if}
+				{#if balanceDetails.length > 0}
+					{#if !selectionModeIsVisible}
+						<button
+							in:scale
+							class="text-text-secondary hover:text-brand-400 hover:border-brand-400/25 hover:bg-brand-400/5 flex flex-row place-items-center gap-1 rounded-xl border border-white/6 px-3 py-2 text-sm font-medium transition-all duration-300"
+							onfocus={(e) => cancelFocus(e)}
+							onclick={() => toggleSelectionModeIsVisible(true)}
+						>
+							<Icon icon="material-symbols:checklist-rounded" class="text-xl" />
+							<span> Seleccionar </span>
+						</button>
+					{:else}
+						<button
+							in:scale
+							class="text-text-secondary hover:text-brand-400 hover:border-brand-400/25 hover:bg-brand-400/5 flex flex-row place-items-center gap-1 rounded-xl border border-white/6 px-3 py-2 text-sm font-medium transition-all duration-300"
+							onfocus={(e) => cancelFocus(e)}
+							onclick={() => toggleSelectionModeIsVisible(false)}
+						>
+							Cancelar
+						</button>
+					{/if}
+				{/if}
 			</div>
 			{#if addPanelIsVisible}
 				<form
@@ -1005,13 +1079,113 @@
 					{/if}
 				</div>
 			{:else}
+				{#if selectionModeIsVisible && balanceDetails.length > 0}
+					<form
+						action="?/delete_many_balance"
+						method="post"
+						use:enhance={() => {
+							return async ({ result }) => {
+								if (result.type === 'success') {
+									if (result.data?.balanceDetailPagination) {
+										setBalanceDetailPagination(
+											result.data.balanceDetailPagination as BalanceDetailPagination
+										);
+									}
+									// The batch is done: leave selection mode (this also
+									// clears the ids the replaced list no longer holds).
+									toggleSelectionModeIsVisible(false);
+									const deletedCount = result.data?.deletedCount;
+									if (typeof deletedCount === 'number' && deletedCount > 0) {
+										toast(`${deletedCount} movimientos eliminados`);
+									}
+									// Order-linked refusals are announced like the cards
+									// do — a partial no-op would read as silent success.
+									const notice = result.data?.notice;
+									if (typeof notice === 'string' && notice.length > 0) {
+										toast(notice);
+									}
+									// Removed rows changed the range-scoped dashboard above.
+									await invalidateAll();
+								} else {
+									// Keep the confirmation open so the failure can be
+									// retried without re-selecting everything.
+									toastActionFailure(result, 'No se pudieron eliminar los movimientos');
+								}
+							};
+						}}
+						class="card-thread flex w-full flex-row flex-wrap place-content-between items-center gap-3 p-3"
+					>
+						<input type="hidden" name="q" value={appliedQuery} />
+						<input type="hidden" name="sort" value={appliedSort} />
+						{@render rangeInputs()}
+						{#each selectedIds as selectedId (selectedId)}
+							<input type="hidden" name="balance_ids" value={selectedId} />
+						{/each}
+						<label
+							class="text-text-secondary flex cursor-pointer flex-row place-items-center gap-2 text-sm"
+						>
+							<input
+								type="checkbox"
+								aria-label="Seleccionar todos los movimientos"
+								checked={allVisibleSelected}
+								onchange={toggleSelectAllVisible}
+								class="h-4 w-4 accent-red-500"
+							/>
+							<span> Seleccionar todo </span>
+						</label>
+						{#if !confirmationDeleteManyIsVisible}
+							<button
+								type="button"
+								disabled={selectedIds.length === 0}
+								onclick={() => toggleConfirmationDeleteManyIsVisible(true)}
+								onfocus={(e) => cancelFocus(e)}
+								class="rounded-full bg-red-400 px-4 py-1.5 text-sm font-semibold text-stone-900 transition-all duration-300 focus:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+							>
+								Eliminar ({selectedIds.length})
+							</button>
+						{:else}
+							<div
+								transition:scale={{ duration: 200 }}
+								class="flex flex-row place-content-between gap-1 rounded-full bg-stone-700/20 p-1"
+							>
+								<button
+									type="button"
+									class="grow focus:text-red-500"
+									style="font-family: 'PT Sans';"
+									onclick={() => toggleConfirmationDeleteManyIsVisible(false)}
+									onfocus={(e) => cancelFocus(e)}
+								>
+									Cancelar
+								</button>
+								<button
+									type="submit"
+									class="grow rounded-full bg-red-400 px-4 text-stone-900 focus:bg-red-500"
+									style="font-family: 'PT Sans';"
+									onfocus={(e) => cancelFocus(e)}
+								>
+									Confirmar
+								</button>
+							</div>
+						{/if}
+					</form>
+				{/if}
 				{#each balanceDetails as balanceDetail (balanceDetail.id)}
 					<div
 						transition:scale={{
 							delay: 100 * (balanceDetails.indexOf(balanceDetail) + 1),
 							duration: 200
 						}}
+						class="flex flex-row items-center gap-2"
 					>
+						{#if selectionModeIsVisible}
+							<input
+								type="checkbox"
+								aria-label="Seleccionar movimiento {balanceDetail.reason ?? ''}"
+								checked={selectedIds.includes(balanceDetail.id)}
+								onchange={() => toggleBalanceDetailSelection(balanceDetail)}
+								class="h-4 w-4 shrink-0 accent-red-500"
+							/>
+						{/if}
 						<BalanceDetailCard
 							{balanceDetail}
 							{selectThisBalanceDetail}

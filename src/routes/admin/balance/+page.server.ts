@@ -332,6 +332,61 @@ export const actions: Actions = {
 
 		return notice ? { balanceDetailPagination, notice } : { balanceDetailPagination };
 	},
+	delete_many_balance: async (event) => {
+		requireUser(event.locals);
+		const formData = await event.request.formData();
+		const balanceIds = formData
+			.getAll('balance_ids')
+			.filter((id): id is string => typeof id === 'string' && id !== '');
+
+		if (balanceIds.length === 0) {
+			return fail(400, { message: 'Error en los parámetros de la petición' });
+		}
+
+		const viewState = event.locals.balanceViewSatate;
+		const params = readBalanceListParams(formData);
+		const range = readBalanceRange(formData);
+		let balanceDetailPagination: BalanceDetailPagination | undefined;
+		let deletedCount = 0;
+		let protectedCount = 0;
+
+		// The whole loop sits inside the try: a mid-batch throw must surface
+		// as the same clean 500 as a single-row delete, never as an
+		// unhandled rejection after some rows already went.
+		try {
+			for (const balanceId of balanceIds) {
+				if (viewState === 'revenue') {
+					const result = await deleteRevenue(balanceId);
+					if (result.success) {
+						deletedCount++;
+					} else {
+						// Order-linked revenue is protected (same rule as
+						// delete_balance); the row stays and the refusal is
+						// aggregated into `notice` below.
+						protectedCount++;
+					}
+				} else if (viewState === 'cost') {
+					await deleteCost(balanceId);
+					deletedCount++;
+				} else if (viewState === 'expense') {
+					await deleteExpense(balanceId);
+					deletedCount++;
+				}
+			}
+			balanceDetailPagination = await loadBalancePagination(viewState, 1, params, range);
+		} catch {
+			return fail(500, { message: 'A ocurrido un error en el servidor' });
+		}
+
+		const notice =
+			protectedCount > 0
+				? `${protectedCount} movimientos están vinculados a una orden y no pueden eliminarse`
+				: undefined;
+
+		return notice
+			? { balanceDetailPagination, deletedCount, notice }
+			: { balanceDetailPagination, deletedCount };
+	},
 	edit_balance: async (event) => {
 		requireUser(event.locals);
 		const formData = await event.request.formData();
