@@ -25,7 +25,7 @@
 	let clearCartModalIsVisible = $state(false);
 	let sendCartModalIsVisible = $state(false);
 
-	// Fullscreen image viewer (lightbox), same mechanic as /admin/pedido.
+	// Fullscreen image viewer (lightbox), same mechanic as /admin/finanzas/pedidos.
 	// `urls` holds every image of the line (variant first, product fallback);
 	// an empty list never opens it.
 	let viewer: { urls: string[]; index: number; name: string } | null = $state(null);
@@ -213,7 +213,7 @@
 				style="--stagger-delay: {60 * index}ms"
 			>
 				<!-- Product image — Thread-wrapped. Clicking it opens the same
-				     lightbox as /admin/pedido; no images means no affordance. -->
+				     lightbox as /admin/finanzas/pedidos; no images means no affordance. -->
 				<button
 					type="button"
 					disabled={imageUrls.length === 0}

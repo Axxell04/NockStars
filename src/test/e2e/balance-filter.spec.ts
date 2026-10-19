@@ -89,7 +89,7 @@ test('balance list applies sort, search and date range', async ({ page }) => {
 	});
 
 	await loginAsAdmin(page);
-	await page.goto('/admin/balance');
+	await page.goto('/admin/finanzas');
 	await waitForHydration(page);
 
 	// The page opens on the Dashboard tab; the movements list lives behind

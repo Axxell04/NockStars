@@ -195,7 +195,7 @@
 
 <div in:fade class="mx-auto flex w-full max-w-3xl flex-col gap-4 px-5 py-5">
 	<a
-		href="/admin/pedidos"
+		href="/admin/finanzas?tab=pedidos"
 		class="text-text-secondary hover:bg-surface-2 hover:text-text-primary self-start rounded-lg px-3 py-2 text-left transition-colors"
 	>
 		<Icon icon="mdi:arrow-left" class="mr-1 inline" />
@@ -378,7 +378,7 @@
 				return async ({ result }) => {
 					if (result.type === 'success') {
 						if (confirmationDeleteIsVisible) {
-							await goto('/admin/pedidos');
+							await goto('/admin/finanzas?tab=pedidos');
 						} else {
 							if (typeof contentOverride !== 'undefined') {
 								contentOverride = undefined;

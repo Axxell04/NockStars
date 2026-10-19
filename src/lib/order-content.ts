@@ -26,7 +26,7 @@
  * into a different shape.
  *
  * Every function in this module is total: no input can make one throw, so a
- * malformed row can never 500 `/admin/pedidos` again.
+ * malformed row can never 500 `/admin/finanzas?tab=pedidos` again.
  */
 
 export interface OrderLine {

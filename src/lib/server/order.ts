@@ -1,7 +1,7 @@
 import * as table from '$lib/server/db/schema';
 import { generateId } from '$lib/server/functions';
 import { getDb } from '$lib/server/db';
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, lt, type SQL } from 'drizzle-orm';
 import { lineKey } from '$lib/order-content';
 
 type GetOrderOptions = {
@@ -9,6 +9,10 @@ type GetOrderOptions = {
 	limit?: number;
 	completed?: boolean;
 	cod?: string | null;
+	/** Inclusive start instant of the createdAt range filter. */
+	from?: Date;
+	/** Exclusive end instant of the createdAt range filter. */
+	to?: Date;
 };
 
 export async function getOrderById(id: string) {
@@ -250,19 +254,42 @@ export function clampPage(page: number, totalPages: number): number {
 	return Math.min(Math.max(page, 1), lastPage);
 }
 
+/**
+ * Half-open `[from, to)` conditions on `order.createdAt`. Applied to the
+ * COUNT and the page query alike so `totalPages` agrees with the rows.
+ * Deliberately NOT applied to the `cod` single-order lookup: a deep-linked
+ * order must always resolve, even outside the selected dashboard range.
+ */
+function orderRangeConditions(from?: Date, to?: Date): SQL[] {
+	const conditions: SQL[] = [];
+	if (from) {
+		conditions.push(gte(table.order.createdAt, from));
+	}
+	if (to) {
+		conditions.push(lt(table.order.createdAt, to));
+	}
+	return conditions;
+}
+
 export async function getOrders(options: GetOrderOptions = {}) {
-	const { limit = 10, completed, cod, page = 1 } = options;
+	const { limit = 10, completed, cod, page = 1, from, to } = options;
 
 	// Counted before the page query because the count is what makes the clamp
 	// possible. Two independent reads, so their relative order costs nothing.
+	// The same conditions filter both reads — a count that ignored the range
+	// (or `completed`) would report a totalPages the rows cannot back.
+	const filterConditions: SQL[] = [
+		...(typeof completed === 'boolean' ? [eq(table.order.completed, completed)] : []),
+		...orderRangeConditions(from, to)
+	];
 	const totalOrders =
-		typeof completed === 'undefined'
+		filterConditions.length === 0
 			? (await getDb().select().from(table.order).execute()).length
 			: (
 					await getDb()
 						.select()
 						.from(table.order)
-						.where(eq(table.order.completed, completed))
+						.where(and(...filterConditions))
 						.execute()
 				).length;
 	const totalPages = Math.ceil(totalOrders / limit);
@@ -272,8 +299,8 @@ export async function getOrders(options: GetOrderOptions = {}) {
 	// run for it — 0 is a deliberate answer here, not an out-of-range request.
 	//
 	// The `completed` filter still applies here. It used to be dropped, so
-	// `/admin/pedidos` (which always passes `{ completed: false, cod }`) kept
-	// showing a completed order as pending whenever `cod` was in the URL.
+	// the orders pane (which passes `{ completed, cod }`) kept showing a
+	// completed order as pending whenever `cod` was in the URL.
 	if (cod) {
 		const orders = await getDb()
 			.select()
@@ -294,7 +321,7 @@ export async function getOrders(options: GetOrderOptions = {}) {
 	const currentPage = clampPage(page, totalPages);
 	const offset = (currentPage - 1) * limit;
 	const orders =
-		typeof completed === 'undefined'
+		filterConditions.length === 0
 			? await getDb()
 					.select()
 					.from(table.order)
@@ -305,7 +332,7 @@ export async function getOrders(options: GetOrderOptions = {}) {
 			: await getDb()
 					.select()
 					.from(table.order)
-					.where(eq(table.order.completed, completed))
+					.where(and(...filterConditions))
 					.limit(limit)
 					.offset(offset)
 					.orderBy(table.order.createdAt)

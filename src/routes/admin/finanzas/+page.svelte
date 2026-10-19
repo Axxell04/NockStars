@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import { tick } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
 	import type { ActionResult } from '@sveltejs/kit';
@@ -10,11 +11,13 @@
 		BalanceDetailPagination,
 		BalanceSortKey
 	} from '$lib/interfaces/balance';
+	import type { Order, OrderPagination } from '$lib/interfaces/order';
 	import Icon from '@iconify/svelte';
 	import BalanceDetailCard from '$lib/components/BalanceDetailCard.svelte';
 	import FinanceKpiCard from '$lib/components/FinanceKpiCard.svelte';
 	import FinanceRanking from '$lib/components/FinanceRanking.svelte';
 	import FinanceTrendChart from '$lib/components/FinanceTrendChart.svelte';
+	import OrderCard from '$lib/components/OrderCard.svelte';
 	import { cancelFocus } from '$lib/focus';
 	import { toast } from '$lib/toast.svelte.js';
 	import { formatCurrency } from '$lib/format';
@@ -123,11 +126,24 @@
 	// cookie value already fell back to 'resume' in load).
 	let viewState: ViewState = $state(data.viewState);
 
+	// Orders pane — same bootstrap pattern: `load` seeds the range-scoped
+	// page for the cookie view, every later change flows through the
+	// orders_* action handlers' setOrderPagination. `ordersViewState` drives
+	// the orders toggle; `viewState` above belongs to the balance dropdown —
+	// the two dropdowns coexist in the shared bar and must not share state.
+	let orderPagination: OrderPagination = $state(data.orderPagination);
+	let orders: Order[] = $derived(orderPagination.orders);
+	let ordersViewState: 'pending' | 'completed' = $state(data.ordersViewState);
+
+	// ORDER COD — a `cod` param narrows the pane to that single order ("Hecho"
+	// is the explicit exit back to the period list).
+	let cod = $derived(page.url.searchParams.get('cod'));
+
 	// Tab — seeded once from the URL-resolved `?tab` (fail-safe dashboard in
 	// load), same bootstrap philosophy as viewState. Switching is pure client
 	// state: no load rerun, so the applied search/sort/range and any batch
 	// selection survive. Deliberately $state, not $derived — locally assigned.
-	let activeTab: 'dashboard' | 'movimientos' = $state(data.tab);
+	let activeTab: 'dashboard' | 'movimientos' | 'pedidos' = $state(data.tab);
 
 	const VIEW_OPTIONS: { value: ViewState; label: string }[] = [
 		{ value: 'resume', label: 'Resumen' },
@@ -164,6 +180,15 @@
 	let appliedRangeFrom = data.dashboard.range.from;
 	let appliedRangeTo = data.dashboard.range.to;
 
+	// Same plain-let tracker contract for the orders pane: the range and cod
+	// the current orderPagination was fetched with, seeded from `data` at the
+	// same moment the list itself was seeded. The cod tracker reads the URL
+	// directly rather than the `cod` derived — same value at init, without
+	// referencing local reactive state in a plain initializer.
+	let ordersAppliedRangeFrom = data.dashboard.range.from;
+	let ordersAppliedRangeTo = data.dashboard.range.to;
+	let ordersAppliedCod = page.url.searchParams.get('cod');
+
 	// HTML Elements
 	let selectStateElement: HTMLButtonElement | undefined = $state();
 	let btnRefreshTotals: HTMLButtonElement | undefined = $state();
@@ -174,10 +199,29 @@
 
 	let selectStateElementHeight: number = $state(9);
 
+	// Orders dropdown element refs — independent from the balance ones above:
+	// both dropdown pairs live in the shared bar, on different tabs, and can
+	// never render at the same time, but their open state must not alias.
+	let ordersSelectStateElement: HTMLButtonElement | undefined = $state();
+	let ordersViewListElement: HTMLDivElement | undefined = $state();
+	let ordersGotoListElement: HTMLDivElement | undefined = $state();
+	let ordersGotoTriggerElement: HTMLButtonElement | undefined = $state();
+
+	let ordersSelectStateElementHeight: number = $state(9);
+
+	// The page number picked in the orders goto listbox — the option click
+	// sets it right before the implicit form submit (kept from the old
+	// /admin/pedidos page, whose goto listbox styles assume plain numbers).
+	let ordersGotoPage: number | undefined = $state();
+
 	// Visible Elements
 	let gotoPageListIsVisible = $state(false);
 	let stateListIsVisible = $state(false);
 	let addPanelIsVisible = $state(false);
+
+	// Orders visible flags
+	let ordersStateListIsVisible = $state(false);
+	let ordersGotoPageListIsVisible = $state(false);
 
 	// Toggle Visible Elements
 	function toggleGotoPageListIsVisible(visible?: boolean) {
@@ -193,6 +237,22 @@
 			stateListIsVisible = visible;
 		} else {
 			stateListIsVisible = !stateListIsVisible;
+		}
+	}
+
+	function toggleOrdersGotoPageListIsVisible(visible?: boolean) {
+		if (typeof visible !== 'undefined') {
+			ordersGotoPageListIsVisible = visible;
+		} else {
+			ordersGotoPageListIsVisible = !ordersGotoPageListIsVisible;
+		}
+	}
+
+	function toggleOrdersStateListIsVisible(visible?: boolean) {
+		if (typeof visible !== 'undefined') {
+			ordersStateListIsVisible = visible;
+		} else {
+			ordersStateListIsVisible = !ordersStateListIsVisible;
 		}
 	}
 
@@ -239,18 +299,21 @@
 	// Tab switching only flips local state and rewrites the URL's tab param
 	// via replaceState — NOT goto: no load rerun is the whole point, so the
 	// applied search/sort/range and any batch selection survive the switch.
-	function selectTab(next: 'dashboard' | 'movimientos') {
+	// The cod param is left untouched: switching tabs is not an order lookup.
+	function selectTab(next: 'dashboard' | 'movimientos' | 'pedidos') {
 		activeTab = next;
 		const url = new URL(window.location.href);
-		if (next === 'movimientos') {
-			url.searchParams.set('tab', 'movimientos');
-		} else {
+		if (next === 'dashboard') {
 			url.searchParams.delete('tab');
+		} else {
+			url.searchParams.set('tab', next);
 		}
 		history.replaceState(null, '', url);
 		// A dropdown left open would remount open on the next tab switch.
 		toggleStateListIsVisible(false);
 		toggleGotoPageListIsVisible(false);
+		toggleOrdersStateListIsVisible(false);
+		toggleOrdersGotoPageListIsVisible(false);
 	}
 
 	/**
@@ -260,13 +323,13 @@
 	 * server URL builder. Plain string handling so it also runs during SSR.
 	 */
 	function withTab(href: string): string {
-		if (activeTab !== 'movimientos') {
+		if (activeTab === 'dashboard') {
 			return href;
 		}
 		const queryAt = href.indexOf('?');
 		const path = queryAt === -1 ? href : href.slice(0, queryAt);
 		const params = new URLSearchParams(queryAt === -1 ? '' : href.slice(queryAt + 1));
-		params.set('tab', 'movimientos');
+		params.set('tab', activeTab);
 		return `${path}?${params.toString()}`;
 	}
 
@@ -283,6 +346,58 @@
 
 	function selectThisBalanceDetail(balanceDetail: BalanceDetail | undefined) {
 		balanceDetailSelected = balanceDetail;
+	}
+
+	// Orders setter — plain assignment only: unlike setBalanceDetailPagination
+	// (which also clears batch selection — a different concern, untouched),
+	// the orders list carries no selection state to reset.
+	function setOrderPagination(newOrderPagination: OrderPagination) {
+		orderPagination = newOrderPagination;
+	}
+
+	/**
+	 * Page numbers for the orders goto listbox. Plain, no ellipsis: its
+	 * listbox styles assume every entry renders as a bare number (the
+	 * balance listbox keeps the windowed `createListPages` instead).
+	 */
+	function createOrdersListPages(totalPages: number): number[] {
+		const list: number[] = [];
+		for (let index = 1; index <= totalPages; index++) {
+			list.push(index);
+		}
+		return list;
+	}
+
+	// "Hecho" — surgical cod exit: drop only the cod param so the tab and the
+	// date range survive, then navigate fully. The full reload is deliberate:
+	// remount re-seeds every $state binding from the fresh server payload.
+	function dismissOrderFilter() {
+		const url = new URL(window.location.href);
+		url.searchParams.delete('cod');
+		window.location.href = url.href;
+	}
+
+	// Closing when focus leaves an orders list keeps it from lingering over
+	// the page — same contract as the balance listboxes. Moving onto the
+	// trigger is exempt: its click handler owns the toggle.
+	function onOrdersViewListFocusout(event: FocusEvent) {
+		const next = event.relatedTarget;
+		if (next === ordersSelectStateElement) {
+			return;
+		}
+		if (!(next instanceof Node) || !ordersViewListElement?.contains(next)) {
+			toggleOrdersStateListIsVisible(false);
+		}
+	}
+
+	function onOrdersGotoListFocusout(event: FocusEvent) {
+		const next = event.relatedTarget;
+		if (next === ordersGotoTriggerElement) {
+			return;
+		}
+		if (!(next instanceof Node) || !ordersGotoListElement?.contains(next)) {
+			toggleOrdersGotoPageListIsVisible(false);
+		}
 	}
 
 	// Request Functions
@@ -461,8 +576,25 @@
 	});
 
 	$effect(() => {
+		if (typeof ordersSelectStateElement !== 'undefined' && ordersStateListIsVisible) {
+			ordersSelectStateElementHeight = ordersSelectStateElement.clientHeight;
+		}
+	});
+
+	$effect(() => {
 		if (viewState === 'resume') {
 			refreshTotals();
+		}
+	});
+
+	// Re-frame the viewport whenever the rendered orders list is replaced —
+	// but only while the Pedidos tab is the visible pane: a range-driven
+	// refresh triggered from another tab must not yank the viewport. The
+	// presence check is a dependency, NOT page validation — `currentPage` is
+	// never verified anywhere in this codebase.
+	$effect(() => {
+		if (activeTab === 'pedidos' && orderPagination.orders) {
+			scrollTo({ behavior: 'smooth', top: 170 });
 		}
 	});
 
@@ -500,6 +632,29 @@
 		// an effect dependency, so the deferred sync fires the moment the tab
 		// switch mounts the toolbar and refetches the list under that range,
 		// applied filters intact.
+	});
+
+	// Same-route range navigations update `data` WITHOUT remounting, so the
+	// seeded orders state must follow the server result (new range => page 1,
+	// or a preset click that dropped ?cod => the period list replaces the single
+	// order). Keyed on range + cod only: `invalidateAll` after a mutation re-runs
+	// load with the same range/cod and must NOT clobber client-side pagination.
+	// Trackers are plain (non-reactive) lets, so they cannot loop this effect.
+	$effect(() => {
+		const rangeFrom = data.dashboard.range.from;
+		const rangeTo = data.dashboard.range.to;
+		const currentCod = cod;
+		if (
+			rangeFrom === ordersAppliedRangeFrom &&
+			rangeTo === ordersAppliedRangeTo &&
+			currentCod === ordersAppliedCod
+		) {
+			return;
+		}
+		ordersAppliedRangeFrom = rangeFrom;
+		ordersAppliedRangeTo = rangeTo;
+		ordersAppliedCod = currentCod;
+		orderPagination = data.orderPagination;
 	});
 </script>
 
@@ -550,6 +705,19 @@
 				>
 					Movimientos
 				</button>
+				<button
+					type="button"
+					data-testid="tab-pedidos"
+					aria-pressed={activeTab === 'pedidos'}
+					onclick={() => selectTab('pedidos')}
+					onfocus={(e) => cancelFocus(e)}
+					class="rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-300 {activeTab ===
+					'pedidos'
+						? 'border-brand-400/20 bg-brand-400/10 text-brand-400'
+						: 'text-text-secondary hover:bg-surface-2 hover:text-text-primary border-white/6'}"
+				>
+					Pedidos
+				</button>
 			</div>
 			<!-- Compact KPI strip: the same four range-scoped figures as the
 				Dashboard cards, inlined so the bar stays informative on both
@@ -596,13 +764,19 @@
 				>
 					Últimos 7 días
 				</a>
+				<!-- Range navigation deliberately does NOT carry `cod`: choosing
+					a period exits single-order view back to the period list —
+					"Hecho" remains the explicit cod exit. -->
 				<form
 					method="get"
-					action={withTab('/admin/balance')}
+					action={withTab('/admin/finanzas')}
 					class="flex flex-row flex-wrap items-end gap-2"
 				>
-					{#if activeTab === 'movimientos'}
-						<input type="hidden" name="tab" value="movimientos" />
+					<!-- A GET form replaces the action's query string on submit, so
+						the tab survives only through this hidden input; withTab()
+						keeps the rendered action URL in sync for middle-clicks. -->
+					{#if activeTab !== 'dashboard'}
+						<input type="hidden" name="tab" value={activeTab} />
 					{/if}
 					<div class="flex flex-col gap-1">
 						<label for="range-from" class="text-text-muted text-xs"> Desde </label>
@@ -631,13 +805,6 @@
 					</button>
 				</form>
 			</nav>
-			<a
-				href="/admin/pedidos"
-				class="text-text-secondary hover:text-brand-400 hover:bg-surface-2 flex flex-row place-items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200"
-			>
-				<span> Ver pedidos </span>
-				<Icon icon="mdi:arrow-right" class="text-base" />
-			</a>
 			{#if activeTab === 'movimientos'}
 				<form
 					action="?/set_view_state"
@@ -722,6 +889,101 @@
 									{option.label}
 								</button>
 							{/each}
+						</div>
+					{/if}
+				</form>
+			{:else if activeTab === 'pedidos' && !cod}
+				<!-- Orders view toggle, moved from the old /admin/pedidos
+					toolbar. The selected option submits the form (implicit
+					submit riding this button's click — the mechanism that page
+					has always used); the hidden `view_state` input carries the
+					updated value. Hidden entirely when `cod` is active: only
+					"Hecho" shows then. -->
+				<form
+					action="?/orders_set_view_state"
+					method="post"
+					use:enhance={() => {
+						return async ({ result }) => {
+							if (result.type === 'success') {
+								if (result.data?.orderPagination) {
+									setOrderPagination(result.data.orderPagination as OrderPagination);
+								}
+							} else {
+								toastActionFailure(result, 'No se pudo cambiar la vista de pedidos');
+							}
+						};
+					}}
+					class="relative flex flex-col place-content-center"
+				>
+					<input type="hidden" name="view_state" value={ordersViewState} />
+					<input type="hidden" name="cod" value={cod} />
+					{@render rangeInputs()}
+					<button
+						bind:this={ordersSelectStateElement}
+						type="button"
+						class="bg-surface-2/80 text-text-primary hover:border-brand-400/20 hover:bg-surface-2 flex items-center gap-2 rounded-xl border border-white/6 px-4 py-2 text-sm font-medium transition-all duration-300"
+						onclick={() => toggleOrdersStateListIsVisible()}
+						onfocus={(e) => cancelFocus(e)}
+						aria-haspopup="listbox"
+						aria-expanded={ordersStateListIsVisible}
+						aria-controls={ordersStateListIsVisible ? 'orders-view-listbox' : undefined}
+					>
+						{#if ordersViewState === 'pending'}
+							Pendientes
+						{:else if ordersViewState === 'completed'}
+							Completados
+						{/if}
+						<Icon
+							icon="mdi:chevron-down"
+							class="text-text-muted text-base transition-transform duration-300 {ordersStateListIsVisible
+								? 'rotate-180'
+								: ''}"
+						/>
+					</button>
+					{#if ordersStateListIsVisible}
+						<div
+							bind:this={ordersViewListElement}
+							transition:scale
+							class="bg-surface-1/95 shadow-depth absolute z-50 flex max-h-60 w-48 flex-col place-self-center overflow-y-auto rounded-xl border border-white/8 py-1 backdrop-blur-xl"
+							style="top: {ordersSelectStateElementHeight}px;"
+							role="listbox"
+							id="orders-view-listbox"
+							aria-label="Estado de los pedidos"
+							tabindex="-1"
+							onfocusout={onOrdersViewListFocusout}
+						>
+							<ul class="py-1">
+								<li>
+									<button
+										type="submit"
+										class="w-full px-4 py-2.5 text-left text-sm transition-all {ordersViewState ===
+										'pending'
+											? 'text-brand-400 bg-brand-400/10'
+											: 'text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:pl-5'}"
+										onclick={() => {
+											ordersViewState = 'pending';
+											toggleOrdersStateListIsVisible(false);
+										}}
+									>
+										Pendientes
+									</button>
+								</li>
+								<li>
+									<button
+										type="submit"
+										class="w-full px-4 py-2.5 text-left text-sm transition-all {ordersViewState ===
+										'completed'
+											? 'text-brand-400 bg-brand-400/10'
+											: 'text-text-secondary hover:bg-surface-2 hover:text-text-primary hover:pl-5'}"
+										onclick={() => {
+											ordersViewState = 'completed';
+											toggleOrdersStateListIsVisible(false);
+										}}
+									>
+										Completados
+									</button>
+								</li>
+							</ul>
 						</div>
 					{/if}
 				</form>
@@ -1342,6 +1604,179 @@
 					</span>
 				</div>
 			{/if}
+		</section>
+	{/if}
+	{#if activeTab === 'pedidos'}
+		<!-- "Hecho": the explicit exit from a ?cod= single-order lookup. It
+			keeps the tab and the date range (dismissOrderFilter removes only
+			the cod param) and navigates fully so remount reseeds the state. -->
+		{#if cod}
+			<div class="flex flex-row place-content-center">
+				<button
+					type="button"
+					onclick={dismissOrderFilter}
+					onfocus={(e) => cancelFocus(e)}
+					class="text-text-secondary hover:text-brand-400 hover:border-brand-400/25 hover:bg-brand-400/5 rounded-xl border border-white/6 px-3 py-2 text-sm font-medium transition-all duration-300 active:scale-90"
+				>
+					Hecho
+				</button>
+			</div>
+		{/if}
+		<!-- Pagination rides the list, not the bar (same layout as the
+			Movimientos toolbar): hidden during a ?cod= lookup, which shows a
+			single order and has no pages to walk. -->
+		{#if !cod}
+			<div class="flex flex-row flex-wrap place-content-center items-center gap-3">
+				<form
+					action="?/orders_prev_page"
+					method="post"
+					use:enhance={() => {
+						return async ({ result }) => {
+							if (result.type === 'success') {
+								if (result.data?.orderPagination) {
+									setOrderPagination(result.data.orderPagination as OrderPagination);
+								}
+							} else {
+								toastActionFailure(result, 'No se pudo actualizar la lista');
+							}
+						};
+					}}
+					class="flex flex-col place-content-center"
+				>
+					<input type="number" hidden name="current_page" value={orderPagination.currentPage} />
+					<input type="number" hidden name="total_pages" value={orderPagination.totalPages} />
+					<input type="hidden" name="view_state" value={ordersViewState} />
+					{@render rangeInputs()}
+					{#if orderPagination.currentPage > 1}
+						<button
+							class="text-text-secondary hover:text-brand-400 hover:bg-surface-2 flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-300 hover:border hover:border-white/8"
+							onfocus={(e) => cancelFocus(e)}
+							aria-label="Página anterior"
+						>
+							<Icon icon="icon-park-outline:left-c" class="text-lg" />
+						</button>
+					{:else}
+						<button
+							class="text-text-muted/30 flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-xl transition-all duration-300"
+							disabled
+							aria-label="Página anterior"
+						>
+							<Icon icon="icon-park-outline:left-c" class="text-lg" />
+						</button>
+					{/if}
+				</form>
+				<form
+					action="?/orders_goto_page"
+					method="post"
+					use:enhance={() => {
+						return async ({ result }) => {
+							if (result.type === 'success') {
+								if (result.data?.orderPagination) {
+									setOrderPagination(result.data.orderPagination as OrderPagination);
+								}
+							} else {
+								toastActionFailure(result, 'No se pudo actualizar la lista');
+							}
+						};
+					}}
+					class="relative flex flex-col place-content-center"
+				>
+					<input type="number" hidden name="goto_page" value={ordersGotoPage} />
+					<input type="number" hidden name="total_pages" value={orderPagination.totalPages} />
+					<input type="hidden" name="view_state" value={ordersViewState} />
+					{@render rangeInputs()}
+					<button
+						bind:this={ordersGotoTriggerElement}
+						type="button"
+						class="bg-surface-2/80 text-text-primary hover:bg-surface-2 hover:border-brand-400/20 h-9 w-12 rounded-xl border border-white/6 text-sm font-semibold transition-all duration-300"
+						onclick={() => toggleOrdersGotoPageListIsVisible()}
+						onfocus={(e) => cancelFocus(e)}
+						aria-label="Ir a página"
+						aria-haspopup="listbox"
+						aria-expanded={ordersGotoPageListIsVisible}
+						aria-controls={ordersGotoPageListIsVisible ? 'orders-goto-listbox' : undefined}
+					>
+						{orderPagination.currentPage}
+					</button>
+					{#if ordersGotoPageListIsVisible}
+						<div
+							bind:this={ordersGotoListElement}
+							transition:scale
+							class="bg-surface-1/95 shadow-depth absolute top-9 z-50 flex max-h-48 w-16 flex-col place-self-center overflow-y-auto rounded-xl border border-white/8 py-1 backdrop-blur-xl"
+							role="listbox"
+							id="orders-goto-listbox"
+							aria-label="Ir a página"
+							tabindex="-1"
+							onfocusout={onOrdersGotoListFocusout}
+						>
+							<ul class="py-1">
+								{#each createOrdersListPages(orderPagination.totalPages) as pageNumber (pageNumber)}
+									<li>
+										<button
+											class="w-full px-3 py-2 text-center text-sm transition-all {pageNumber ===
+											orderPagination.currentPage
+												? 'text-brand-400 bg-brand-400/10'
+												: 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'}"
+											onclick={() => {
+												ordersGotoPage = pageNumber;
+												toggleOrdersGotoPageListIsVisible(false);
+											}}
+											onfocus={(e) => cancelFocus(e)}
+										>
+											{pageNumber}
+										</button>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+				</form>
+				<form
+					action="?/orders_next_page"
+					method="post"
+					use:enhance={() => {
+						return async ({ result }) => {
+							if (result.type === 'success') {
+								if (result.data?.orderPagination) {
+									setOrderPagination(result.data.orderPagination as OrderPagination);
+								}
+							} else {
+								toastActionFailure(result, 'No se pudo actualizar la lista');
+							}
+						};
+					}}
+					class="flex flex-col place-content-center"
+				>
+					<input type="number" hidden name="current_page" value={orderPagination.currentPage} />
+					<input type="number" hidden name="total_pages" value={orderPagination.totalPages} />
+					<input type="hidden" name="view_state" value={ordersViewState} />
+					{@render rangeInputs()}
+					{#if orderPagination.currentPage < orderPagination.totalPages}
+						<button
+							class="text-text-secondary hover:text-brand-400 hover:bg-surface-2 flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-300 hover:border hover:border-white/8"
+							onfocus={(e) => cancelFocus(e)}
+							aria-label="Página siguiente"
+						>
+							<Icon icon="icon-park-outline:right-c" class="text-lg" />
+						</button>
+					{:else}
+						<button
+							class="text-text-muted/30 flex h-9 w-9 cursor-not-allowed items-center justify-center rounded-xl transition-all duration-300"
+							disabled
+							aria-label="Página siguiente"
+						>
+							<Icon icon="icon-park-outline:right-c" class="text-lg" />
+						</button>
+					{/if}
+				</form>
+			</div>
+		{/if}
+		<section class="flex flex-wrap justify-center gap-3 p-2">
+			{#each orders as order (order.id)}
+				<div transition:scale={{ delay: 100 * (orders.indexOf(order) + 1), duration: 200 }}>
+					<OrderCard {order} />
+				</div>
+			{/each}
 		</section>
 	{/if}
 </div>
