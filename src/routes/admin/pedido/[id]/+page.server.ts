@@ -14,6 +14,7 @@ import {
 	setShippingWaived,
 	toOrderLines
 } from '$lib/order-content';
+import { requireUser } from '$lib/server/guard';
 
 export const load: PageServerLoad = async (event) => {
 	if (!event.locals.user) {
@@ -34,6 +35,7 @@ export const load: PageServerLoad = async (event) => {
 
 export const actions: Actions = {
 	edit_order: async (event) => {
+		requireUser(event.locals);
 		const formData = await event.request.formData();
 		const orderId = formData.get('order_id') as string;
 		const totalValue = parseFloat(formData.get('total_value') as string);
@@ -52,6 +54,7 @@ export const actions: Actions = {
 		return { ok: true };
 	},
 	delete_order: async (event) => {
+		requireUser(event.locals);
 		const formData = await event.request.formData();
 		const orderId = formData.get('order_id') as string;
 
@@ -69,9 +72,7 @@ export const actions: Actions = {
 		return { ok: true };
 	},
 	toggle_shipping_waive: async (event) => {
-		if (!event.locals.user) {
-			return redirect(302, '/login');
-		}
+		requireUser(event.locals);
 
 		const formData = await event.request.formData();
 		const orderId = formData.get('order_id') as string;
@@ -105,6 +106,7 @@ export const actions: Actions = {
 	},
 
 	update_order_state: async (event) => {
+		requireUser(event.locals);
 		const formData = await event.request.formData();
 		const orderId = formData.get('order_id') as string;
 		const totalValue = parseFloat(formData.get('total_value') as string);
