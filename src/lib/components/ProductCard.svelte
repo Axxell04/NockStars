@@ -65,23 +65,19 @@
 		setProductSelected = () => {};
 	}
 
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			navigateToProduct();
-		}
-	}
-
-	function navigateToProduct() {
-		const returnTo = isAdminRoute ? page.url.pathname + page.url.search : undefined;
-		// Admin cards: an inactive product has no storefront page (404 by design),
-		// so the card opens the backoffice editor instead.
+	// The card is a real link, not a div with a click handler: a crawler only
+	// discovers `/producto/{id}` if the URL is in the HTML, and a native anchor
+	// also restores middle-click, "open in new tab" and copy-link.
+	// Admin cards keep the previous target: an inactive product has no storefront
+	// page (404 by design), so the card opens the backoffice editor instead.
+	let productHref = $derived.by(() => {
 		const target =
 			isAdminRoute && product.product.deactivatedAt
 				? `/admin/producto/${product.product.id}`
 				: `/producto/${product.product.id}`;
-		goto(returnTo ? `${target}?returnTo=${encodeURIComponent(returnTo)}` : target);
-	}
+		const returnTo = isAdminRoute ? page.url.pathname + page.url.search : undefined;
+		return returnTo ? `${target}?returnTo=${encodeURIComponent(returnTo)}` : target;
+	});
 
 	function goToEditProduct() {
 		const returnTo = isAdminRoute ? `/producto/${product.product.id}` : '/admin/catalogo';
@@ -166,31 +162,33 @@
 
 <div
 	bind:this={cardElement}
-	class="group/card card-thread card-product focus-visible:outline-brand-400 relative isolate flex h-80 w-72 cursor-pointer flex-col overflow-hidden rounded-[1.25rem] focus-visible:outline-2 focus-visible:outline-offset-2"
-	onclick={navigateToProduct}
-	onmouseenter={() => {
-		isHovered = true;
-	}}
-	onmouseleave={() => {
-		isHovered = false;
-	}}
-	role="button"
-	tabindex="0"
-	onkeydown={handleKeydown}
-	aria-label="Ver detalle de {product.product.name ?? 'camisa'}"
+	class="group/card card-thread card-product relative isolate flex h-80 w-72 flex-col overflow-hidden rounded-[1.25rem]"
 >
+	<!-- Stretched link: the whole card is the hit area, and the anchor carries the
+	     product URL plus the accessible name. It sits above the visuals (z-20) and
+	     below the admin controls (z-30), so those buttons stay clickable.
+	     Hover events here pause the image carousel. -->
+	<a
+		href={productHref}
+		class="focus-visible:outline-brand-400 absolute inset-0 z-20 rounded-[1.25rem] focus-visible:outline-2 focus-visible:outline-offset-2"
+		onmouseenter={() => {
+			isHovered = true;
+		}}
+		onmouseleave={() => {
+			isHovered = false;
+		}}
+	>
+		<span class="sr-only">Ver detalle de {product.product.name ?? 'camisa'}</span>
+	</a>
 	<!-- Imagen: ocupa toda la card, recortada con el mismo radio -->
 	<div
 		bind:this={imgContainer}
 		class="img-container absolute inset-0 z-0 flex snap-x snap-mandatory flex-row overflow-hidden scroll-smooth rounded-[1.25rem]"
 	>
 		{#each product.imgs as imgProduct, i}
-			<!-- Images are decorative: the card already names the product via
-			     aria-label and visible copy. A raw DB id here would be read
-			     aloud by screen readers. -->
 			<img
 				src={imageUrl(imgProduct.url, 'card')}
-				alt=""
+				alt={i === 0 ? (product.product.name ?? 'camisa') : ''}
 				class="h-full w-72 flex-shrink-0 snap-center object-cover transition-[transform,filter] duration-300 ease-out group-hover/card:scale-[1.06] group-hover/card:brightness-110"
 				loading={priority && i === 0 ? 'eager' : 'lazy'}
 				fetchpriority={priority && i === 0 ? 'high' : 'auto'}
