@@ -194,17 +194,27 @@
 							role="menu"
 						>
 							<a
-								href="/admin/balance"
+								href="/admin/finanzas"
 								class="text-text-secondary hover:bg-surface-2 hover:text-brand-400 flex items-center gap-2.5 px-4 py-2.5 text-sm transition-all hover:pl-5"
 								onclick={() => toggleCardSelectNavMenuIsVisible(false)}
 								onfocus={(e) => cancelFocus(e)}
 								role="menuitem"
 							>
 								<Icon icon="mdi:chart-line" class="text-base" />
-								Balance
+								Dashboard
 							</a>
 							<a
-								href="/admin/pedidos"
+								href="/admin/finanzas?tab=movimientos"
+								class="text-text-secondary hover:bg-surface-2 hover:text-brand-400 flex items-center gap-2.5 px-4 py-2.5 text-sm transition-all hover:pl-5"
+								onclick={() => toggleCardSelectNavMenuIsVisible(false)}
+								onfocus={(e) => cancelFocus(e)}
+								role="menuitem"
+							>
+								<Icon icon="mdi:receipt-outline" class="text-base" />
+								Movimientos
+							</a>
+							<a
+								href="/admin/finanzas?tab=pedidos"
 								class="text-text-secondary hover:bg-surface-2 hover:text-brand-400 flex items-center gap-2.5 px-4 py-2.5 text-sm transition-all hover:pl-5"
 								onclick={() => toggleCardSelectNavMenuIsVisible(false)}
 								onfocus={(e) => cancelFocus(e)}

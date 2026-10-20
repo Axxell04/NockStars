@@ -1,7 +1,7 @@
 /**
  * Day-level range math for the balance dashboard, shared by the page's `load`
  * (URL params) and the list actions (form data). Extracted from
- * `admin/balance/+page.server.ts` so both consumers resolve ranges through
+ * `admin/finanzas/+page.server.ts` so both consumers resolve ranges through
  * exactly the same validation and fail-safe.
  *
  * America/Guayaquil is UTC-5 with no DST, so a fixed offset is exact and

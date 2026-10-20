@@ -33,7 +33,7 @@
 </script>
 
 <a
-	href="/admin/pedido/{order.id}"
+	href="/admin/finanzas/pedidos/{order.id}"
 	aria-label="Ver pedido {order.id}"
 	class="card-thread block w-full max-w-sm min-w-0 self-start rounded-2xl p-3"
 >

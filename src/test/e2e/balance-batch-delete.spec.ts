@@ -65,7 +65,7 @@ test('batch delete removes the selected balance movements', async ({ page }) => 
 	});
 
 	await loginAsAdmin(page);
-	await page.goto('/admin/balance');
+	await page.goto('/admin/finanzas');
 	await waitForHydration(page);
 
 	// The page opens on the Dashboard tab; the movements list (and its add

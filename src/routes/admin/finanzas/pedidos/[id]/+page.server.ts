@@ -1,0 +1,143 @@
+import { error, fail, redirect } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
+import {
+	deleteOrder,
+	getOrderById,
+	getOrderItemSnapshots,
+	getOrderLineDisplay,
+	updateOrder
+} from '$lib/server/order';
+import { createRevenue } from '$lib/server/revenue';
+import {
+	orderShipping,
+	orderShippingInfo,
+	setShippingWaived,
+	toOrderLines
+} from '$lib/order-content';
+import { requireUser } from '$lib/server/guard';
+
+export const load: PageServerLoad = async (event) => {
+	if (!event.locals.user) {
+		return redirect(302, '/login');
+	}
+	const order = await getOrderById(event.params.id);
+	if (!order) {
+		throw error(404, 'Pedido no encontrado');
+	}
+	const lines = toOrderLines(order.content);
+	return {
+		order,
+		// Snapshots let a line whose product is already deleted still show its
+		// images: live lookups come back empty and these take over.
+		display: await getOrderLineDisplay(lines, await getOrderItemSnapshots(order.id))
+	};
+};
+
+export const actions: Actions = {
+	edit_order: async (event) => {
+		requireUser(event.locals);
+		const formData = await event.request.formData();
+		const orderId = formData.get('order_id') as string;
+		const totalValue = parseFloat(formData.get('total_value') as string);
+		let content: object;
+		try {
+			content = JSON.parse(formData.get('content') as string);
+			if (!content || !orderId || !isNumber(totalValue)) {
+				return fail(400, { message: 'Error en los parámetros de la petición' });
+			}
+		} catch {
+			return fail(400, { message: 'Error en los parámetros de la petición' });
+		}
+
+		await updateOrder(orderId, content, undefined, undefined, totalValue);
+
+		return { ok: true };
+	},
+	delete_order: async (event) => {
+		requireUser(event.locals);
+		const formData = await event.request.formData();
+		const orderId = formData.get('order_id') as string;
+
+		if (!orderId) {
+			return fail(400, { message: 'Error en los parámetros de la petición' });
+		}
+
+		try {
+			await deleteOrder(orderId);
+		} catch (err) {
+			console.log(err);
+			return fail(500, { message: 'A ocurrido un error en el servidor' });
+		}
+
+		return { ok: true };
+	},
+	toggle_shipping_waive: async (event) => {
+		requireUser(event.locals);
+
+		const formData = await event.request.formData();
+		const orderId = formData.get('order_id') as string;
+
+		if (!orderId) {
+			return fail(400, { message: 'Error en los parámetros de la petición' });
+		}
+
+		const order = await getOrderById(orderId);
+		if (!order) {
+			return fail(404, { message: 'Pedido no encontrado' });
+		}
+
+		const info = orderShippingInfo(order.content);
+		if (info.fee <= 0) {
+			return fail(400, { message: 'Este pedido no tiene envío que cobrar' });
+		}
+
+		const content = setShippingWaived(order.content, !info.waived) as object;
+		// Server-truth total: lines + the fee actually charged after the flip.
+		// Passed with the content so updateOrder() resyncs an already-booked
+		// revenue row in the same call, and an uncompleted order books this
+		// amount when it is completed.
+		const totalValue =
+			toOrderLines(content).reduce((pv, line) => pv + line.amount * line.unitPrice, 0) +
+			orderShipping(content);
+
+		await updateOrder(orderId, content, undefined, undefined, totalValue);
+
+		return { ok: true };
+	},
+
+	update_order_state: async (event) => {
+		requireUser(event.locals);
+		const formData = await event.request.formData();
+		const orderId = formData.get('order_id') as string;
+		const totalValue = parseFloat(formData.get('total_value') as string);
+
+		if (!orderId || !isNumber(totalValue)) {
+			return fail(400, { message: 'Error en los parámetros de la petición' });
+		}
+
+		const order = await getOrderById(orderId);
+		if (!order) {
+			return fail(404, { message: 'Pedido no encontrado' });
+		}
+
+		try {
+			if (!order.completed) {
+				const revenueId = await createRevenue(
+					parseFloat(totalValue.toFixed(2)),
+					'Orden completada'
+				);
+				await updateOrder(orderId, undefined, true, revenueId);
+			} else {
+				await updateOrder(orderId, undefined, false, null);
+			}
+		} catch {
+			return fail(500, { message: 'A ocurrido un error en el servidor' });
+		}
+
+		return { ok: true };
+	}
+};
+
+function isNumber(value: unknown): value is number {
+	return typeof value === 'number' && !isNaN(value) && value > 0;
+}

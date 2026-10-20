@@ -27,7 +27,7 @@ export const load: PageServerLoad = async (event) => {
 	}
 
 	if (event.locals.user) {
-		return redirect(307, `/admin/pedidos?cod=${cod}`);
+		return redirect(307, `/admin/finanzas?tab=pedidos&cod=${cod}`);
 	}
 
 	// Rendered here so the raw template never reaches the browser, and an
