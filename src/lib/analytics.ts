@@ -146,3 +146,74 @@ export function trackBeginCheckout(params: {
 		}))
 	});
 }
+
+/** purchase — fired on the order confirmation page */
+export function trackPurchase(params: {
+	transaction_id: string;
+	value: number;
+	items: Array<{
+		item_id: string;
+		item_name: string;
+		price: number;
+		quantity: number;
+		item_category?: string;
+		item_variant?: string;
+	}>;
+	shipping?: number;
+	currency?: string;
+}) {
+	trackEvent('purchase', {
+		transaction_id: params.transaction_id,
+		currency: params.currency ?? 'ARS',
+		value: params.value,
+		shipping: params.shipping ?? 0,
+		tax: 0,
+		items: params.items.map((i) => ({
+			item_id: i.item_id,
+			item_name: i.item_name,
+			price: i.price,
+			quantity: i.quantity,
+			item_category: i.item_category,
+			item_variant: i.item_variant
+		}))
+	});
+}
+
+const PURCHASE_TRACKED_PREFIX = 'ga4:purchase:';
+
+/**
+ * Reports `purchase` at most once per order id.
+ *
+ * The confirmation URL is shareable and reloadable, so a bare `onMount` would
+ * report the same sale on every visit and inflate revenue. The flag lives in
+ * localStorage (not sessionStorage) so a second tab cannot report it either.
+ * If storage is unavailable the event still fires: losing a real sale is worse
+ * than an unlikely duplicate.
+ */
+export function trackPurchaseOnce(params: {
+	transaction_id: string;
+	value: number;
+	items: Array<{
+		item_id: string;
+		item_name: string;
+		price: number;
+		quantity: number;
+		item_category?: string;
+		item_variant?: string;
+	}>;
+	shipping?: number;
+	currency?: string;
+}): boolean {
+	if (!browser) return false;
+
+	const key = `${PURCHASE_TRACKED_PREFIX}${params.transaction_id}`;
+	try {
+		if (window.localStorage.getItem(key)) return false;
+		window.localStorage.setItem(key, '1');
+	} catch {
+		// Storage blocked (private mode, denied permission): fall through and report.
+	}
+
+	trackPurchase(params);
+	return true;
+}
