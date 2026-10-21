@@ -16,6 +16,7 @@
 	import { lineDisplay } from '$lib/shipping';
 	import ImageLightbox from '$lib/components/ImageLightbox.svelte';
 	import { cancelFocus } from '$lib/focus';
+	import { trackBeginCheckout } from '$lib/analytics';
 
 	let { data }: PageProps = $props();
 
@@ -148,6 +149,26 @@
 			sendCartModalIsVisible = visible;
 		}
 	}
+
+	/**
+	 * Opens the checkout modal and reports the intent to buy. GA4 expects
+	 * `begin_checkout` when the buyer commits to checkout, not when the order
+	 * is confirmed — `purchase` covers that later step.
+	 */
+	function startCheckout() {
+		if (cartItems.length === 0) return;
+		trackBeginCheckout({
+			value: cartTotal,
+			items: cartItems.map((item) => ({
+				item_id: item.productId,
+				item_name: item.product.name,
+				price: lineBasePrice(item),
+				quantity: item.quantity,
+				item_variant: item.variant ? `${item.variant.size}/${item.variant.color}` : undefined
+			}))
+		});
+		toggleSendCartModalIsVisible(true);
+	}
 </script>
 
 <div in:fade class="flex flex-col gap-6">
@@ -163,11 +184,7 @@
 			<div class="flex items-center gap-3">
 				<button
 					class="btn-primary {cartItems.length === 0 ? 'cursor-not-allowed opacity-50' : ''}"
-					onclick={() => {
-						if (cartItems.length > 0) {
-							toggleSendCartModalIsVisible(true);
-						}
-					}}
+					onclick={startCheckout}
 					onfocus={(e) => cancelFocus(e)}
 					disabled={cartItems.length === 0}
 				>
@@ -424,11 +441,7 @@
 				</div>
 				<button
 					class="btn-primary w-full py-3 sm:w-auto"
-					onclick={() => {
-						if (cartItems.length > 0) {
-							toggleSendCartModalIsVisible(true);
-						}
-					}}
+					onclick={startCheckout}
 					onfocus={(e) => cancelFocus(e)}
 					disabled={cartItems.length === 0}
 				>

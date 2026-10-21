@@ -25,7 +25,7 @@
 	import { CartErrorCode } from '$lib/actions';
 	import type { VariantComplete, ProductWithVariants } from '$lib/actions';
 	import { cancelFocus } from '$lib/focus';
-	import { trackViewItem } from '$lib/analytics';
+	import { trackViewItem, trackAddToCart } from '$lib/analytics';
 
 	let { data }: PageProps = $props();
 
@@ -128,6 +128,26 @@
 	const showFichaTecnica = $derived(
 		productDescription !== '' || productSpecEntries.length > 0 || isExplicitVariant
 	);
+
+	// Analytics: track add_to_cart on successful add
+	function trackAddToCartEvent() {
+		trackAddToCart({
+			items: [
+				{
+					item_id: product.id,
+					item_name: product.name,
+					price: price,
+					quantity: 1,
+					item_category: 'remeras',
+					item_variant: selectedVariant?.size
+						? `${selectedVariant.size}/${selectedVariant.color}`
+						: undefined
+				}
+			],
+			value: price,
+			currency: 'ARS'
+		});
+	}
 
 	// Variant selection handler
 	function handleVariantSelect(variantId: string) {
@@ -430,6 +450,7 @@
 						const { result } = input;
 						if (result.type === 'success' && result.data?.success) {
 							toast('Producto añadido al carrito');
+							trackAddToCartEvent();
 							await invalidateAll();
 						} else if (result.type === 'failure') {
 							if (result.data?.code === CartErrorCode.OUT_OF_STOCK) {

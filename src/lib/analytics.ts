@@ -92,3 +92,57 @@ export function trackViewItem(params: {
 		]
 	});
 }
+
+/** add_to_cart — fired after a successful cart add */
+export function trackAddToCart(params: {
+	items: Array<{
+		item_id: string;
+		item_name: string;
+		price: number;
+		quantity: number;
+		item_category?: string;
+		item_variant?: string;
+	}>;
+	value: number;
+	currency?: string;
+}) {
+	trackEvent('add_to_cart', {
+		currency: params.currency ?? 'ARS',
+		value: params.value,
+		items: params.items.map((i) => ({
+			item_id: i.item_id,
+			item_name: i.item_name,
+			price: i.price,
+			quantity: i.quantity,
+			item_category: i.item_category,
+			item_variant: i.item_variant
+		}))
+	});
+}
+
+/** begin_checkout — fired when the user starts checkout */
+export function trackBeginCheckout(params: {
+	items: Array<{
+		item_id: string;
+		item_name: string;
+		price: number;
+		quantity: number;
+		item_category?: string;
+		item_variant?: string;
+	}>;
+	value: number;
+	currency?: string;
+}) {
+	trackEvent('begin_checkout', {
+		currency: params.currency ?? 'ARS',
+		value: params.value,
+		items: params.items.map((i) => ({
+			item_id: i.item_id,
+			item_name: i.item_name,
+			price: i.price,
+			quantity: i.quantity,
+			item_category: i.item_category,
+			item_variant: i.item_variant
+		}))
+	});
+}
