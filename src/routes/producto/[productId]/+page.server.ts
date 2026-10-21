@@ -45,10 +45,14 @@ export const load: PageServerLoad = async (event) => {
 	const price = effectivePrice(selectedVariant, productData);
 	const stock = effectiveStock(selectedVariant, productData);
 
-	// SEO data
+	// SEO data. The variant description is optional editor copy: `??` would let
+	// an empty (or whitespace-only) string through and render a bare
+	// "— NockStars" title, so the fallback is decided on the trimmed value.
+	const variantLabel = selectedVariant?.description?.trim() || null;
+
 	const seo = {
-		title: `${selectedVariant?.description ?? productData.name} — NockStars`,
-		description: selectedVariant?.description ?? productData.name,
+		title: `${variantLabel ?? productData.name} — NockStars`,
+		description: variantLabel ?? productData.name,
 		type: 'website' as const
 	};
 

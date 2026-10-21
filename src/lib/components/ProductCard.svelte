@@ -8,6 +8,7 @@
 	import { scale } from 'svelte/transition';
 	import { onMount, onDestroy } from 'svelte';
 	import { cancelFocus } from '$lib/focus';
+	import { trackSelectItem } from '$lib/analytics';
 
 	interface Props {
 		product: ProductComplete;
@@ -176,6 +177,18 @@
 		}}
 		onmouseleave={() => {
 			isHovered = false;
+		}}
+		onclick={() => {
+			// Track select_item before navigation (anchor will navigate naturally)
+			if (!isAdminRoute) {
+				trackSelectItem({
+					item_list_name: 'home_grid',
+					item_id: product.product.id,
+					item_name: product.product.name ?? 'camisa',
+					price: displayPrice,
+					item_category: 'remeras'
+				});
+			}
 		}}
 	>
 		<span class="sr-only">Ver detalle de {product.product.name ?? 'camisa'}</span>

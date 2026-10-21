@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { fade } from 'svelte/transition';
+	import { onMount } from 'svelte';
 	import Icon from '@iconify/svelte';
 	import { renderProductWithVariantsJsonLd } from '$lib/json-ld';
 	import {
@@ -24,6 +25,7 @@
 	import { CartErrorCode } from '$lib/actions';
 	import type { VariantComplete, ProductWithVariants } from '$lib/actions';
 	import { cancelFocus } from '$lib/focus';
+	import { trackViewItem } from '$lib/analytics';
 
 	let { data }: PageProps = $props();
 
@@ -35,6 +37,19 @@
 	let selectedVariant: VariantComplete | null = $state(data.selectedVariant ?? null);
 	const implicitVariant: VariantComplete = data.implicitVariant!;
 	let price = $state(data.price!);
+
+	// Analytics: track view_item on page load
+	onMount(() => {
+		trackViewItem({
+			item_id: product.id,
+			item_name: product.name,
+			price: price,
+			item_category: 'remeras',
+			item_variant: selectedVariant?.size
+				? `${selectedVariant.size}/${selectedVariant.color}`
+				: undefined
+		});
+	});
 
 	// Image gallery state
 	let imgIndex = $state(0);

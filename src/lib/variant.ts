@@ -127,11 +127,17 @@ export function hasExplicitVariants(product: ProductWithVariants): boolean {
 }
 
 /**
- * Finds the default variant for a product (first by sortOrder)
+ * Finds the default variant for a product: the first sellable variant by
+ * sortOrder, falling back to the first variant when nothing is in stock.
+ *
+ * Preferring stock keeps the page from opening on an "Agotado" variant while
+ * later ones are sellable. The previous implementation only ordered by
+ * sortOrder, which contradicted this function's own caller contract.
  */
 export function getDefaultVariant(product: ProductWithVariants): VariantComplete | null {
 	if (product.variants.length === 0) {
 		return product.implicitVariant;
 	}
-	return product.variants.reduce((prev, curr) => (curr.sortOrder < prev.sortOrder ? curr : prev));
+	const ordered = [...product.variants].sort((a, b) => a.sortOrder - b.sortOrder);
+	return ordered.find((variant) => isVariantAvailable(variant, product)) ?? ordered[0];
 }

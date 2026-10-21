@@ -10,6 +10,7 @@
 	import type { CartItemWithProduct } from '$lib/actions';
 	import { listingPromo } from '$lib/shipping';
 	import { cancelFocus } from '$lib/focus';
+	import { trackViewItemList } from '$lib/analytics';
 
 	let { data }: PageProps = $props();
 
@@ -47,6 +48,21 @@
 
 	// Toast
 	let toastMessage = $state('');
+
+	// Analytics: track view_item_list when products are rendered
+	$effect(() => {
+		if (products.length > 0) {
+			trackViewItemList({
+				item_list_name: catalogId ? `catalog_${catalogId}` : 'home_grid',
+				items: products.map((p) => ({
+					item_id: p.product.id,
+					item_name: p.product.name ?? 'camisa',
+					price: p.product.price,
+					item_category: 'remeras'
+				}))
+			});
+		}
+	});
 
 	// Toggle Visible Elements
 	function toggleGotoPageListIsVisible(visible?: boolean) {

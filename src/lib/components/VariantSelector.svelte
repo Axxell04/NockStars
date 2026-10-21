@@ -21,18 +21,18 @@
 	let selectedColor = $state<string>('');
 	let selectedCut: 'oversize' | 'recto' = $state('recto');
 
-	// Derived: unique sizes from available variants
-	const availableSizes = $derived(
-		[...new Set(variants.filter((v) => isVariantAvailable(v, product)).map((v) => v.size))].sort()
-	);
+	// Derived: every size the product offers, in stock or not.
+	//
+	// Availability gates an option through `isSizeAvailable` below. Filtering
+	// these lists by stock instead used to hide variants that were already
+	// selected: the page would open on the S variant while the only chip on
+	// screen was L, leaving the summary and the selector contradicting each
+	// other and every disabled-option affordance unreachable.
+	const sizes = $derived([...new Set(variants.map((v) => v.size))].sort());
 
-	// Derived: unique colors from available variants (filtered by selected size if any)
-	const availableColors = $derived([
-		...new Set(
-			variants
-				.filter((v) => isVariantAvailable(v, product) && (!selectedSize || v.size === selectedSize))
-				.map((v) => v.color)
-		)
+	// Derived: every color offered for the selected size (or for all sizes)
+	const colors = $derived([
+		...new Set(variants.filter((v) => !selectedSize || v.size === selectedSize).map((v) => v.color))
 	]);
 
 	// Derived: colour label -> swatch hex. `color` is a human label ("Negro") and
@@ -40,14 +40,13 @@
 	// Variants created before the swatch existed fall back to a neutral dot.
 	const colorHexByLabel = $derived(new Map(variants.map((v) => [v.color, v.colorHex ?? null])));
 
-	// Derived: unique cuts from available variants (filtered by size/color if selected)
-	const availableCuts = $derived(
+	// Derived: every cut offered for the selected size/colour
+	const cuts = $derived(
 		[
 			...new Set(
 				variants
 					.filter(
 						(v) =>
-							isVariantAvailable(v, product) &&
 							(!selectedSize || v.size === selectedSize) &&
 							(!selectedColor || v.color === selectedColor)
 					)
@@ -128,6 +127,22 @@
 		);
 	}
 
+	// Roving tabindex targets. A `disabled` radio cannot take focus, so when the
+	// selected option is out of stock the first sellable one holds the tab stop.
+	// Without this every option ends up tabindex="-1" and the group drops out of
+	// the tab order — a consequence of now rendering unavailable options instead
+	// of hiding them.
+	const sizesTabStop = $derived(
+		selectedSize && isSizeAvailable(selectedSize)
+			? selectedSize
+			: (sizes.find((size) => isSizeAvailable(size)) ?? sizes[0] ?? '')
+	);
+	const colorsTabStop = $derived(
+		selectedColor && isColorAvailable(selectedColor)
+			? selectedColor
+			: (colors.find((color) => isColorAvailable(color)) ?? colors[0] ?? '')
+	);
+
 	// Re-seat the cut on a combination the current size/colour actually offers.
 	// `resolveVariant` matches size/colour/cut exactly, so a cut outside that set
 	// leaves the selector unmatched forever — and when only one cut exists there
@@ -135,9 +150,11 @@
 	// oversize-only products, where the badge showed the available cut while the
 	// state silently held another.
 	function syncCutToAvailable() {
-		if (!isCutAvailable(selectedCut)) {
-			selectedCut = availableCuts[0] ?? selectedCut;
-		}
+		if (isCutAvailable(selectedCut)) return;
+		// Prefer a sellable cut first: the current one may exist in the catalogue
+		// but be out of stock, and moving to another unavailable cut would keep
+		// the page reading "Agotado" for no visible reason.
+		selectedCut = cuts.find((cut) => isCutAvailable(cut)) ?? cuts[0] ?? selectedCut;
 	}
 
 	// Handle size selection
@@ -275,11 +292,11 @@
 	<!-- Explicit variants - size/color/cut selection -->
 	<div class="flex flex-col gap-4" role="radiogroup" aria-label="Seleccionar variante">
 		<!-- Size Selection -->
-		{#if availableSizes.length > 0}
+		{#if sizes.length > 0}
 			<fieldset class="flex flex-col gap-3">
 				<legend class="text-text-secondary text-sm font-medium">Talla</legend>
 				<div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Seleccionar talla">
-					{#each availableSizes as size}
+					{#each sizes as size}
 						<button
 							type="button"
 							class="chip {selectedSize === size
@@ -296,15 +313,9 @@
 							data-option-value={size}
 							onclick={() => isSizeAvailable(size) && handleSizeSelect(size)}
 							onkeydown={(e) =>
-								handleKeydown(
-									e,
-									availableSizes,
-									selectedSize,
-									handleSizeSelect,
-									(s) => !isSizeAvailable(s)
-								)}
+								handleKeydown(e, sizes, selectedSize, handleSizeSelect, (s) => !isSizeAvailable(s))}
 							disabled={!isSizeAvailable(size)}
-							tabindex={selectedSize === size ? 0 : -1}
+							tabindex={sizesTabStop === size ? 0 : -1}
 						>
 							{size}
 							{#if !isSizeAvailable(size)}
@@ -317,11 +328,11 @@
 		{/if}
 
 		<!-- Color Selection -->
-		{#if availableColors.length > 0}
+		{#if colors.length > 0}
 			<fieldset class="flex flex-col gap-3">
 				<legend class="text-text-secondary text-sm font-medium">Color</legend>
 				<div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Seleccionar color">
-					{#each availableColors as color}
+					{#each colors as color}
 						<button
 							type="button"
 							class="swatch {selectedColor === color
@@ -338,13 +349,13 @@
 							onkeydown={(e) =>
 								handleKeydown(
 									e,
-									availableColors,
+									colors,
 									selectedColor,
 									handleColorSelect,
 									(c) => !isColorAvailable(c)
 								)}
 							disabled={!isColorAvailable(color)}
-							tabindex={selectedColor === color ? 0 : -1}
+							tabindex={colorsTabStop === color ? 0 : -1}
 						>
 							<span
 								class="swatch-dot"
@@ -362,23 +373,23 @@
 		{/if}
 
 		<!-- Cut Selection (read-only badge when determined) -->
-		{#if availableCuts.length > 0 && selectedSize && selectedColor}
+		{#if cuts.length > 0 && selectedSize && selectedColor}
 			<div class="glass flex items-center gap-3 rounded-xl border border-white/4 p-3">
 				<Icon icon="mdi:scissors-cutting" class="text-brand-400 text-xl" />
 				<div class="flex-1">
 					<p class="text-text-secondary text-sm font-medium">Corte</p>
 					<p class="text-text-primary font-medium capitalize">
-						{availableCuts.length === 1 ? availableCuts[0] : `${availableCuts.join(' / ')} (auto)`}
+						{cuts.length === 1 ? cuts[0] : `${cuts.join(' / ')} (auto)`}
 					</p>
 				</div>
-				{#if availableCuts.length > 1}
+				{#if cuts.length > 1}
 					<select
 						bind:value={selectedCut}
 						onchange={(e) => handleCutSelect(e.currentTarget.value as 'oversize' | 'recto')}
 						class="bg-surface-2 text-text-primary focus:border-brand-400 rounded-lg border-white/4 px-3 py-1.5 text-sm focus:outline-none"
 						aria-label="Seleccionar corte"
 					>
-						{#each availableCuts as cut}
+						{#each cuts as cut}
 							<option value={cut}>{cut}</option>
 						{/each}
 					</select>
@@ -426,7 +437,8 @@
 					<p class="text-text-muted text-xs">
 						{!selectedSize ? 'Falta talla' : ''}
 						{selectedSize && !selectedColor ? 'Falta color' : ''}
-						{selectedSize && selectedColor && availableCuts.length === 0
+						{selectedSize && selectedColor && cuts.length === 0 ? 'Combinación no disponible' : ''}
+						{selectedSize && selectedColor && cuts.length > 0 && !cuts.some(isCutAvailable)
 							? 'Sin stock para esta combinación'
 							: ''}
 					</p>

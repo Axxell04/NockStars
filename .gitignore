@@ -41,4 +41,5 @@ vite.config.ts.timestamp-*
 # Playwright run artifacts
 /playwright-report/
 /test-results/
+/.playwright-mcp/
 
