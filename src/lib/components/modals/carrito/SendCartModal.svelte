@@ -7,6 +7,7 @@
 	import { page } from '$app/state';
 	import type { ShippingSelection } from '$lib/shipping';
 	import { normalizeWhatsAppNumber } from '$lib/whatsapp';
+	import { trackPurchaseOnce } from '$lib/analytics';
 	import Icon from '@iconify/svelte';
 	import Spinner from '$lib/components/Spinner.svelte';
 
@@ -40,16 +41,13 @@
 		normalizeWhatsAppNumber(contactData?.whatsappNumber || '593997733619')
 	);
 
-	let linesTotal = $derived(
-		cart.reduce((pv, cv) => {
-			const variant = cv.variant;
-			const price =
-				variant?.priceOverride !== null && variant?.priceOverride !== undefined
-					? Number(variant.priceOverride)
-					: cv.product.price;
-			return pv + price * cv.quantity;
-		}, 0)
-	);
+	/** Unit price for one line: the variant override when present. */
+	function linePrice(item: CartItemWithProduct): number {
+		const override = item.variant?.priceOverride;
+		return override !== null && override !== undefined ? Number(override) : item.product.price;
+	}
+
+	let linesTotal = $derived(cart.reduce((pv, cv) => pv + linePrice(cv) * cv.quantity, 0));
 	// Flat fee joins the total once — only for a cart that has lines.
 	let shippingFee = $derived(shipping && cart.length > 0 ? shipping.fee : 0);
 	let totalValue = $derived(linesTotal + shippingFee);
@@ -59,6 +57,27 @@
 			`Hola, este es mi pedido \n ${page.url.origin}/pedido/${cod}`
 		);
 		window.open(`https://wa.me/${whatsappNumber}?text=${message}`, '_blank');
+	}
+
+	/**
+	 * Reports the sale when the server mints the order, which is the only
+	 * guaranteed moment in this flow: checkout continues in WhatsApp, so the
+	 * customer may never open /pedido/[cod]. Must run before `onCartResult`
+	 * re-seeds the cart from the (now empty) server payload.
+	 */
+	function trackOrderPurchase(cod: string) {
+		trackPurchaseOnce({
+			transaction_id: cod,
+			value: totalValue,
+			shipping: shippingFee,
+			items: cart.map((item) => ({
+				item_id: item.productId,
+				item_name: item.product.name,
+				price: linePrice(item),
+				quantity: item.quantity,
+				item_variant: item.variant ? `${item.variant.size}/${item.variant.color}` : undefined
+			}))
+		});
 	}
 
 	$effect(() => {
@@ -88,10 +107,12 @@
 								}
 								await onCartResult(result);
 							} else if (result.type === 'success') {
-								await onCartResult(result);
 								if (result.data?.cod) {
-									sendWhatsApp(result.data?.cod as string);
+									// Report while `cart` still holds the accepted lines.
+									trackOrderPurchase(result.data.cod as string);
+									sendWhatsApp(result.data.cod as string);
 								}
+								await onCartResult(result);
 								toggleSendCartModalIsVisible(false);
 							}
 						} finally {

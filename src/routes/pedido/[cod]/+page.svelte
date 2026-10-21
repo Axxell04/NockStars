@@ -1,11 +1,9 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
-	import { onMount } from 'svelte';
 	import type { PageProps } from './$types';
 	import Icon from '@iconify/svelte';
 	import { imageUrl } from '$lib/cloudinary';
 	import { formatOrderDate, orderLinesTotal, orderShipping } from '$lib/order-content';
-	import { trackPurchaseOnce } from '$lib/analytics';
 	import ImageLightbox from '$lib/components/ImageLightbox.svelte';
 
 	let { data }: PageProps = $props();
@@ -18,29 +16,6 @@
 	const shippingFee = $derived(order ? orderShipping(order.content) : 0);
 	const linesTotal = $derived(order ? orderLinesTotal(order.items) : 0);
 	const totalValue = $derived(linesTotal + shippingFee);
-
-	// Analytics: report the sale exactly once. The confirmation URL is
-	// shareable and reloadable, and GA4 does not dedupe by transaction_id,
-	// so the guard lives in `trackPurchaseOnce` (localStorage per order id).
-	onMount(() => {
-		if (!order) return;
-		trackPurchaseOnce({
-			transaction_id: order.id,
-			value: totalValue,
-			shipping: shippingFee,
-			items: order.items.map((item) => ({
-				item_id: item.productId || item.productNameSnapshot,
-				item_name: item.product?.name ?? item.productNameSnapshot,
-				price: Number(item.unitPriceSnapshot),
-				quantity: item.quantity,
-				item_variant: item.variant
-					? `${item.variant.size}/${item.variant.color}`
-					: item.variantSizeSnapshot || item.variantColorSnapshot
-						? `${item.variantSizeSnapshot ?? 'Único'}/${item.variantColorSnapshot ?? 'Único'}`
-						: undefined
-			}))
-		});
-	});
 </script>
 
 {#if order}
