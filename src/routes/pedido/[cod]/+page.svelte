@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
+	import { untrack } from 'svelte';
 	import type { PageProps } from './$types';
 	import Icon from '@iconify/svelte';
 	import { imageUrl } from '$lib/cloudinary';
@@ -8,7 +9,7 @@
 
 	let { data }: PageProps = $props();
 
-	const order = data.order;
+	const order = untrack(() => data.order);
 	let viewer: { urls: string[]; index: number; name: string } | null = $state(null);
 	// Delivery fee recorded at checkout; 0 for orders placed before it existed.
 	// It stays folded into `totalValue` but is no longer itemized on the page —

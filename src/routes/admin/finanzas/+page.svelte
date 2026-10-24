@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/state';
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
 	import type { ActionResult } from '@sveltejs/kit';
 	import type { PageProps } from './$types';
@@ -24,9 +24,9 @@
 	import { actionFailureMessage } from '$lib/action-result';
 
 	let { data }: PageProps = $props();
-	let totalRevenue = $state(data.totalRevenue);
-	let totalCost = $state(data.totalCost);
-	let totalExpense = $state(data.totalExpense);
+	let totalRevenue = $state(untrack(() => data.totalRevenue));
+	let totalCost = $state(untrack(() => data.totalCost));
+	let totalExpense = $state(untrack(() => data.totalExpense));
 	let profits = $derived(totalRevenue - (totalCost + totalExpense));
 
 	// Dashboard zone — range-scoped analytics. Never mirrored into local
@@ -100,7 +100,7 @@
 	// action handlers' setBalanceDetailPagination. Deliberately $state, not
 	// $derived — this binding is locally assigned.
 	let balanceDetailPagination: BalanceDetailPagination | undefined = $state(
-		data.balanceDetailPagination
+		untrack(() => data.balanceDetailPagination)
 	);
 	let balanceDetails: BalanceDetail[] | undefined = $derived(
 		balanceDetailPagination?.balanceDetails
@@ -124,16 +124,16 @@
 
 	// View State — seeded from the server-validated cookie view (an unknown
 	// cookie value already fell back to 'resume' in load).
-	let viewState: ViewState = $state(data.viewState);
+	let viewState: ViewState = $state(untrack(() => data.viewState));
 
 	// Orders pane — same bootstrap pattern: `load` seeds the range-scoped
 	// page for the cookie view, every later change flows through the
 	// orders_* action handlers' setOrderPagination. `ordersViewState` drives
 	// the orders toggle; `viewState` above belongs to the balance dropdown —
 	// the two dropdowns coexist in the shared bar and must not share state.
-	let orderPagination: OrderPagination = $state(data.orderPagination);
+	let orderPagination: OrderPagination = $state(untrack(() => data.orderPagination));
 	let orders: Order[] = $derived(orderPagination.orders);
-	let ordersViewState: 'pending' | 'completed' = $state(data.ordersViewState);
+	let ordersViewState: 'pending' | 'completed' = $state(untrack(() => data.ordersViewState));
 
 	// ORDER COD — a `cod` param narrows the pane to that single order ("Hecho"
 	// is the explicit exit back to the period list).
@@ -143,7 +143,7 @@
 	// load), same bootstrap philosophy as viewState. Switching is pure client
 	// state: no load rerun, so the applied search/sort/range and any batch
 	// selection survive. Deliberately $state, not $derived — locally assigned.
-	let activeTab: 'dashboard' | 'movimientos' | 'pedidos' = $state(data.tab);
+	let activeTab: 'dashboard' | 'movimientos' | 'pedidos' = $state(untrack(() => data.tab));
 
 	const VIEW_OPTIONS: { value: ViewState; label: string }[] = [
 		{ value: 'resume', label: 'Resumen' },
@@ -177,16 +177,16 @@
 	// The range the current list was fetched with, compared against `data` by
 	// the sync effect below. Plain lets on purpose: nothing renders from them,
 	// and non-reactive writes cannot re-trigger the effect that writes them.
-	let appliedRangeFrom = data.dashboard.range.from;
-	let appliedRangeTo = data.dashboard.range.to;
+	let appliedRangeFrom = untrack(() => data.dashboard.range.from);
+	let appliedRangeTo = untrack(() => data.dashboard.range.to);
 
 	// Same plain-let tracker contract for the orders pane: the range and cod
 	// the current orderPagination was fetched with, seeded from `data` at the
 	// same moment the list itself was seeded. The cod tracker reads the URL
 	// directly rather than the `cod` derived — same value at init, without
 	// referencing local reactive state in a plain initializer.
-	let ordersAppliedRangeFrom = data.dashboard.range.from;
-	let ordersAppliedRangeTo = data.dashboard.range.to;
+	let ordersAppliedRangeFrom = untrack(() => data.dashboard.range.from);
+	let ordersAppliedRangeTo = untrack(() => data.dashboard.range.to);
 	let ordersAppliedCod = page.url.searchParams.get('cod');
 
 	// HTML Elements

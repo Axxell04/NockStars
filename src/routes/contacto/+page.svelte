@@ -2,13 +2,14 @@
 	import { enhance } from '$app/forms';
 	import ContactCard from '$lib/components/ContactCard.svelte';
 	import { fade, scale, slide } from 'svelte/transition';
+	import { untrack } from 'svelte';
 	import type { PageProps } from './$types';
 	import Icon from '@iconify/svelte';
 	import { cancelFocus } from '$lib/focus';
 
 	let { data }: PageProps = $props();
 
-	let contacts = $state(data.contacts);
+	let contacts = $state(untrack(() => data.contacts));
 
 	let formMessage = $state('');
 

@@ -3,7 +3,7 @@
 	import { enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { fade } from 'svelte/transition';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import Icon from '@iconify/svelte';
 	import { renderProductWithVariantsJsonLd } from '$lib/json-ld';
 	import {
@@ -31,12 +31,12 @@
 
 	// Product data from server (ProductWithVariants spreads product properties directly)
 	// Data is guaranteed to exist since server returns 404 if not found
-	const product: ProductWithVariants = data.product!;
-	const variants: VariantComplete[] = data.variants!;
+	const product: ProductWithVariants = untrack(() => data.product!);
+	const variants: VariantComplete[] = untrack(() => data.variants!);
 	const isAdminUser = $derived(Boolean(page.data.user?.admin));
-	let selectedVariant: VariantComplete | null = $state(data.selectedVariant ?? null);
-	const implicitVariant: VariantComplete = data.implicitVariant!;
-	let price = $state(data.price!);
+	let selectedVariant: VariantComplete | null = $state(untrack(() => data.selectedVariant ?? null));
+	const implicitVariant: VariantComplete = untrack(() => data.implicitVariant!);
+	let price = $state(untrack(() => data.price!));
 
 	// Analytics: track view_item on page load
 	onMount(() => {

@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import type { Catalog } from '$lib/interfaces/catalog';
 	import Icon from '@iconify/svelte';
+	import { untrack } from 'svelte';
 	import { scale } from 'svelte/transition';
 	import { cancelFocus } from '$lib/focus';
 
@@ -24,16 +25,12 @@
 	let actualRoute = $derived(page.route.id);
 	let isSelected = $derived(catalog.id === catalogSelected?.id);
 
-	if (!toggleDeleteCatalogModalIsVisible) {
-		toggleDeleteCatalogModalIsVisible = () => {};
-	}
-	if (!toggleEditCatalogModalIsVisible) {
-		toggleEditCatalogModalIsVisible = () => {};
-	}
+	toggleDeleteCatalogModalIsVisible = untrack(
+		() => toggleDeleteCatalogModalIsVisible || (() => {})
+	);
+	toggleEditCatalogModalIsVisible = untrack(() => toggleEditCatalogModalIsVisible || (() => {}));
 
-	if (!selectThisCatalog) {
-		selectThisCatalog = () => {};
-	}
+	selectThisCatalog = untrack(() => selectThisCatalog || (() => {}));
 </script>
 
 <div

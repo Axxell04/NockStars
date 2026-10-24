@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
+	import { untrack } from 'svelte';
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
@@ -25,22 +26,28 @@
 	// deliberately not re-applied on refresh: invalidateAll() re-runs `load`
 	// while the query string stays in the URL, so re-applying it would yank
 	// the admin back to Variantes mid-navigation.
-	let activeTab = $state<'catalogs' | 'products' | 'variants'>(data.deepLink?.tab ?? 'catalogs');
+	let activeTab = $state<'catalogs' | 'products' | 'variants'>(
+		untrack(() => data.deepLink?.tab ?? 'catalogs')
+	);
 
 	// Catalog data
-	let catalogs: Catalog[] = $state(data.catalogs);
+	let catalogs: Catalog[] = $state(untrack(() => data.catalogs));
 	let catalogSelected: Catalog | undefined = $state(
 		// `?.` because TS does not narrow `data.deepLink` inside the callback;
 		// the outer ternary already guarantees it is non-null here.
-		data.deepLink ? data.catalogs.find((c) => c.id === data.deepLink?.catalogId) : undefined
+		untrack(() =>
+			data.deepLink ? data.catalogs.find((c) => c.id === data.deepLink?.catalogId) : undefined
+		)
 	);
 
 	// Product data
 	let products: ProductComplete[] = $state([]);
-	let productSelected: ProductComplete | undefined = $state(data.deepLink?.product ?? undefined);
+	let productSelected: ProductComplete | undefined = $state(
+		untrack(() => data.deepLink?.product ?? undefined)
+	);
 
 	// Variant data
-	let variants: VariantComplete[] = $state(data.deepLink?.variants ?? []);
+	let variants: VariantComplete[] = $state(untrack(() => data.deepLink?.variants ?? []));
 	let variantToEdit: VariantComplete | null = $state(null);
 	let variantToDelete: VariantComplete | null = $state(null);
 

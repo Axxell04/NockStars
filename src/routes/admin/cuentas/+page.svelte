@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { fade, fly } from 'svelte/transition';
+	import { untrack } from 'svelte';
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 	import type { User, UserToken } from '$lib/interfaces/user';
@@ -11,9 +12,9 @@
 
 	let { data }: PageProps = $props();
 
-	let userTokens = $state(data.userTokens);
-	let users = $state(data.users);
-	let sessionUser = $state(data.user);
+	let userTokens = $state(untrack(() => data.userTokens));
+	let users = $state(untrack(() => data.users));
+	let sessionUser = $state(untrack(() => data.user));
 
 	let viewState = $state('users');
 

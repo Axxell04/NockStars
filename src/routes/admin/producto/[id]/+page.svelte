@@ -6,6 +6,7 @@
 	import type { ActionResult } from '@sveltejs/kit';
 	import Icon from '@iconify/svelte';
 	import { fade } from 'svelte/transition';
+	import { untrack } from 'svelte';
 	import ContainerModal from '$lib/components/modals/ContainerModal.svelte';
 	import { toast } from '$lib/toast.svelte.js';
 	import {
@@ -106,17 +107,17 @@
 	}
 
 	// Form fields
-	let name = $state(data.product.name);
-	let price = $state(data.product.price.toString());
-	let stock = $state(data.product.stock.toString());
-	let description = $state(data.product.description || '');
+	let name = $state(untrack(() => data.product.name));
+	let price = $state(untrack(() => data.product.price.toString()));
+	let stock = $state(untrack(() => data.product.stock.toString()));
+	let description = $state(untrack(() => data.product.description || ''));
 
 	type SpecRow = { id: string; key: string; value: string };
 
 	// Seeded once from the stored sheet, the same way the rest of the form is
 	// seeded. Keys carry stable ids so removing a row cannot shift another row's
 	// DOM node out from under its input.
-	let specRows = $state<SpecRow[]>(seedSpecRows(data.product.specs));
+	let specRows = $state<SpecRow[]>(untrack(() => seedSpecRows(data.product.specs)));
 
 	function createSpecRow(key = '', value = ''): SpecRow {
 		return { id: crypto.randomUUID(), key, value };
@@ -147,7 +148,7 @@
 
 	// Local copy so a reorder responds immediately; the effect re-seeds it from
 	// the server after every invalidateAll, which also undoes a failed save.
-	let productImages = $state([...data.product.productImages]);
+	let productImages = $state(untrack(() => [...data.product.productImages]));
 
 	$effect(() => {
 		productImages = [...data.product.productImages];

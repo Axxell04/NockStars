@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { untrack } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import type { PageProps } from './$types';
 	import { goto } from '$app/navigation';
@@ -9,7 +10,7 @@
 	let { data }: PageProps = $props();
 
 	// Catalog list
-	let catalogs: Catalog[] = $state(data.catalogs);
+	let catalogs: Catalog[] = $state(untrack(() => data.catalogs));
 
 	// Selected Product
 	let catalogSelected: Catalog | undefined = $state();

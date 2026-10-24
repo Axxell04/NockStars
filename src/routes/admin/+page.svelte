@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { untrack } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
 	import type { PageProps } from './$types';
 	import ProductCard from '$lib/components/ProductCard.svelte';
@@ -14,14 +15,14 @@
 	let { data }: PageProps = $props();
 
 	// Pagination Data
-	let productPagination: ProductPagination = $state(data.pagination);
+	let productPagination: ProductPagination = $state(untrack(() => data.pagination));
 	let products: ProductComplete[] = $derived(productPagination.products);
 
 	let gotoPage: number | undefined = $state();
 
 	// Catalogs
-	let catalogs = $state(data.catalogs);
-	let catalogId = $state(data.catalogId ?? '');
+	let catalogs = $state(untrack(() => data.catalogs));
+	let catalogId = $state(untrack(() => data.catalogId ?? ''));
 
 	// HTML Elements
 	let selectCatalogElement: HTMLButtonElement | undefined = $state();

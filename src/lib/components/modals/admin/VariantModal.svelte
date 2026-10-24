@@ -3,6 +3,7 @@
 	import type { VariantComplete, VariantImg } from '$lib/actions';
 	import type { ActionResult } from '@sveltejs/kit';
 	import { deserialize } from '$app/forms';
+	import { untrack } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
 	import ContainerModal from '../ContainerModal.svelte';
 	import ImageMoveButtons from '../../ImageMoveButtons.svelte';
@@ -24,23 +25,25 @@
 		$props();
 
 	let formMessage = $state('');
-	let name = $state(variantToEdit?.size ?? '');
-	let color = $state(variantToEdit?.color ?? '');
-	let colorHex = $state(variantToEdit?.colorHex ?? '#808080');
-	let cut = $state<'oversize' | 'recto'>(variantToEdit?.cut ?? 'oversize');
-	let description = $state(variantToEdit?.description ?? '');
-	let stock = $state(variantToEdit?.stock ?? 0);
+	let name = $state(untrack(() => variantToEdit?.size ?? ''));
+	let color = $state(untrack(() => variantToEdit?.color ?? ''));
+	let colorHex = $state(untrack(() => variantToEdit?.colorHex ?? '#808080'));
+	let cut = $state<'oversize' | 'recto'>(untrack(() => variantToEdit?.cut ?? 'oversize'));
+	let description = $state(untrack(() => variantToEdit?.description ?? ''));
+	let stock = $state(untrack(() => variantToEdit?.stock ?? 0));
 	let priceOverride = $state(
-		variantToEdit?.priceOverride !== null && variantToEdit?.priceOverride !== undefined
-			? String(Number(variantToEdit.priceOverride))
-			: ''
+		untrack(() =>
+			variantToEdit?.priceOverride !== null && variantToEdit?.priceOverride !== undefined
+				? String(Number(variantToEdit.priceOverride))
+				: ''
+		)
 	);
-	let sortOrder = $state(variantToEdit?.sortOrder ?? 0);
+	let sortOrder = $state(untrack(() => variantToEdit?.sortOrder ?? 0));
 	let imgsList: File[] = $state([]);
 	let existingImages: VariantImg[] = $state([]);
 	let uploading = $state(false);
 	let reorderingImages = $state(false);
-	let variantId = $state(variantToEdit?.id ?? '');
+	let variantId = $state(untrack(() => variantToEdit?.id ?? ''));
 
 	let inputImgs: HTMLInputElement | undefined = $state();
 

@@ -4,6 +4,7 @@
 	import { page } from '$app/state';
 	import { deserialize } from '$app/forms';
 	import type { ActionResult } from '@sveltejs/kit';
+	import { untrack } from 'svelte';
 	import Icon from '@iconify/svelte';
 	import {
 		MAX_SPEC_KEY_LENGTH,
@@ -31,7 +32,7 @@
 	let stock = $state('');
 	// Seeded once from the validated query param; the select is then free to
 	// change it — it is the admin's choice, not a constraint.
-	let catalogId = $state(data.initialCatalogId ?? '');
+	let catalogId = $state(untrack(() => data.initialCatalogId ?? ''));
 	let description = $state('');
 	let specRows = $state<SpecRow[]>([createSpecRow()]);
 

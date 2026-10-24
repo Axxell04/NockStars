@@ -6,7 +6,7 @@
 	import { withShipping, type ListingPromo, type ShippingSelection } from '$lib/shipping';
 	import Icon from '@iconify/svelte';
 	import { scale } from 'svelte/transition';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, untrack } from 'svelte';
 	import { cancelFocus } from '$lib/focus';
 	import { trackSelectItem } from '$lib/analytics';
 
@@ -56,15 +56,11 @@
 		isAdminRoute || !shipping || compareAt !== null ? basePrice : withShipping(basePrice, shipping)
 	);
 
-	if (!toggleDeleteProductModalIsVisible) {
-		toggleDeleteProductModalIsVisible = () => {};
-	}
-	if (!toggleEditProductModalIsVisible) {
-		toggleEditProductModalIsVisible = () => {};
-	}
-	if (!setProductSelected) {
-		setProductSelected = () => {};
-	}
+	toggleDeleteProductModalIsVisible = untrack(
+		() => toggleDeleteProductModalIsVisible || (() => {})
+	);
+	toggleEditProductModalIsVisible = untrack(() => toggleEditProductModalIsVisible || (() => {}));
+	setProductSelected = untrack(() => setProductSelected || (() => {}));
 
 	// The card is a real link, not a div with a click handler: a crawler only
 	// discovers `/producto/{id}` if the URL is in the HTML, and a native anchor

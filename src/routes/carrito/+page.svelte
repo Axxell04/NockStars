@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
+	import { untrack } from 'svelte';
 	import type { PageProps } from './$types';
 	import type { ActionResult } from '@sveltejs/kit';
 	import Icon from '@iconify/svelte';
@@ -20,7 +21,7 @@
 
 	let { data }: PageProps = $props();
 
-	let cartItems: CartItemWithProduct[] = $state(data.cartItems);
+	let cartItems: CartItemWithProduct[] = $state(untrack(() => data.cartItems));
 
 	// HTML Elements
 	let clearCartModalIsVisible = $state(false);

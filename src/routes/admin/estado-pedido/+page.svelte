@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
+	import { untrack } from 'svelte';
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
@@ -17,8 +18,8 @@
 	// Live-edited copies of the saved templates. Re-seeded explicitly from the
 	// action result below rather than derived from `data`, so typing is never
 	// clobbered by a background invalidation.
-	let pendingMessage = $state(data.messages.pendingMessage);
-	let completedMessage = $state(data.messages.completedMessage);
+	let pendingMessage = $state(untrack(() => data.messages.pendingMessage));
+	let completedMessage = $state(untrack(() => data.messages.completedMessage));
 
 	let pendingTextarea = $state<HTMLTextAreaElement>();
 	let completedTextarea = $state<HTMLTextAreaElement>();

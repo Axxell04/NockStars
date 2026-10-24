@@ -3,6 +3,7 @@
 	import type { Contact } from '$lib/interfaces/contact';
 
 	import Icon from '@iconify/svelte';
+	import { untrack } from 'svelte';
 	import { scale } from 'svelte/transition';
 	import { cancelFocus } from '$lib/focus';
 
@@ -25,17 +26,13 @@
 
 	let icon = $derived(`simple-icons:${contact.icon}`);
 
-	if (typeof toggleDeleteContactModalIsVisible === 'undefined') {
-		toggleDeleteContactModalIsVisible = () => {};
-	}
+	toggleDeleteContactModalIsVisible = untrack(
+		() => toggleDeleteContactModalIsVisible ?? (() => {})
+	);
 
-	if (typeof toggleEditContactModalIsVisible === 'undefined') {
-		toggleEditContactModalIsVisible = () => {};
-	}
+	toggleEditContactModalIsVisible = untrack(() => toggleEditContactModalIsVisible ?? (() => {}));
 
-	if (typeof selectThisContact === 'undefined') {
-		selectThisContact = () => {};
-	}
+	selectThisContact = untrack(() => selectThisContact ?? (() => {}));
 
 	function openContactUrl(e: Event) {
 		e.preventDefault();

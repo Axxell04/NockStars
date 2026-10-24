@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
+	import { untrack } from 'svelte';
 	import type { PageProps } from './$types';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
@@ -32,13 +33,13 @@
 			}
 		};
 
-	let contacts = $state(data.contacts);
+	let contacts = $state(untrack(() => data.contacts));
 	let contactSelected: Contact | undefined = $state();
 
 	// Live echo of the WhatsApp field. Seeded once from the saved value and
 	// then owned by the input, so the preview reflects typing rather than the
 	// last server response — same shape as the estado-pedido editor.
-	let whatsappInput = $state(data.contactConfig?.whatsappNumber ?? '');
+	let whatsappInput = $state(untrack(() => data.contactConfig?.whatsappNumber ?? ''));
 
 	// Exactly the digits checkout will send to wa.me, and whether they form a
 	// number WhatsApp can actually open. Both read `whatsappInput`, so the

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ProductCard from '$lib/components/ProductCard.svelte';
+	import { untrack } from 'svelte';
 	import { fade, scale, slide } from 'svelte/transition';
 	import type { PageProps } from './$types';
 	import type { ProductComplete, ProductPagination } from '$lib/interfaces/product';
@@ -15,7 +16,7 @@
 	let { data }: PageProps = $props();
 
 	// Pagination Data
-	let productPagination: ProductPagination = $state(data.pagination);
+	let productPagination: ProductPagination = $state(untrack(() => data.pagination));
 	let products: ProductComplete[] = $derived(productPagination.products);
 
 	let gotoPage: number | undefined = $state();
@@ -26,14 +27,14 @@
 	// in the admin). Do NOT convert the three seeds below to `$derived`: they are
 	// deliberately bootstrap-only and are re-seeded manually from action results.
 	let catalogs = $derived(data.catalogs);
-	let catalogId = $state(data.catalogId ?? '');
+	let catalogId = $state(untrack(() => data.catalogId ?? ''));
 
 	// Search
 	let inputSearchIsVisible = $state(false);
 	let searchValue = $state('');
 
 	// Cart
-	let cart: CartItemWithProduct[] = $state(data.cartItems);
+	let cart: CartItemWithProduct[] = $state(untrack(() => data.cartItems));
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	let cartCount: number = $derived(cart.reduce((acc, item) => acc + item.quantity, 0));
 
